@@ -133,8 +133,8 @@ class GaussianCom(EmptyGaussianCom):
         """ Return a list of Qmmm gaussian atoms """
         atoms_list = []
         for line in self.lines [self.blank_lines[1]+2:self.blank_lines[2]]:
-            mm_type_charge, mask, x, y, z, layer = line.split(None,5)[0:6]
-            element, mm_type, charge = mm_type_charge.split('-',2)
+            print(line)
+            element, mm_type, charge, mask, x, y, z, layer = self._parse_cartesian_input(line)
             atoms_list.append(QmmmAtom(element, mm_type, charge, mask, 
                                        x, y, z, layer))
         return atoms_list
@@ -151,6 +151,80 @@ class GaussianCom(EmptyGaussianCom):
                 additional_input_dict[key]= self.lines[i_start: i_finish]
                 shift += 1
         return additional_input_dict
+
+    def _parse_cartesian_input(self, line):
+    
+        ### check for PDB information
+    
+        # Initialize vars as =None
+        pdb_atom_name = None
+        pdb_res_name = None
+        pdb_res_number = None
+        pdb_chain = None
+        
+        atom = None
+        mm_type = None 
+        mm_charge = 0
+    
+        if '(' in line and ')' in line :
+            p1 = line.index('(')
+            p2 = line.index(')')
+            pdb_info = line[p1+1:p2].split(',')
+    
+            for info in pdb_info:
+    
+                # PDB atom name 
+                if 'PDBName' in info:
+                    indx = info.index('=')
+                    pdb_atom_name = info[indx+1: ]
+    
+                # PDB residue name
+                if 'ResName' in info:
+                    indx = info.index('=')
+                    pdb_res_name = info[indx+1:  ]
+    
+                # PDB residue number and chain
+                if 'ResNum' in info:
+                    indx = info.index('=')
+                    pdb_res_number = info[indx+1: ]
+                    if '_' in pdb_res_number : # presence of chain information
+                        indx = pdb_res_number.index('_')
+                        pdb_chain = pdb_res_number[indx+1 :]
+                        pdb_res_number = pdb_res_number[: indx]
+    
+            # pop pdb_info out of line
+            line = line[:p1] + ' ' + line[p2+1 :]
+    
+        ### split line and count fields
+        line = line.split()
+        Nfields = len(line)
+    
+        ### Atom, MMtype, MMcharge
+        atom_stuff = line[0].split('-',2) 
+        atom = atom_stuff[0]
+        if len(atom_stuff) > 1 :
+            mm_type = atom_stuff[1] 
+        if len(atom_stuff) > 2 :
+            mm_charge = atom_stuff[2]
+    
+        ### XYZ and layer and mask
+        if Nfields == 4:
+            x,y,z = line[1:4]
+    
+        elif Nfields == 5: 
+    
+            # Mask and X Y Z ?
+            if line[4].replace('.','').isdigit() : # True if line[3] is float type
+                mask,x,y,z = line[1:5]
+            else : # X Y Z  layer
+                x,y,z,mask = line[1:5]
+    
+        elif Nfields >= 6  : ## Assume mask X Y Z Layer
+            mask,x,y,z,layer = line[1:6]
+    
+    
+        # PDB INFO IS CURRENTLY OMMITED FROM OUTPUT
+        return atom, mm_type, mm_charge, mask, x, y, z, layer
 
 
 class GaussianLog():
@@ -282,4 +356,5 @@ class GaussianLog():
         
         Last Energy: {4}
         """.format(self, len(self.initial_geometry), no_opts, no_scans, energy)
-        return summary
+        return summary#!/usr/bin/python3
+
