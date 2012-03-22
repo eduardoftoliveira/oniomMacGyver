@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 # my modules
+from atoms import Atom
 from gaussian import GaussianLog, EmptyGaussianCom
 from amber import *
 # other modules
 import os
+import math
 
 # input - do this in a outside file
 # file start end step
@@ -39,6 +41,15 @@ def parse_and_read_log(user_input_lines):
     print("Total of {} geometries".format(len(geometries_list)))
     return geometries_list
 
+def read_no_link_atoms_list(name):
+    gaussian_log = GaussianLog(name)
+    input_atoms_list = gaussian_log.symbolic_zmatrix
+    no_link_atoms_list = []
+    for input_no, input_atom in enumerate(input_atoms_list):
+        if "H" in input_atom.layer and "L" in input_atom.layer:
+            no_link_atoms_list.append(input_no)
+    return no_link_atoms_list
+
 def read_no_high_atoms_list(name):
     gaussian_log = GaussianLog(name)
     input_atoms_list = gaussian_log.symbolic_zmatrix
@@ -61,6 +72,7 @@ def create_gaussian_sp():
     # reading scan log info
     gaussian_log_name = user_input_lines[0].split()[0]
     no_high_link_atoms_list = read_no_high_link_atoms_list(gaussian_log_name)
+    no_link_atoms_list = read_no_link_atoms_list(gaussian_log_name)
     # reading geometries
     geometries_list = parse_and_read_log(user_input_lines)
     # create folder to put sp inputs
@@ -73,10 +85,33 @@ def create_gaussian_sp():
         gaussian_sp_file = EmptyGaussianCom(gaussian_sp_input_name)
         gaussian_sp_file.route_section = RESP_ROUTE_SECTION
         gaussian_sp_file.multiplicity_line = CHARGE_AND_MULTIPLICITY
-        # choose high layer and link atoms
+        # choose high layer atoms and substitute link atoms for hydrogens
         high_link_atoms_list = []
         for no in no_high_link_atoms_list:
             high_link_atoms_list.append(atoms_list[no])
+        link_atoms_list = []
+        for no in no_link_atoms_list:
+            link_atoms_list.append(atoms_list[no])
+        for atom_a in link_atoms_list:
+            atom_a = Atom(element = "H", x=atom_a.x, y=atom_a.y, z=atom_a.z)
+            for atom_b in high_link_atoms_list:
+                if atom_a.is_bonded_to(atom_b):
+                    print(atom_a.distance(atom_b))
+                    d_i = atom_a.distance(atom_b)
+                    x_diff = atom_a.x - atom_b.x
+                    y_diff = atom_a.y - atom_b.y
+                    z_diff = atom_a.z - atom_b.z
+                    x_angle = math.acos(x_diff/d_i)
+                    y_angle = math.acos(y_diff/d_i)
+                    z_angle = math.acos(z_diff/d_i)
+                    new_x_diff = cos(x_angle) * 0.723886
+                    new_y_diff = cos(y_angle) * 0.723886
+                    new_z_diff = cos(z_angle) * 0.723886
+                    atom_a.x = atom_b.x + new_x_diff
+                    atom_a.y = atom_b.y + new_x_diff
+                    atom_a.z = atom_b.z + new_x_diff
+                    print(atom_a.distance(atom_b))
+                    break
         gaussian_sp_file.atoms_list = high_link_atoms_list  
         # write
         gaussian_sp_file.write_to_file("{}/{}"
@@ -198,7 +233,7 @@ def create_amber_input():
         charge_no_link_old =0
         for index, no in enumerate(no_high_atoms_list):
             charge_no_link_old += all_new_charges_list[no]
-            charge_no_link_old += new_charges_list[index]
+            charge_no_link_new += new_charges_list[index]
         for index, no in enumerate(no_high_link_atoms_list):
             charge_sum_old += all_new_charges_list[no]
             charge_sum_new += new_charges_list[index]
@@ -231,9 +266,9 @@ def create_amber_input():
             with open(new_file_name, 'w', encoding='UTF-8') as new_in_file:
                 new_in_file.write(new_file_str)
 def main():
-#    create_gaussian_sp()
+    create_gaussian_sp()
 #    create_resp_input()
-    create_amber_input()
+#    create_amber_input()
     pass
 
 if __name__ == "__main__":

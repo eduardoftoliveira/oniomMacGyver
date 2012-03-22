@@ -26,8 +26,12 @@ class Atom:
 
     def is_bonded_to(self, another_atom):
         """ Check if the is bonded to another  atom"""
-        if self.dist(another_atom) > 3:    #discard far atoms
+        if self.distance(another_atom) > 3:    #discard far atoms
             return False
+        if self.distance(another_atom) < 0.1:    #same atom
+            return False
+        print(self, self.atomic_number)
+        print(another_atom, another_atom.atomic_number)
         if self.atomic_number < another_atom.atomic_number:
             pair_name = "{}-{}".format(self.element, another_atom.element)
         else:
@@ -38,7 +42,7 @@ class Atom:
             single_bond_distance = 0
             print("There is no saved distance for", err)
 
-        if self.dist(another_atom) < single_bond_distance +\
+        if self.distance(another_atom) < single_bond_distance +\
         0.30*single_bond_distance:   #30% is a good tolerance?
             return True
         else:

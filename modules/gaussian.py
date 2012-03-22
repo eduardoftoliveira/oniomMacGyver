@@ -232,7 +232,7 @@ class GaussianLog():
         reading = False
         for line in self.file:
             if reading:
-                if "------" in line:
+                if "-------" in line:
                     break
                 else:
                     atomic_number = line.split()[1]
