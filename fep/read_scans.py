@@ -196,15 +196,15 @@ def create_amber_input():
         charge_sum_old = 0
         charge_no_link_new = 0
         charge_no_link_old =0
-        for index, no in enumerate(no_high_atoms_list):
-            charge_no_link_old += all_new_charges_list[no]
-            charge_no_link_old += new_charges_list[index]
+#        for index, no in enumerate(no_high_atoms_list):
+#            charge_no_link_old += all_new_charges_list[no]
+#            charge_no_link_old += new_charges_list[index]
         for index, no in enumerate(no_high_link_atoms_list):
             charge_sum_old += all_new_charges_list[no]
             charge_sum_new += new_charges_list[index]
             all_new_charges_list[no] = new_charges_list[index]
-        print(charge_sum_new, charge_sum_old)
-        print(charge_no_link_new,charge_no_link_old)
+        #print(charge_sum_new, charge_sum_old)
+        #print(charge_no_link_new,charge_no_link_old)
         # write these charges to a new prmtop
         charges_for_prmtop = [charge * 18.2223 for charge in all_new_charges_list]
         lines_for_prmtop = []
