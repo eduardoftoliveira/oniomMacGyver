@@ -198,7 +198,7 @@ def create_amber_input():
         charge_no_link_old =0
 #        for index, no in enumerate(no_high_atoms_list):
 #            charge_no_link_old += all_new_charges_list[no]
-#            charge_no_link_old += new_charges_list[index]
+##            charge_no_link_old += new_charges_list[index]
         for index, no in enumerate(no_high_link_atoms_list):
             charge_sum_old += all_new_charges_list[no]
             charge_sum_new += new_charges_list[index]
