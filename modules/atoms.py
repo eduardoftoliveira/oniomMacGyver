@@ -30,8 +30,6 @@ class Atom:
             return False
         if self.distance(another_atom) < 0.1:    #same atom
             return False
-        print(self, self.atomic_number)
-        print(another_atom, another_atom.atomic_number)
         if self.atomic_number < another_atom.atomic_number:
             pair_name = "{}-{}".format(self.element, another_atom.element)
         else:
