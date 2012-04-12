@@ -133,8 +133,7 @@ class GaussianCom(EmptyGaussianCom):
         """ Return a list of Qmmm gaussian atoms """
         atoms_list = []
         for line in self.lines [self.blank_lines[1]+2:self.blank_lines[2]]:
-            print(line)
-            atoms_list.append(_read_qmmm_atom_line(line))
+            atoms_list.append(self._read_qmmm_atom_line(line))
         return atoms_list
 
     def _read_additional_input(self):
@@ -175,15 +174,15 @@ class GaussianCom(EmptyGaussianCom):
         ### Atom, MMtype, MMcharge
         atom_info_list = line_list[0].split('-',2) 
         element = atom_info_list[0]
-        if len(atom_stuff) > 1 :
+        if len(atom_info_list) > 1 :
             mm_type = atom_info_list[1] 
-        if len(atom_stuff) > 2 :
+        if len(atom_info_list) > 2 :
             mm_charge = atom_info_list[2]
         ### XYZ and layer and mask
         if len(line_list) == 4:
             x,y,z = line[1:4]
         elif len(line_list) == 6  : ## Assume mask X Y Z Layer
-            mask,x,y,z,layer = line[1:6]
+            mask,x,y,z,layer = line_list[1:6]
         # PDB INFO IS CURRENTLY OMMITED FROM OUTPUT
         qmmm_atom = QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer)
         return qmmm_atom
@@ -318,5 +317,4 @@ class GaussianLog():
         
         Last Energy: {4}
         """.format(self, len(self.initial_geometry), no_opts, no_scans, energy)
-        return summary#!/usr/bin/python3
-
+        return summary

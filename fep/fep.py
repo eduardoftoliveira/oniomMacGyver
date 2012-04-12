@@ -10,10 +10,11 @@ import math
 
 # input - do this in a outside file
 # file start end step
-user_input_lines = ["glu_scan.log 1 4 1"]
+user_input_lines = ["glu_scan.log 1 1 1"]
 RESP_ROUTE_SECTION = """#hf/6-31G* Pop(mk) density=current
 iop(6/33=2) scf=tight gfinput gfprint test\n"""
 CHARGE_AND_MULTIPLICITY = "0 1\n"
+HIGH_LAYER_CHARGE = 0
 # names
 GAUSSIAN_SP_FOLDER = "./gaussian_sp"
 RUN_SP_SCRIPT_NAME = "{}/sp_run.sh".format(GAUSSIAN_SP_FOLDER)
@@ -152,7 +153,7 @@ def create_resp_input():
                 resp_instructions.append(instruction)
         produce_resp_dat_from_gaussian_log(complete_resp_dat, complete_sp_log_name)
         produce_resp_qin(complete_resp_qin, qmmm_high_atoms_list)
-        produce_resp_in(complete_resp_in, qmmm_high_atoms_list, resp_instructions)
+        produce_resp_in(complete_resp_in, qmmm_high_atoms_list, resp_instructions, HIGH_LAYER_CHARGE)
         command = 'resp -O -i {} -o {} -e {} -p {} -q {} > {}\n'.format(\
         resp_in, resp_out, resp_dat, resp_pch, resp_qin, resp_stdout)
         resp_jobs_list.append(command)
@@ -186,7 +187,7 @@ def create_amber_input():
         if atom_no in jump_this:
             pass
         else:
-            restraint_mask += str(atom_no)
+            restraint_mask += str(atom_no+1)
             sequence = False
             last_sub_atom = atom_no
             for sub_atom_no in no_high_link_atoms_list[index+1:]:
@@ -195,11 +196,11 @@ def create_amber_input():
                         restraint_mask += ','
                         break
                     elif sequence:
-                        restraint_mask += '-{},'.format(last_sub_atom)
+                        restraint_mask += '-{},'.format(last_sub_atom+1)
                         break
                 else:
                     if sub_atom_no == no_high_link_atoms_list[-1]:
-                        restraint_mask += '-{}'.format(sub_atom_no)
+                        restraint_mask += '-{}'.format(sub_atom_no+1)
                         jump_this.append(sub_atom_no)
                     else:
                         jump_this.append(sub_atom_no)
@@ -211,12 +212,12 @@ def create_amber_input():
         # write coordinate file
         coordinates_list = [(atom.x, atom.y, atom.z) for atom in atoms_list]
         # translate coordinates
-        #moved_coordinates_list = []
-        #mv_x, mv_y, mv_z = (39.426,33.660, 30.773)             # HACK 
-        #for coord_tuple in coordinates_list:
-        #    moved_coordinates_list.append((coord_tuple[0]+mv_x, coord_tuple[1]+mv_y, coord_tuple[2]+mv_z))
+        moved_coordinates_list = []
+        mv_x, mv_y, mv_z = (39.426,33.660, 30.773)             # HACK 
+        for coord_tuple in coordinates_list:
+            moved_coordinates_list.append((coord_tuple[0]+mv_x, coord_tuple[1]+mv_y, coord_tuple[2]+mv_z))
         no_atoms =len(coordinates_list)
-        all_coordinates_list = coordinates_list + model_coordinates[no_atoms:]
+        all_coordinates_list = moved_coordinates_list + model_coordinates[no_atoms:]
         crd_name = "{}/coordinates.inpcrd".format(folder_name, step)
         write_crd_file(crd_name, all_coordinates_list)
         #read resp new charges model prmtop
@@ -234,7 +235,7 @@ def create_amber_input():
         high_link_atoms_list = []
         for no in no_high_link_atoms_list:
             high_link_atoms_list.append(atoms_list[no])
-            #print(atoms_list[no], model_charges[no], all_new_charges_list[no])
+            print(no,atoms_list[no], model_charges[no], all_new_charges_list[no])
         link_atoms_list = []
         for no in no_link_atoms_list:
             link_atoms_list.append(atoms_list[no])
@@ -253,7 +254,7 @@ def create_amber_input():
         for no, charge in enumerate(model_charges):
             old_charges_sum += charge
             new_charges_sum += all_new_charges_list[no]
-        #print(old_charges_sum, old_charges_sum)
+        #print(old_charges_sum, new_charges_sum)
         # write these charges to a new prmtop
         charges_for_prmtop = [charge * 18.2223 for charge in all_new_charges_list]
         lines_for_prmtop = []
