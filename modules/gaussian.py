@@ -7,14 +7,6 @@ import collections
 import atoms
 
 
-class QmmmAtom(atoms.Atom):
-    def __init__(self, element, mm_type, charge, mask, x, y, z, layer):
-        super().__init__(element, x, y, z)
-        self.mm_type = mm_type
-        self.charge = float(charge)
-        self.mask = mask
-        self.layer = layer
-
 class EmptyGaussianCom():
     def __init__(self, name):
         self.name = name
@@ -60,7 +52,7 @@ class GaussianCom(EmptyGaussianCom):
             self.route_section = self._read_route_section()
             self.title_line = self._read_title_line()
             self.multiplicity_line = self._read_multiplicity_line()
-            self.atoms_list = self._read_atoms()
+            self.atoms_list = self._read_structure()
             self.additional_input_dict = self._read_additional_input()
             self.connectivity_list = self.additional_input_dict["connect"]
             self.modredundant_list = self.additional_input_dict["modred"]
@@ -112,29 +104,9 @@ class GaussianCom(EmptyGaussianCom):
         multiplicity_line = self.lines[self.blank_lines[1]+1]
         return multiplicity_line
 
-    def _read_atoms(self):
+    def _read_structure(self):
         """ Return a list of atoms"""
-        if "amber" in self.route_section.lower():
-            atoms_list = self._read_qmmm_atoms()
-        else:
-            atoms_list = self._read_qm_atoms()
-        return atoms_list
-        
-    def _read_qm_atoms(self): 
-        """Return a list of qm atoms (element and coordinates only)"""
-        atoms_list = []
-        for atom_line in self.lines\
-        [self.blank_lines[1]+2:self.blank_lines[2]]:
-            element, x, y, z = atom_line.split()
-            atoms_list.append(atoms.Atom(element, x, y, z))
-        return atoms_list
-
-    def _read_qmmm_atoms(self):
-        """ Return a list of Qmmm gaussian atoms """
-        atoms_list = []
-        for line in self.lines [self.blank_lines[1]+2:self.blank_lines[2]]:
-            atoms_list.append(self._read_qmmm_atom_line(line))
-        return atoms_list
+        return read_gaussian_structure(self.lines[self.blank_lines[1]+2:self.blank_lines[2]])
 
     def _read_additional_input(self):
         """Reads additional input and stores it in a ordered dict"""
@@ -147,45 +119,7 @@ class GaussianCom(EmptyGaussianCom):
                 i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
                 additional_input_dict[key]= self.lines[i_start: i_finish]
                 shift += 1
-        return additional_input_dict
-
-    def _read_qmmm_atom_line(self, line):
-        """ Read atom line and checks for PDB Information"""
-        ### check for PDB information
-        # Initialize vars as =None
-        mm_type = None 
-        mm_charge = 0
-        if '(' in line and ')' in line:
-            pdb_info = line.split("(")[1].split(")")[0]
-            pdb_info_list = pdb_info.split(",")
-            line.replace("({})".format(pdb_info), "")
-            for info in pdb_info_list:
-                if 'PDBName' in info:
-                    pdb_atom_name = info.split("=")[1]
-                if 'ResName' in info:
-                    pdb_res_name = info.split("=")[1]
-                if 'ResNum' in info:
-                    pdb_res_number = info.split("=")[1]
-                    if '_' in pdb_res_number : # presence of chain information
-                        pdb_res_number, pdb_chain  = info.split("_")
-        else:
-            pdb_atom_name = pdb_res_name = pdb_res_number = pdb_chain = None
-        line_list = line.split(None, 5) 
-        ### Atom, MMtype, MMcharge
-        atom_info_list = line_list[0].split('-',2) 
-        element = atom_info_list[0]
-        if len(atom_info_list) > 1 :
-            mm_type = atom_info_list[1] 
-        if len(atom_info_list) > 2 :
-            mm_charge = atom_info_list[2]
-        ### XYZ and layer and mask
-        if len(line_list) == 4:
-            x,y,z = line[1:4]
-        elif len(line_list) == 6  : ## Assume mask X Y Z Layer
-            mask,x,y,z,layer = line_list[1:6]
-        # PDB INFO IS CURRENTLY OMMITED FROM OUTPUT
-        qmmm_atom = QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer)
-        return qmmm_atom
+        return additional_input_dict        
 
 
 class GaussianLog():
@@ -196,7 +130,7 @@ class GaussianLog():
         self.amber = "amber" in self.route_section.lower()
         self.steps_list = self._read_steps()
         self.energies_list = self._read_energies()
-        self.symbolic_zmatrix = self.read_symbolic_zmatrix()
+        #self.symbolic_zmatrix = self.read_symbolic_zmatrix()
         self.initial_geometry = self.read_geometry(0, 0)
         self.final_geometry = self.read_geometry(-1, -1)
         self.summary = self._generate_summary()
@@ -318,3 +252,42 @@ class GaussianLog():
         Last Energy: {4}
         """.format(self, len(self.initial_geometry), no_opts, no_scans, energy)
         return summary
+
+def read_gaussian_structure(lines_list):
+    atoms_list = []
+    for line in lines_list:
+        ### check for PDB information
+        if '(' in line and ')' in line:
+            pdb_info = line.split("(")[1].split(")")[0]
+            pdb_info_list = pdb_info.split(",")
+            line = line.replace("({})".format(pdb_info), "")
+            for info in pdb_info_list:
+                if 'PDBName' in info:
+                    pdb_atom_name = info.split("=")[1]
+                if 'ResName' in info:
+                    pdb_res_name = info.split("=")[1]
+                if 'ResNum' in info:
+                    pdb_res_number = info.split("=")[1]
+                    if '_' in pdb_res_number : # presence of chain information
+                        pdb_res_number, pdb_chain  = info.split("_")
+        else:
+            pdb_atom_name = pdb_res_name = pdb_res_number = pdb_chain = None
+        line_list = line.split(None, 5)
+
+        if len(line_list) == 4:
+            element, x, y, z = line_list
+            this_atom = atoms.Atom(element, x, y, z)
+        elif len(line_list) == 6:
+            mm_type_charge, mask, x, y, z, layer = line_list[0:6]
+            try:
+                element, mm_type, mm_charge = mm_type_charge.split('-',2)
+            except ValueError:
+                print("WARNING: Atom no {} does not have all amber info\n".format(len(atoms_list)+1),
+                      "        Setting mm_charge to 0 and mm_type to None")
+                element = mm_type_charge.split('-',2)[0]
+                mm_type =  None
+                mm_charge = 0
+            this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer)
+        # PDB INFO IS CURRENTLY OMMITED FROM OUTPUT
+        atoms_list.append(this_atom)
+    return atoms_list

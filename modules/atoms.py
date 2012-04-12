@@ -45,3 +45,11 @@ class Atom:
             return True
         else:
             return False
+
+class QmmmAtom(Atom):
+    def __init__(self, element, mm_type, charge, mask, x, y, z, layer):
+        super().__init__(element, x, y, z)
+        self.mm_type = mm_type
+        self.charge = float(charge)
+        self.mask = mask
+        self.layer = layer
