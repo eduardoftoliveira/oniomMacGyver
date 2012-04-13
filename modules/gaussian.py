@@ -1,13 +1,57 @@
 #!/usr/bin/env python3
 
 # python modules
+import re
 import collections
 
 # my modules
 import atoms
 
+class GaussianFile():
+    def __init__(self):
+        pass
 
-class EmptyGaussianCom():
+    def read_gaussian_input_structure(self, lines_list):
+        atoms_list = []
+        for line in lines_list:
+            ### check for PDB information
+            if '(' in line and ')' in line:
+                pdb_info = line.split("(")[1].split(")")[0]
+                pdb_info_list = pdb_info.split(",")
+                line = line.replace("({})".format(pdb_info), "")
+                for info in pdb_info_list:
+                    if 'PDBName' in info:
+                        pdb_atom_name = info.split("=")[1]
+                    if 'ResName' in info:
+                        pdb_res_name = info.split("=")[1]
+                    if 'ResNum' in info:
+                        pdb_res_number = info.split("=")[1]
+                        if '_' in pdb_res_number : # presence of chain information
+                            pdb_res_number, pdb_chain  = info.split("_")
+            else:
+                pdb_atom_name = pdb_res_name = pdb_res_number = pdb_chain = None
+            line_list = line.split(None, 5)
+
+            if len(line_list) == 4:
+                element, x, y, z = line_list
+                this_atom = atoms.Atom(element, x, y, z)
+            elif len(line_list) == 6:
+                mm_type_charge, mask, x, y, z, layer = line_list[0:6]
+                try:
+                    element, mm_type, mm_charge = mm_type_charge.split('-',2)
+                except ValueError:
+                    print("WARNING: Atom no {} does not have all amber info\n".format(len(atoms_list)+1),
+                          "        Setting mm_charge to 0 and mm_type to None")
+                    element = mm_type_charge.split('-',2)[0]
+                    mm_type =  None
+                    mm_charge = 0
+                this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer)
+            # PDB INFO IS CURRENTLY OMMITED FROM OUTPUT
+            atoms_list.append(this_atom)
+        return atoms_list
+
+
+class EmptyGaussianCom(GaussianFile):
     def __init__(self, name):
         self.name = name
         self.link_0_commands = ["%nproc=8\n", "%mem=6GB\n", "%chk=default.chk\n"]
@@ -106,7 +150,7 @@ class GaussianCom(EmptyGaussianCom):
 
     def _read_structure(self):
         """ Return a list of atoms"""
-        return read_gaussian_structure(self.lines[self.blank_lines[1]+2:self.blank_lines[2]])
+        return self.read_gaussian_input_structure(self.lines[self.blank_lines[1]+2:self.blank_lines[2]])
 
     def _read_additional_input(self):
         """Reads additional input and stores it in a ordered dict"""
@@ -119,21 +163,22 @@ class GaussianCom(EmptyGaussianCom):
                 i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
                 additional_input_dict[key]= self.lines[i_start: i_finish]
                 shift += 1
-        return additional_input_dict        
+        return additional_input_dict
 
 
-class GaussianLog():
+class GaussianLog(GaussianFile):
     def __init__(self, name):
         self.name = name
         self.file = open(self.name, 'r')
         self.route_section = self._read_route_section()
         self.amber = "amber" in self.route_section.lower()
         self.steps_list = self._read_steps()
-        self.energies_list = self._read_energies()
-        #self.symbolic_zmatrix = self.read_symbolic_zmatrix()
-        self.initial_geometry = self.read_geometry(0, 0)
-        self.final_geometry = self.read_geometry(-1, -1)
-        self.summary = self._generate_summary()
+        print(self.steps_list)
+#        self.energies_list = self._read_energies()
+#        self.symbolic_zmatrix = self.read_symbolic_zmatrix()
+#        self.initial_geometry = self.read_geometry(0, 0)
+#        self.final_geometry = self.read_geometry(-1, -1)
+#        self.summary = self._generate_summary()
 
     def _read_route_section(self):
         """ Returns a string with the route section commands"""
@@ -156,22 +201,30 @@ class GaussianLog():
         to where where the steps start and finish (lines or bytes?)"""
         steps_list = [[]]
         previous_scan_step = scan_step = 0
-        opt_step_start = 0
+        start_step_byte = 0
         self.file.seek(0)
-        line = self.file.readline()
-        while line:
-            if "Step number" in line:
-                opt_step_finish = self.file.tell()
-                steps_list[scan_step].append((opt_step_start, opt_step_finish))
-                opt_step_start = self.file.tell()
+        offset = 1000000
+        cumulative_offset = 0
+        str_file = self.file.read(offset)
+        while str_file:
+            cumulative_offset += offset
+            for linee in re.finditer("Step number", str_file):
+                print(linee)
+            continue
+            local_step_byte = str_file.find("Step number")
+            while local_step_byte+1:
+                line = str_file[local_step_byte:local_step_byte + 80]
                 if "scan point" in line:
-                    scan_step = int(line.split()[12]) - 1 
+                    scan_step = int(line.split()[12]) - 1
                     if scan_step != previous_scan_step:
                         steps_list.append([])
                         previous_scan_step = scan_step
-            line = self.file.readline()
-        steps_list[scan_step].append((opt_step_start, self.file.tell())) # last structure
-        self.file.seek(0)
+                end_step_byte = local_step_byte + cumulative_offset
+                steps_list[scan_step].append((start_step_byte, end_step_byte))
+                start_step_byte = end_step_byte 
+                local_step_byte = str_file.find("Step number", local_step_byte+1)
+            str_file = self.file.read(offset)
+        #steps_list[scan_step].append((start_step_byte, end_step_byte)) # last structure
         return steps_list
 
     def _read_energies(self):
@@ -218,7 +271,8 @@ class GaussianLog():
         self.file.seek(0)
         atoms_list = []
         reading = False
-        for line in self.file:
+        while 1:
+            line = self.file.readline()
             if reading:
                 if "Charge" in line:
                     pass
@@ -231,6 +285,7 @@ class GaussianLog():
                                                x, y, z, layer))
             if "Symbolic Z-matrix:" in line:
                 reading = True
+                break
         return atoms_list
     
     def _generate_summary(self):
@@ -253,41 +308,4 @@ class GaussianLog():
         """.format(self, len(self.initial_geometry), no_opts, no_scans, energy)
         return summary
 
-def read_gaussian_structure(lines_list):
-    atoms_list = []
-    for line in lines_list:
-        ### check for PDB information
-        if '(' in line and ')' in line:
-            pdb_info = line.split("(")[1].split(")")[0]
-            pdb_info_list = pdb_info.split(",")
-            line = line.replace("({})".format(pdb_info), "")
-            for info in pdb_info_list:
-                if 'PDBName' in info:
-                    pdb_atom_name = info.split("=")[1]
-                if 'ResName' in info:
-                    pdb_res_name = info.split("=")[1]
-                if 'ResNum' in info:
-                    pdb_res_number = info.split("=")[1]
-                    if '_' in pdb_res_number : # presence of chain information
-                        pdb_res_number, pdb_chain  = info.split("_")
-        else:
-            pdb_atom_name = pdb_res_name = pdb_res_number = pdb_chain = None
-        line_list = line.split(None, 5)
 
-        if len(line_list) == 4:
-            element, x, y, z = line_list
-            this_atom = atoms.Atom(element, x, y, z)
-        elif len(line_list) == 6:
-            mm_type_charge, mask, x, y, z, layer = line_list[0:6]
-            try:
-                element, mm_type, mm_charge = mm_type_charge.split('-',2)
-            except ValueError:
-                print("WARNING: Atom no {} does not have all amber info\n".format(len(atoms_list)+1),
-                      "        Setting mm_charge to 0 and mm_type to None")
-                element = mm_type_charge.split('-',2)[0]
-                mm_type =  None
-                mm_charge = 0
-            this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer)
-        # PDB INFO IS CURRENTLY OMMITED FROM OUTPUT
-        atoms_list.append(this_atom)
-    return atoms_list
