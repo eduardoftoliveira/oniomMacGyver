@@ -4,7 +4,7 @@
 import math
 
 # my modules
-from elements_database import ATOMIC_NUMBER_DICT, BONDS_DISTANCES_PAIRS
+from  elements_database import * 
 
 class Atom:    
     def __init__(self, element, x=None, y=None, z=None):

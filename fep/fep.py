@@ -10,7 +10,7 @@ import math
 
 # input - do this in a outside file
 # file start end step
-user_input_lines = ["glu_scan.log 1 1 1"]
+user_input_lines = ["glu_scan.log 1 21 1"]
 RESP_ROUTE_SECTION = """#hf/6-31G* Pop(mk) density=current
 iop(6/33=2) scf=tight gfinput gfprint test\n"""
 CHARGE_AND_MULTIPLICITY = "0 1\n"
@@ -235,7 +235,7 @@ def create_amber_input():
         high_link_atoms_list = []
         for no in no_high_link_atoms_list:
             high_link_atoms_list.append(atoms_list[no])
-            print(no,atoms_list[no], model_charges[no], all_new_charges_list[no])
+            #print(no,atoms_list[no], model_charges[no], all_new_charges_list[no])
         link_atoms_list = []
         for no in no_link_atoms_list:
             link_atoms_list.append(atoms_list[no])

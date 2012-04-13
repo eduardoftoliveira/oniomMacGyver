@@ -3,6 +3,8 @@
 # python modules
 import re
 import collections
+import linecache
+import subprocess
 
 # my modules
 import atoms
@@ -172,13 +174,14 @@ class GaussianLog(GaussianFile):
         self.file = open(self.name, 'r')
         self.route_section = self._read_route_section()
         self.amber = "amber" in self.route_section.lower()
-        self.steps_list = self._read_steps()
-        print(self.steps_list)
-#        self.energies_list = self._read_energies()
-#        self.symbolic_zmatrix = self.read_symbolic_zmatrix()
-#        self.initial_geometry = self.read_geometry(0, 0)
-#        self.final_geometry = self.read_geometry(-1, -1)
-#        self.summary = self._generate_summary()
+#        self.steps_list = self._read_steps()
+#        print(self.steps_list)
+        self.energies_list, self.steps_list = self._read_steps_and_energies()
+#        print(self.energies_list)
+        self.symbolic_zmatrix = self.read_symbolic_zmatrix()
+        self.initial_geometry = self.read_geometry(0, 0)
+        self.final_geometry = self.read_geometry(-1, -1)
+        self.summary = self._generate_summary()
 
     def _read_route_section(self):
         """ Returns a string with the route section commands"""
@@ -202,48 +205,52 @@ class GaussianLog(GaussianFile):
         steps_list = [[]]
         previous_scan_step = scan_step = 0
         start_step_byte = 0
-        self.file.seek(0)
-        offset = 1000000
-        cumulative_offset = 0
-        str_file = self.file.read(offset)
-        while str_file:
-            cumulative_offset += offset
-            for linee in re.finditer("Step number", str_file):
-                print(linee)
-            continue
-            local_step_byte = str_file.find("Step number")
-            while local_step_byte+1:
-                line = str_file[local_step_byte:local_step_byte + 80]
-                if "scan point" in line:
-                    scan_step = int(line.split()[12]) - 1
-                    if scan_step != previous_scan_step:
-                        steps_list.append([])
-                        previous_scan_step = scan_step
-                end_step_byte = local_step_byte + cumulative_offset
-                steps_list[scan_step].append((start_step_byte, end_step_byte))
-                start_step_byte = end_step_byte 
-                local_step_byte = str_file.find("Step number", local_step_byte+1)
-            str_file = self.file.read(offset)
-        #steps_list[scan_step].append((start_step_byte, end_step_byte)) # last structure
+        grep_out = subprocess.check_output("grep -b 'Step number' {}".format(self.name), shell=True)
+        grep_out = str(grep_out)[2:-2]
+        lines_grep = grep_out.split("\\n")
+        for line in lines_grep:
+            end_step_byte = int(line.split(":")[0])
+            steps_list[scan_step].append((start_step_byte, end_step_byte))
+            start_step_byte = end_step_byte
+            if "scan point" in line:
+                scan_step = int(line.split()[13]) - 1
+                if scan_step != previous_scan_step:
+                    steps_list.append([])
+                    previous_scan_step = scan_step
+        steps_list[scan_step].append((start_step_byte, -1)) # last structure
         return steps_list
 
-    def _read_energies(self):
-        energies_list = []
+    def _read_steps_and_energies(self):
+        false_steps_list = [[]]
+        energies_list = [[0]]
         if self.amber:
             search_str = "extrapolated energy"
         else:
             search_str = "SCF Done"
-        for scan_step in self.steps_list:
-            energies_list.append([])
-            for opt_step in scan_step:
-                self.file.seek(opt_step[0])
-                for line in self.file:
-                    if search_str in line:
-                        energy = float(line.split()[4])
-                    if "Step number" in line:
-                        break
-                energies_list[-1].append(energy)
-        return energies_list
+        previous_scan_step = scan_step = 0
+        start_step_byte = 0
+        grep_out = subprocess.check_output("grep -b '\(Step number\|{}\)' {}".format(search_str,self.name), shell=True)
+        grep_out = str(grep_out)[2:-3]
+        lines_grep = grep_out.split("\\n")
+        for line in lines_grep:
+            if "Step number" in line:
+                end_step_byte = int(line.split(":")[0])
+                false_steps_list[scan_step].append((start_step_byte, end_step_byte))
+                start_step_byte = end_step_byte
+                if "scan point" in line:
+                    scan_step = int(line.split()[13]) - 1
+                    if scan_step != previous_scan_step:
+                        false_steps_list.append([])
+                        previous_energy= energies_list[-1].pop(-1)
+                        energies_list.append([previous_energy])
+                        previous_scan_step = scan_step
+                false_steps_list[scan_step].append((start_step_byte, -1)) # last structure
+                energies_list[-1].append(0)
+            if search_str in line:
+                energy = float(line.split()[5])
+                energies_list[-1][-1] = energy
+        energies_list[-1].pop(-1)
+        return energies_list, false_steps_list
     
     def read_geometry(self, opt_step, scan_step):
         "Returns a list of atoms with the respective coordinates"
@@ -269,24 +276,19 @@ class GaussianLog(GaussianFile):
       
     def read_symbolic_zmatrix(self):
         self.file.seek(0)
-        atoms_list = []
         reading = False
-        while 1:
-            line = self.file.readline()
+        atoms_lines = []
+        for no, line in enumerate(self.file):
             if reading:
                 if "Charge" in line:
                     pass
                 elif line.strip() == '':
                     break
                 else:
-                    mm_type_charge, mask, x, y, z, layer = line.split(None,5)[0:6]
-                    element, mm_type, charge = mm_type_charge.split('-',2)
-                    atoms_list.append(QmmmAtom(element, mm_type, charge, mask,
-                                               x, y, z, layer))
+                    atoms_lines.append(line)
             if "Symbolic Z-matrix:" in line:
                 reading = True
-                break
-        return atoms_list
+        return self.read_gaussian_input_structure(atoms_lines)
     
     def _generate_summary(self):
         no_opts = 0
@@ -299,13 +301,13 @@ class GaussianLog(GaussianFile):
         {0.route_section}
         
         List of Atoms
-        {1} atoms: {0.initial_geometry}
+        {2} atoms: {1}...
         
-        Opt Steps: {2}
-        Scan Steps: {3}
+        Opt Steps: {3}
+        Scan Steps: {4}
         
-        Last Energy: {4}
-        """.format(self, len(self.initial_geometry), no_opts, no_scans, energy)
+        Last Energy: {5}
+        """.format(self, self.initial_geometry[:100], len(self.initial_geometry), no_opts, no_scans, energy)
         return summary
 
 
