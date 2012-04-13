@@ -5,6 +5,7 @@ import collections
 
 # my modules
 import atoms
+from elements_database import ATOMIC_NUMBER_DICT_REVERSE
 
 
 class QmmmAtom(atoms.Atom):
@@ -233,13 +234,10 @@ class GaussianLog():
         self.file = open(self.name, 'r')
         self.route_section = self._read_route_section()
         self.amber = "amber" in self.route_section.lower()
-        self.steps_list = self._read_steps()
-        self.energies_list = self._read_energies()
-        self.symbolic_zmatrix = self.read_symbolic_zmatrix()
-        self.initial_geometry = self.read_geometry(0, 0)
-        self.final_geometry = self.read_geometry(-1, -1)
-        self.summary = self._generate_summary()
-
+        self.steps_list = self._read_energy_geometry()
+        
+        #self.summary = self._generate_summary()
+        
     def _read_route_section(self):
         """ Returns a string with the route section commands"""
         self.file.seek(0)
@@ -255,70 +253,56 @@ class GaussianLog():
                     route_section += line
         route_section = route_section.strip()
         return route_section
-                           
-    def _read_steps(self):
-        """Creates a two dimensions list with the a tuple corresponding
-        to where where the steps start and finish (lines or bytes?)"""
+ 
+    def _read_energy_geometry(self):
         steps_list = [[]]
-        previous_scan_step = scan_step = 0
-        opt_step_start = 0
+        previous_scan_point = previous_step_number = 0
+        step_start = 0
         self.file.seek(0)
-        line = self.file.readline()
-        while line:
-            if "Step number" in line:
-                opt_step_finish = self.file.tell()
-                steps_list[scan_step].append((opt_step_start, opt_step_finish))
-                opt_step_start = self.file.tell()
-                if "scan point" in line:
-                    scan_step = int(line.split()[12]) - 1 
-                    if scan_step != previous_scan_step:
-                        steps_list.append([])
-                        previous_scan_step = scan_step
-            line = self.file.readline()
-        steps_list[scan_step].append((opt_step_start, self.file.tell())) # last structure
-        self.file.seek(0)
-        return steps_list
 
-    def _read_energies(self):
         energies_list = []
-        if self.amber:
-            search_str = "extrapolated energy"
-        else:
-            search_str = "SCF Done"
-        for scan_step in self.steps_list:
-            energies_list.append([])
-            for opt_step in scan_step:
-                self.file.seek(opt_step[0])
-                for line in self.file:
-                    if search_str in line:
-                        energy = float(line.split()[4])
-                    if "Step number" in line:
-                        break
-                energies_list[-1].append(energy)
-        return energies_list
-    
-    def read_geometry(self, opt_step, scan_step):
-        "Returns a list of atoms with the respective coordinates"
-        # lines to read
-        step_start = self.steps_list[scan_step][opt_step][0]
-        self.file.seek(step_start)
+        geometries_list = []
         atoms_list = []
-        reading = False
+
+        reading_geometry = False
+
         for line in self.file:
-            if reading:
+            ### Step number and scan points
+            if "Step number" in line:
+                if "scan point" in line:
+                    scan_point = int(line.split()[12]) - 1
+                    step_number = int(line.split()[2]) - 1  
+                    if scan_point != previous_scan_point :
+                        steps_list.append([])
+                        previous_scan_point = scan_point
+                step_finish = self.file.tell()
+                steps_list[scan_point].append((step_start, step_finish))
+                step_start = self.file.tell()
+
+            # Energies
+            if ("SCF Done" in line or "extrapolated energy" in line) :
+                        energy = float(line.split()[4])
+                        energies_list.append(energy)
+
+            # Geometries
+            if reading_geometry:
                 if "------" in line:
-                    break
+                    reading_geometry = False
+                    geometries_list.append(atoms_list)
+                    atoms_list = []
                 else:
                     atomic_number = line.split()[1]
                     x, y, z = line.split()[3:6]
-                    element = [key for key in iter(atoms.ATOMIC_NUMBER_DICT) \
-                               if atoms.ATOMIC_NUMBER_DICT[key] == int(atomic_number)][0] #hack
+                    element = ATOMIC_NUMBER_DICT_REVERSE[int(atomic_number)]
                     atoms_list.append(atoms.Atom(element, x, y, z))
-            elif " orientation:" in line:
+            if " orientation:" in line:
                 for _ in range(4): next(self.file)
-                reading = True    
-        return atoms_list
-      
+                reading_geometry = True    
+
+        # Reformat data according to steps_list
+        self.nha = 'NHAAA' 
+        return steps_list                          
+
     def read_symbolic_zmatrix(self):
         self.file.seek(0)
         atoms_list = []
@@ -330,6 +314,7 @@ class GaussianLog():
                 elif line.strip() == '':
                     break
                 else:
+                    print line
                     mm_type_charge, mask, x, y, z, layer = line.split(None,5)[0:6]
                     element, mm_type, charge = mm_type_charge.split('-',2)
                     atoms_list.append(QmmmAtom(element, mm_type, charge, mask,

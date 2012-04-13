@@ -5,6 +5,8 @@
 ATOMIC_NUMBER_DICT = {'H':1, 'C':6, 'N':7, 'O':8, 'F':9,'Mg':12, 'P':15, 'S':16, 'Cl':17,\
                        'Mn':25,'Co':27, 'Ni':28, 'Zn':30, 'Br':35, 'I':53}
 
+ATOMIC_NUMBER_DICT_REVERSE = {1:'H', 6:'C', 7:'N', 8:'O', 9:'F', 12:'Mg', 15:'P', 16:'S', 17:'Cl', 25:'Mn', 27:'Co', 28:'Ni', 30:'Zn', 35:'Br', 53:'I'}
+
 #typical bond length -simple =double *triple bond  .half
 #from gaussview
 #maybe it would be better to have these values in a database
