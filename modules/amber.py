@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
 ### RESP
-def produce_resp_in(esp_in_name, atoms_list, instructions_list):
+def produce_resp_in(esp_in_name, atoms_list, instructions_list, total_charge = False):
     with open(esp_in_name, 'w', encoding='UTF-8') as esp_in_file:
         comment = esp_in_name.split("/")[-1]
-        total_charge = sum([atom.charge for atom in atoms_list])
+        if type(total_charge) == int:
+            pass
+        else:
+            total_charge = sum([atom.charge for atom in atoms_list])
         no_atoms = len(atoms_list)
         esp_in_file.write(\
         """{0}
@@ -85,15 +88,22 @@ def read_resp_out(name):
     return charges_list
 
 ###CRD file
-def write_crd_file(name, coordinate_list):
+def write_crd_file(name, coordinate_list, box_info=True):
     with open(name, mode='w', encoding='utf-8') as crd_file:
-        amber_crd_lines = ['\n', '  {0}\n'.format(len(coordinate_list)-2)]
-        for no in range(0, len(coordinate_list)):
-            atom_coordinates = coordinate_list[no][0:3]
-            line = '{0[0]:12.7f}{0[1]:12.7f}{0[2]:12.7f}'.format(atom_coordinates)
+        if box_info:
+            no_atoms = len(coordinate_list)-2
+        else:
+            no_atoms = len(coordinate_list)
+        first_line = '\n {0}\n'.format(no_atoms)
+        amber_crd_lines = [first_line]
+        for no, coordinates in enumerate(coordinate_list):
+            line = '{0[0]:12.7f}{0[1]:12.7f}{0[2]:12.7f}'.format(coordinates)
             if no%2 != 0: line += '\n'
             amber_crd_lines.append(line)
         amber_crd_lines[-1] += '\n'
+        if box_info:
+            amber_crd_lines[-2] = amber_crd_lines[-2].replace("\n","")
+            amber_crd_lines[-3] += '\n'
         for line in amber_crd_lines: 
             crd_file.write(line)
     return None

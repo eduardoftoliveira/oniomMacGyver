@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 # my modules
+from atoms import Atom
 from gaussian import GaussianLog, EmptyGaussianCom
 from amber import *
 # other modules
 import os
+import math
 
 # input - do this in a outside file
 # file start end step
@@ -12,6 +14,7 @@ user_input_lines = ["glu_scan.log 1 1 1"]
 RESP_ROUTE_SECTION = """#hf/6-31G* Pop(mk) density=current
 iop(6/33=2) scf=tight gfinput gfprint test\n"""
 CHARGE_AND_MULTIPLICITY = "0 1\n"
+HIGH_LAYER_CHARGE = 0
 # names
 GAUSSIAN_SP_FOLDER = "./gaussian_sp"
 RUN_SP_SCRIPT_NAME = "{}/sp_run.sh".format(GAUSSIAN_SP_FOLDER)
@@ -39,6 +42,15 @@ def parse_and_read_log(user_input_lines):
     print("Total of {} geometries".format(len(geometries_list)))
     return geometries_list
 
+def read_no_link_atoms_list(name):
+    gaussian_log = GaussianLog(name)
+    input_atoms_list = gaussian_log.symbolic_zmatrix
+    no_link_atoms_list = []
+    for input_no, input_atom in enumerate(input_atoms_list):
+        if "H" in input_atom.layer and "L" in input_atom.layer:
+            no_link_atoms_list.append(input_no)
+    return no_link_atoms_list
+
 def read_no_high_atoms_list(name):
     gaussian_log = GaussianLog(name)
     input_atoms_list = gaussian_log.symbolic_zmatrix
@@ -61,6 +73,7 @@ def create_gaussian_sp():
     # reading scan log info
     gaussian_log_name = user_input_lines[0].split()[0]
     no_high_link_atoms_list = read_no_high_link_atoms_list(gaussian_log_name)
+    no_link_atoms_list = read_no_link_atoms_list(gaussian_log_name)
     # reading geometries
     geometries_list = parse_and_read_log(user_input_lines)
     # create folder to put sp inputs
@@ -73,10 +86,23 @@ def create_gaussian_sp():
         gaussian_sp_file = EmptyGaussianCom(gaussian_sp_input_name)
         gaussian_sp_file.route_section = RESP_ROUTE_SECTION
         gaussian_sp_file.multiplicity_line = CHARGE_AND_MULTIPLICITY
-        # choose high layer and link atoms
+        # choose high layer atoms and substitute link atoms for hydrogens
         high_link_atoms_list = []
         for no in no_high_link_atoms_list:
             high_link_atoms_list.append(atoms_list[no])
+        link_atoms_list = []
+        for no in no_link_atoms_list:
+            link_atoms_list.append(atoms_list[no])
+        for no, atom_a in enumerate(high_link_atoms_list):
+            if atom_a in link_atoms_list:
+                for atom_b in high_link_atoms_list:
+                    if atom_a.is_bonded_to(atom_b):
+                        atom_a.x = (atom_a.x - atom_b.x) * 0.723886 + atom_b.x
+                        atom_a.y = (atom_a.y - atom_b.y) * 0.723886 + atom_b.y
+                        atom_a.z = (atom_a.z - atom_b.z) * 0.723886 + atom_b.z
+                        atom_a.element = "H"
+                        high_link_atoms_list[no] = atom_a
+                        break
         gaussian_sp_file.atoms_list = high_link_atoms_list  
         # write
         gaussian_sp_file.write_to_file("{}/{}"
@@ -127,7 +153,7 @@ def create_resp_input():
                 resp_instructions.append(instruction)
         produce_resp_dat_from_gaussian_log(complete_resp_dat, complete_sp_log_name)
         produce_resp_qin(complete_resp_qin, qmmm_high_atoms_list)
-        produce_resp_in(complete_resp_in, qmmm_high_atoms_list, resp_instructions)
+        produce_resp_in(complete_resp_in, qmmm_high_atoms_list, resp_instructions, HIGH_LAYER_CHARGE)
         command = 'resp -O -i {} -o {} -e {} -p {} -q {} > {}\n'.format(\
         resp_in, resp_out, resp_dat, resp_pch, resp_qin, resp_stdout)
         resp_jobs_list.append(command)
@@ -149,10 +175,11 @@ def create_amber_input():
                 start_charges = no + 2
                 break
     model_charges = read_prmtop_charges(MODEL_PRMTOP)
-    # read the number of high and link atoms
+    # read numbers of important atoms 
     gaussian_log_name = user_input_lines[0].split()[0]
     no_high_link_atoms_list = read_no_high_link_atoms_list(gaussian_log_name)
     no_high_atoms_list = read_no_high_atoms_list(gaussian_log_name)
+    no_link_atoms_list = read_no_link_atoms_list(gaussian_log_name)
     # create restraint mask
     restraint_mask = "@"
     jump_this = []
@@ -160,7 +187,7 @@ def create_amber_input():
         if atom_no in jump_this:
             pass
         else:
-            restraint_mask += str(atom_no)
+            restraint_mask += str(atom_no+1)
             sequence = False
             last_sub_atom = atom_no
             for sub_atom_no in no_high_link_atoms_list[index+1:]:
@@ -169,11 +196,11 @@ def create_amber_input():
                         restraint_mask += ','
                         break
                     elif sequence:
-                        restraint_mask += '-{},'.format(last_sub_atom)
+                        restraint_mask += '-{},'.format(last_sub_atom+1)
                         break
                 else:
                     if sub_atom_no == no_high_link_atoms_list[-1]:
-                        restraint_mask += '-{}'.format(sub_atom_no)
+                        restraint_mask += '-{}'.format(sub_atom_no+1)
                         jump_this.append(sub_atom_no)
                     else:
                         jump_this.append(sub_atom_no)
@@ -184,27 +211,50 @@ def create_amber_input():
         os.makedirs(folder_name)
         # write coordinate file
         coordinates_list = [(atom.x, atom.y, atom.z) for atom in atoms_list]
+        # translate coordinates
+        moved_coordinates_list = []
+        mv_x, mv_y, mv_z = (39.426,33.660, 30.773)             # HACK 
+        for coord_tuple in coordinates_list:
+            moved_coordinates_list.append((coord_tuple[0]+mv_x, coord_tuple[1]+mv_y, coord_tuple[2]+mv_z))
         no_atoms =len(coordinates_list)
-        all_coordinates_list = coordinates_list + model_coordinates[no_atoms:]
+        all_coordinates_list = moved_coordinates_list + model_coordinates[no_atoms:]
         crd_name = "{}/coordinates.inpcrd".format(folder_name, step)
         write_crd_file(crd_name, all_coordinates_list)
         #read resp new charges model prmtop
         resp_output = "{0}/resp_{1:02d}.out".format(RESP_FOLDER, step)
         new_charges_list = read_resp_out(resp_output) 
         all_new_charges_list = model_charges[:]
-        charge_sum_new = 0
-        charge_sum_old = 0
-        charge_no_link_new = 0
-        charge_no_link_old =0
-#        for index, no in enumerate(no_high_atoms_list):
-#            charge_no_link_old += all_new_charges_list[no]
-##            charge_no_link_old += new_charges_list[index]
+        charge_sum_new = charge_sum_old = 0
         for index, no in enumerate(no_high_link_atoms_list):
             charge_sum_old += all_new_charges_list[no]
             charge_sum_new += new_charges_list[index]
             all_new_charges_list[no] = new_charges_list[index]
-        #print(charge_sum_new, charge_sum_old)
-        #print(charge_no_link_new,charge_no_link_old)
+        charge_diff =  charge_sum_old - charge_sum_new
+        #print("Charge difference:", charge_diff)
+        #distribute the charge diference to the atoms connected to the link atoms 
+        high_link_atoms_list = []
+        for no in no_high_link_atoms_list:
+            high_link_atoms_list.append(atoms_list[no])
+            print(no,atoms_list[no], model_charges[no], all_new_charges_list[no])
+        link_atoms_list = []
+        for no in no_link_atoms_list:
+            link_atoms_list.append(atoms_list[no])
+        charge_diff_per_link = charge_diff / len(link_atoms_list)
+        for no, atom_a in enumerate(high_link_atoms_list):
+            if atom_a in link_atoms_list:
+                for no_b, atom_b in enumerate(high_link_atoms_list):
+                    if atom_a.is_bonded_to(atom_b):
+                        new_b_charge = all_new_charges_list[no_high_link_atoms_list[no_b]] + charge_diff_per_link
+                        #print(no_high_link_atoms_list[no_b], model_charges[no_high_link_atoms_list[no_b]],all_new_charges_list[no_high_link_atoms_list[no_b]], new_b_charge)
+                        all_new_charges_list[no_high_link_atoms_list[no_b]] = new_b_charge
+                        break
+        charge_sum_alter = 0
+        #some charge
+        old_charges_sum = new_charges_sum = 0
+        for no, charge in enumerate(model_charges):
+            old_charges_sum += charge
+            new_charges_sum += all_new_charges_list[no]
+        #print(old_charges_sum, new_charges_sum)
         # write these charges to a new prmtop
         charges_for_prmtop = [charge * 18.2223 for charge in all_new_charges_list]
         lines_for_prmtop = []

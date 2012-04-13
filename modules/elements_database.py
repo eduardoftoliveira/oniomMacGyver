@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-
 #data
 ATOMIC_NUMBER_DICT = {'H':1, 'C':6, 'N':7, 'O':8, 'F':9,'Mg':12, 'P':15, 'S':16, 'Cl':17,\
                        'Mn':25,'Co':27, 'Ni':28, 'Zn':30, 'Br':35, 'I':53}
@@ -11,7 +10,7 @@ ATOMIC_NUMBER_DICT_REVERSE = {1:'H', 6:'C', 7:'N', 8:'O', 9:'F', 12:'Mg', 15:'P'
 #from gaussview
 #maybe it would be better to have these values in a database
 BONDS_DISTANCES_PAIRS = {\
-"H-H":0.74,  "H-C":1.09, "H-N":1.00,"H-O":0.96, "H-F":0.92, "H-Mg":1.66, "H-P":1.35, "H-S":1.31, "H-Cl":1.29, "H-Mn":1.47, "H-Co":1.46, "H-Ni":1.45, "H-Zn":1.55, "H-Br":1.44, "H-I":1.63,
+"H-H":0.74, "H-C":1.09, "H-N":1.00,"H-O":0.96, "H-F":0.92, "H-Mg":1.66, "H-P":1.35, "H-S":1.31, "H-Cl":1.29, "H-Mn":1.47, "H-Co":1.46, "H-Ni":1.45, "H-Zn":1.55, "H-Br":1.44, "H-I":1.63,
 
 "C-C":1.54, "C-N":1.47, "C-O":1.43,"C-F":1.35,"C-Mg":2.13,"C-P":1.82, "C-S":1.78, "C-Cl":1.76,"C-Mn":1.94, "C-Co":1.93, "C-Ni":1.92,"C-Zn":2.05, "C-Br":1.91,"C-I":2.10,
 "C-.O":1.36,
