@@ -21,7 +21,7 @@ RUN_SP_SCRIPT_NAME = "{}/sp_run.sh".format(GAUSSIAN_SP_FOLDER)
 RESP_FOLDER = "./resp"
 RUN_RESP_SCRIPT_NAME = "{}/resp_run.sh".format(RESP_FOLDER)
 AMBER_INPUT_FOLDER = "./amber_in"
-AMBER_INPUT_FILES = ["min1.in", "min2.in", "mdp.in", "mdi.in"]
+AMBER_INPUT_FILES = ["mdp.in"]
 PDB_MODEL = "{}/model.pdb".format(AMBER_INPUT_FOLDER)# model PDB, tleap must read this without errors
 MODEL_INPCRD = "{}/model.inpcrd".format(AMBER_INPUT_FOLDER)
 MODEL_PRMTOP = "{}/model.prmtop".format(AMBER_INPUT_FOLDER)
@@ -211,13 +211,9 @@ def create_amber_input():
         os.makedirs(folder_name)
         # write coordinate file
         coordinates_list = [(atom.x, atom.y, atom.z) for atom in atoms_list]
-        # translate coordinates
-        moved_coordinates_list = []
-        mv_x, mv_y, mv_z = (39.426,33.660, 30.773)             # HACK 
-        for coord_tuple in coordinates_list:
-            moved_coordinates_list.append((coord_tuple[0]+mv_x, coord_tuple[1]+mv_y, coord_tuple[2]+mv_z))
-        no_atoms =len(coordinates_list)
-        all_coordinates_list = moved_coordinates_list + model_coordinates[no_atoms:]
+        all_coordinates_list = model_coordinates[:]
+        for no in no_high_link_atoms_list:
+            all_coordinates_list[no] = coordinates_list[no]
         crd_name = "{}/coordinates.inpcrd".format(folder_name, step)
         write_crd_file(crd_name, all_coordinates_list)
         #read resp new charges model prmtop
@@ -280,10 +276,16 @@ def create_amber_input():
             new_file_name = "{}/{}".format(folder_name, amber_in_name) 
             with open(new_file_name, 'w', encoding='UTF-8') as new_in_file:
                 new_in_file.write(new_file_str)
+
+def md_dynamics_to_oniom():
+    
+
+
 def main():
 #    create_gaussian_sp()
 #    create_resp_input()
-    create_amber_input()
+#    create_amber_input()
+#    md_dynamics_to_oniom()
     pass
 
 if __name__ == "__main__":
