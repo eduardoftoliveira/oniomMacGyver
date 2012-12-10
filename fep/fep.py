@@ -2,11 +2,12 @@
 
 # my modules
 from atoms import Atom
-from gaussian import GaussianLog, EmptyGaussianCom
+from gaussian import GaussianLog, EmptyGaussianCom, GaussianCom
 from amber import *
 # other modules
 import os
 import math
+import shutil
 
 # input - do this in a outside file
 # file start end step
@@ -15,6 +16,8 @@ RESP_ROUTE_SECTION = """#hf/6-31G* Pop(mk) density=current
 iop(6/33=2) scf=tight gfinput gfprint test\n"""
 CHARGE_AND_MULTIPLICITY = "0 1\n"
 HIGH_LAYER_CHARGE = 0
+
+
 # names
 GAUSSIAN_SP_FOLDER = "./gaussian_sp"
 RUN_SP_SCRIPT_NAME = "{}/sp_run.sh".format(GAUSSIAN_SP_FOLDER)
@@ -26,6 +29,9 @@ PDB_MODEL = "{}/model.pdb".format(AMBER_INPUT_FOLDER)# model PDB, tleap must rea
 MODEL_INPCRD = "{}/model.inpcrd".format(AMBER_INPUT_FOLDER)
 MODEL_PRMTOP = "{}/model.prmtop".format(AMBER_INPUT_FOLDER)
 AMBER_FOLDER = "./amber"
+SP_ONIOM_INPUT_FOLDER = "./amber_in/oniom_sp"
+SP_ONIOM_FILE = "example.com"
+SP_ONIOM_FOLDER = "./oniom_sp"
 
 def parse_and_read_log(user_input_lines):
     geometries_list = []
@@ -278,14 +284,42 @@ def create_amber_input():
                 new_in_file.write(new_file_str)
 
 def md_dynamics_to_oniom():
-    
+    oniom_gaussian_example_name = "{}/{}".format(SP_ONIOM_INPUT_FOLDER,SP_ONIOM_FILE)
+    oniom_gaussian_example = GaussianCom(oniom_gaussian_example_name)
+    atoms_list = oniom_gaussian_example.atoms_list
+    os.makedirs(SP_ONIOM_FOLDER)
+    for md_no in os.listdir(AMBER_FOLDER):
+        folder_name = "{}/{}".format(SP_ONIOM_FOLDER, md_no)
+        os.makedirs(folder_name)
+        for cluster_file in os.listdir('./{}/{}'.format(AMBER_FOLDER,md_no)):
+            if cluster_file.startswith("cluster.rep."):
+                cluster_path_file = './{}/{}/{}'.format(AMBER_FOLDER,md_no,cluster_file)
+                cluster_coordinates = read_mdcrd_file(cluster_path_file)
+                cluster_atoms_list = []
+                for no, atom in enumerate(atoms_list):
+                    atom.x,atom.y,atom.z = cluster_coordinates[no]
+                    cluster_atoms_list.append(atom)
+                oniom_gaussian_example.atoms_list = cluster_atoms_list
+                gaussian_path_file_name = "{}/{}".format(folder_name, cluster_file)
+                gaussian_name = "{}.com".format(gaussian_path_file_name)
+                oniom_gaussian_example.write_to_file(gaussian_name)
+                print(md_no,cluster_file)
+            
+            
+            
+    pass
 
 
 def main():
 #    create_gaussian_sp()
+#user: run gaussian
 #    create_resp_input()
+#user: run resp
 #    create_amber_input()
-#    md_dynamics_to_oniom()
+#user: run amber
+#usar: run ptraj
+    md_dynamics_to_oniom()
+
     pass
 
 if __name__ == "__main__":

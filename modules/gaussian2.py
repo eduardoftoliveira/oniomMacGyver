@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # python modules
 import re
@@ -69,7 +69,7 @@ class EmptyGaussianCom(GaussianFile):
         self.additional_input_dict = {"connect":None, "modred":None, "gen":None,
                                       "pseudo=read":None}
     def write_to_file(self,name):
-        with open(name, 'w', encoding='UTF-8') as gaussian_com_file:
+        with open(name, 'w') as gaussian_com_file:
             for line in self.link_0_commands:
                 gaussian_com_file.write(line)
             gaussian_com_file.write(self.route_section)
@@ -115,7 +115,7 @@ class GaussianCom(EmptyGaussianCom):
 
     def _read_lines(self):
         """Reads lines to a list and strips the \\n"""
-        with open(self.name, 'r', encoding='UTF-8') as file:
+        with open(self.name, 'r') as file:
             lines = file.readlines()
             #lines = [line.strip() for line in lines]
         return lines

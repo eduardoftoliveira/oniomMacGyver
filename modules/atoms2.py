@@ -51,18 +51,13 @@ class Atom(object):
         d12 = self.distance(atom_2)
         d13 = self.distance(atom_3)
         d23 = atom_2.distance(atom_3)        
-        angle = math.acos((d12**2 + d13**2 - d23**2)/(2*d12*d13))
+        angle = math.acos(  (d12**2 + d13**2 - d23**2)/(2*d12*d13)  )
         return angle
 
 
 class QmmmAtom(Atom):
     def __init__(self, element, mm_type, charge, mask, x, y, z, layer):
-        self.element = element
-        self.x = float(x)
-        self.y = float(y)
-        self.z = float(z)
-        self.coordinates = (self.x, self.y ,self.z)
-        self.atomic_number  = ATOMIC_NUMBER_DICT[element]
+        super().__init__(element, x, y, z)
         self.mm_type = mm_type
         self.charge = float(charge)
         self.mask = mask
@@ -70,16 +65,7 @@ class QmmmAtom(Atom):
 
 class QmmmAtomPdb(QmmmAtom):
     def __init__(self,element, mm_type, charge, mask, x, y, z, layer, pdb_name, residue_name, residue_number):
-        self.element = element
-        self.x = float(x)
-        self.y = float(y)
-        self.z = float(z)
-        self.coordinates = (self.x, self.y ,self.z)
-        self.atomic_number  = ATOMIC_NUMBER_DICT[element]
-        self.mm_type = mm_type
-        self.charge = float(charge)
-        self.mask = mask
-        self.layer = layer
+        super().__init__(element, mm_type, charge, mask, x, y, z, layer)
         self.pdb_name = pdb_name
         self.residue_name = residue_name
         self.residue_number = residue_number

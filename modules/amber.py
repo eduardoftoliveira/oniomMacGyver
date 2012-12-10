@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import subprocess
+
 ### RESP
 def produce_resp_in(esp_in_name, atoms_list, instructions_list, total_charge = False):
     with open(esp_in_name, 'w', encoding='UTF-8') as esp_in_file:
@@ -37,7 +39,7 @@ def produce_resp_qin(resp_qin_name, atoms_list):
                 n = 0
             resp_qin_file.write(charge_str)
 
-def produce_resp_dat_from_gaussian_log(esp_dat_name, gaussian_log_name):
+def produce_resp_dat_from_gaussian_log(esp_dat_name, gaussian_log_name, qmmm_high_atoms_list_number=None):
     unit = 0.529177249  # 1 ansgtrom = 1 bohr /unit
     with open(gaussian_log_name, 'r', encoding='UTF-8') as gaussian_log_file:
         atomic_center_list = []
@@ -48,7 +50,8 @@ def produce_resp_dat_from_gaussian_log(esp_dat_name, gaussian_log_name):
                 x = float(line[32:42])/unit
                 y = float(line[42:52])/unit
                 z = float(line[52:62])/unit
-                atomic_center_list.append((x,y,z))
+                if not qmmm_high_atoms_list_number or (int(line.split()[2]) in qmmm_high_atoms_list_number):
+                    atomic_center_list.append((x,y,z))
             elif 'ESP Fit ' in line:
                 x = float(line[32:42])/unit
                 y = float(line[42:52])/unit
@@ -121,6 +124,19 @@ def read_crd_file(name):
             coordinates_list.append(extended_coordinates_list[no:no+3])
     return coordinates_list
 
+### mdcrd file 
+def read_mdcrd_file(name):  #only one structure
+    with open(name, mode='r', encoding='utf-8') as crd_file:
+        extended_coordinates_list = []
+        coordinates_list = []
+        amber_crd_lines = crd_file.readlines()
+        for line in amber_crd_lines[1:]:
+            extended_coordinates_list.extend(line.split())
+        extended_coordinates_list = [float(no) for no in extended_coordinates_list]
+        for no in range(0,len(extended_coordinates_list),3):
+            coordinates_list.append(extended_coordinates_list[no:no+3])
+    return coordinates_list
+
 ### PRMTOP
 def read_prmtop_charges(name):
     with open(name, 'r', encoding='UTF-8') as prmtop_file:
@@ -138,3 +154,17 @@ def read_prmtop_charges(name):
         charges_list[no] = float(charges_list[no]) / 18.2223
     
     return charges_list
+
+### out file
+def read_out_energies(name, patern="EAMBER (non-restraint)  ="):
+    """Read energies from a .out file into a list (with grep)"""
+    
+    grep_command = "grep '{}' {}".format(patern, name)
+    grep_call = subprocess.Popen(grep_command, shell=True, stdout=subprocess.PIPE)
+    grep_output = grep_call.stdout.read()
+    energies_list = str(grep_output)[1:].replace("EAMBER (non-restraint)  =","").split("\n")
+    energies_list = [float(no.strip()) for no in energies_list[:-2]]
+    return energies_list
+
+    
+    

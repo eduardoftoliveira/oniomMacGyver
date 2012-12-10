@@ -7,14 +7,14 @@ import matplotlib.pyplot as plt
 import time
 
 #user input
-number_of_steps = 1000000
+number_of_steps = 200000
 lambda_values = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
 ###
 
 dvdl_values = []
 stdev_values = []
 blocks_list = []
-for n in range(40, 20001):
+for n in range(20, 40001):
     if float(number_of_steps)%n == 0:
         blocks_list.append(number_of_steps/n)
 
@@ -30,7 +30,9 @@ for lambda_v in lambda_values:
     dvdl_list = [float(no) for no in dvdl_list[:-4]]
     print("{0} dv/dl values read for lambda {1}"\
            .format(len(dvdl_list), lambda_v))
-
+    dvdl_list = dvdl_list[:number_of_steps]
+    print("using {0}"\
+           .format(len(dvdl_list)))
     dvdl_array = np.array(dvdl_list)
     total_average = np.average(dvdl_array)
     dvdl_values.append(total_average)
@@ -109,15 +111,28 @@ if lambda_values[-1] != 1:
 
 #integration
 dvdl_integration = np.trapz(dvdl_values,x=lambda_values)
-stdev_integration = np.trapz(stdev_values,x=lambda_values)
-
-
-#add ends to block_stdev_corr_list and integrate the error
+# average stdev
+stdev_integration = np.trapz(stdev_values,x=lambda_values) 
+    
+#add ends to block_stdev_corr_list and integrate the error (average the error)
 Sverd_list_all = Sverd_list[:]
 Sverd_list_all.insert(0,Sverd_list_all[0])
 Sverd_list_all.insert(-1,Sverd_list_all[-1])
 sverd_corr_integration = np.trapz(Sverd_list_all,x=lambda_values)
 
+#gaussian propagation error  (stdev and block_stdev)
+rest = 0
+gaussian_stdev = 0
+gaussian_block_stdev = 0
+lambda_values.append(1)
+for no in range(0,len(lambda_values)-1):
+    delta_lambda = rest + (lambda_values[no+1]-lambda_values[no])/2
+    rest = (lambda_values[no+1]-lambda_values[no])/2
+    gaussian_stdev += (delta_lambda * stdev_values[no])**2
+    gaussian_block_stdev += (delta_lambda * Sverd_list_all[no])**2
+gaussian_stdev = math.sqrt(gaussian_stdev)
+gaussian_block_stdev = math.sqrt(gaussian_block_stdev)
+lambda_values.pop()
 #integration print
 print "\nSummary:"
 print "(values for lambda 0 and 1 are linear extrapolations)"
@@ -128,8 +143,7 @@ for i, lambda_v in enumerate(lambda_values):
     
 print "Total DV/DL: {0}".format(dvdl_integration)
 print "Amber error (stdev average): {0}".format(stdev_integration)
-print "Corrected error (corrected stdev average): {0}".format(sverd_corr_integration)
-plt.bar(lambda_values,dvdl_values)
-plt.savefig("final.png".format(lambda_v), dpi=300)
-
+print "block error (block stdev average): {0}".format(sverd_corr_integration)
+print "Amber error (stdev propagation error): {0}".format(gaussian_stdev)
+print "block error (block stdev with propagation error): {0}".format(gaussian_block_stdev)
 print "n_corr average = {0}".format(np.average(n_corr_list))
