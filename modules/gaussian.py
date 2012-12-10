@@ -78,6 +78,7 @@ class EmptyGaussianCom(GaussianFile):
             gaussian_com_file.write("\n")
             gaussian_com_file.write(self.multiplicity_line)
             for atom in self.atoms_list:
+                # Write the freaking pdb file yeahhhh!
                 if type(atom) == atoms.QmmmAtom:
                     atom_type_charge = "{0.element}-{0.mm_type}-{0.charge:.6f}"\
                                         .format(atom)
