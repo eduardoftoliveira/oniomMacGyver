@@ -9,6 +9,7 @@ import subprocess
 # my modules
 import atoms
 
+
 class GaussianFile():
     def __init__(self):
         pass

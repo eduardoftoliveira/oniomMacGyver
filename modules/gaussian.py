@@ -6,8 +6,13 @@ import collections
 import linecache
 import subprocess
 
-# my modules
+
+# my python modules
 import atoms
+
+# my c extensions
+import c_grep
+
 
 class GaussianFile():
     def __init__(self):

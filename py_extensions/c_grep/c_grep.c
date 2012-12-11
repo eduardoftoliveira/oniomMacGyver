@@ -1,6 +1,5 @@
 #include <Python.h>
 
-
 static PyObject* c_grep(PyObject* self, PyObject *args)
 {
     FILE *f;
@@ -10,6 +9,8 @@ static PyObject* c_grep(PyObject* self, PyObject *args)
     char buffer[100];
     PyObject *lst = PyList_New(0);
     PyObject *num;
+    PyObject *line;
+    
 
     
     if (!PyArg_ParseTuple(args, "ss", &filename, &pattern))
@@ -22,8 +23,12 @@ static PyObject* c_grep(PyObject* self, PyObject *args)
     while(fgets(buffer, sizeof(buffer), f)) {
         if (strstr(buffer, pattern)) {
             position = ftell(f);
-            num = PyInt_FromLong(position);
-            PyList_Append(lst,num);
+            num = PyLong_FromLong(position);
+            line = PyUnicode_FromString(buffer);
+            PyObject *byte_line_tuple = PyTuple_New(2);
+            PyTuple_SET_ITEM(byte_line_tuple,0,num);
+            PyTuple_SET_ITEM(byte_line_tuple,1,line);
+            PyList_Append(lst,byte_line_tuple);
         }
     }
     return Py_BuildValue("O", lst);
@@ -38,9 +43,17 @@ static PyMethodDef c_grep_funcs[] = {
     {NULL, NULL, 0, NULL}
 };
 
+static struct PyModuleDef c_grep_module = {
+    PyModuleDef_HEAD_INIT,
+    "c_grep",
+    c_grep_docs,
+    -1,
+    c_grep_funcs
+};
+
 PyMODINIT_FUNC
 
-initc_grep(void)
+PyInit_c_grep(void)
 {
-    (void)Py_InitModule("c_grep", c_grep_funcs);
+    return PyModule_Create(&c_grep_module);
 }
