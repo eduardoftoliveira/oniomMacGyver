@@ -7,6 +7,7 @@ static PyObject* c_grep(PyObject* self, PyObject *args)
     const char *pattern;
     long position;
     char buffer[100];
+    char output[100];
     PyObject *lst = PyList_New(0);
     PyObject *num;
     PyObject *line;
