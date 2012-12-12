@@ -240,9 +240,17 @@ class GaussianLog(GaussianFile):
             search_str = "SCF Done"
         previous_scan_step = scan_step = 0
         start_step_byte = 0
-        grep_out = subprocess.check_output("grep -b '\(Step number\|{}\)' {}".format(search_str,self.name), shell=True)
-        grep_out = str(grep_out)[2:-3]
-        lines_grep = grep_out.split("\\n")
+        # o ideal seria por a funcão em C a aceitar mais padrões
+        # para não multiplicar o tempo pelo número de pesquisas
+        c_grep_step = c_grep.c_grep(self.name, "Step number")
+        c_grep_energy = c_grep.c_grep(self.name, search_str)
+        c_grep_step_energy = c_grep_step + c_grep_energy
+        c_grep_step_energy.sort()
+        c_grep_step_energy = [ ":".join((str(element[0]),element[1])) 
+                              for element in c_grep_step_energy]
+        #rep_out = subprocess.check_output("grep -b '\(Step number\|{}\)' {}".format(search_str,self.name), shell=True)
+        #grep_out = str(grep_out)[2:-3]
+        lines_grep = c_grep_step_energy
         for line in lines_grep:
             if "Step number" in line:
                 end_step_byte = int(line.split(":")[0])
