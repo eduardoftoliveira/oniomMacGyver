@@ -22,7 +22,7 @@ class GaussianFile():
                 has_pdb_info = True
                 pdb_info = line.split("(")[1].split(")")[0]
                 pdb_info_list = pdb_info.split(",")
-                line = line.replace("({})".format(pdb_info), "")
+                line = line.replace("({})".format(pdb_info), "") 
                 for info in pdb_info_list:
                     if 'PDBName' in info:
                         pdb_atom_name = info.split("=")[1]
@@ -35,13 +35,23 @@ class GaussianFile():
             else:
                 pdb_atom_name = pdb_res_name = pdb_res_number = pdb_chain = None
                 has_pdb_info = False
-            line_list = line.split(None, 5)
+            line_list = line.split(None) # line has no pdb at this point
 
             if len(line_list) == 4:
                 element, x, y, z = line_list
                 this_atom = atoms.Atom(element, x, y, z)
-            elif len(line_list) == 6:
+            elif len(line_list) >= 6:
                 mm_type_charge, mask, x, y, z, layer = line_list[0:6]
+                link_atom_stuff = line_list[6:]
+                for i in range(3-len(link_atom_stuff)): 
+                    link_atom_stuff.append(None)
+                if link_atom_stuff[0] == None:
+                    link_element = None
+                    link_mm_type = None
+                else:
+                    link_element, link_mm_type = link_atom_stuff[0].split('-')  # expecting something like "H-HC"
+                link_bound_to= link_atom_stuff[1]
+                link_scale1  = link_atom_stuff[2]                           # Scale 2 and 3 omitted
                 try:
                     element, mm_type, mm_charge = mm_type_charge.split('-',2)
                 except ValueError:
@@ -51,12 +61,29 @@ class GaussianFile():
                     mm_type =  None
                     mm_charge = 0
                 if has_pdb_info:
-                    this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, mask, x, y, z, layer, pdb_atom_name, pdb_res_name, pdb_res_number)
+                    this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, mask, x, y, z, layer, pdb_atom_name, pdb_res_name, pdb_res_number, link_element, link_mm_type, link_bound_to, link_scale1)
                 else:
-                    this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer)
+                    this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer, link_element, link_mm_type, link_bound_to, link_scale1)
             atoms_list.append(this_atom)
         return atoms_list
 
+    def writeZMat(self,atom):
+        if type(atom) == atoms.QmmmAtom:
+            atom_type_charge = "{0.element}-{0.mm_type}-{0.charge:.6f}"\
+                                .format(atom)
+            line = ("{0:16s}{1.mask:>2s}{1.x:>14.8f}{1.y:>14.8f}"
+                    "{1.z:>14.8f} {1.layer:s}\n"
+                    .format(atom_type_charge,atom))
+            return line
+
+        elif type(atom) == atoms.QmmmAtomPdb:
+            return atom.get_formatted_line()
+        else: 
+            line = ("{0.element:18s}{0.x:>14.8f}{0.y:>14.8f}"
+                    "{0.z:>14.8f}\n".format(atom))
+            return line
+
+    # if QmmmAtomPdb(QmmmAtomPdb)
 
 class EmptyGaussianCom(GaussianFile):
     def __init__(self, name):
@@ -78,17 +105,7 @@ class EmptyGaussianCom(GaussianFile):
             gaussian_com_file.write("\n")
             gaussian_com_file.write(self.multiplicity_line)
             for atom in self.atoms_list:
-                # Write the freaking pdb file yeahhhh!
-                if type(atom) == atoms.QmmmAtom:
-                    atom_type_charge = "{0.element}-{0.mm_type}-{0.charge:.6f}"\
-                                        .format(atom)
-                    line = ("{0:16s}{1.mask:>2s}{1.x:>14.8f}{1.y:>14.8f}"
-                            "{1.z:>14.8f} {1.layer:s}\n"
-                            .format(atom_type_charge,atom))
-                    gaussian_com_file.write(line)
-                else:
-                    line = ("{0.element:18s}{0.x:>14.8f}{0.y:>14.8f}"
-                    "{0.z:>14.8f}\n".format(atom))
+                    line = self.writeZMat(atom)
                     gaussian_com_file.write(line)                
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
@@ -96,7 +113,6 @@ class EmptyGaussianCom(GaussianFile):
                     for line in self.additional_input_dict[section]:
                         gaussian_com_file.write(line)
             gaussian_com_file.write("\n")
-
 
 class GaussianCom(EmptyGaussianCom):
     def __init__(self, name):

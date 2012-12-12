@@ -56,7 +56,7 @@ class Atom(object):
 
 
 class QmmmAtom(Atom):
-    def __init__(self, element, mm_type, charge, mask, x, y, z, layer):
+    def __init__(self, element, mm_type, charge, mask, x, y, z, layer, link_element, link_mm_type, link_bound_to, link_scale1):
         self.element = element
         self.x = float(x)
         self.y = float(y)
@@ -67,9 +67,15 @@ class QmmmAtom(Atom):
         self.charge = float(charge)
         self.mask = mask
         self.layer = layer
+        self.link_element   = link_element
+        self.link_mm_type   = link_mm_type
+        self.link_bound_to  = link_bound_to
+        self.link_scale1    = link_scale1
+        # self.link_scale2
+        # self.link_scale3
 
 class QmmmAtomPdb(QmmmAtom):
-    def __init__(self,element, mm_type, charge, mask, x, y, z, layer, pdb_name, residue_name, residue_number):
+    def __init__(self,element, mm_type, charge, mask, x, y, z, layer, pdb_name, residue_name, residue_number, link_element, link_mm_type, link_bound_to, link_scale1):
         self.element = element
         self.x = float(x)
         self.y = float(y)
@@ -83,4 +89,40 @@ class QmmmAtomPdb(QmmmAtom):
         self.pdb_name = pdb_name
         self.residue_name = residue_name
         self.residue_number = residue_number
+        self.link_element   = link_element
+        self.link_mm_type   = link_mm_type
+        self.link_bound_to  = link_bound_to
+        self.link_scale1    = link_scale1
+        # self.link_scale2
+        # self.link_scale3
+
+    def get_formatted_line(self):
+        line = ''
+
+        atom_type_charge = "{0.element}-{0.mm_type}-{0.charge:.6f}"\
+                            .format(self)
+        pdb_info = '(PDBName=%s,ResName=%s,ResNum=%s)' % (self.pdb_name, self.residue_name, self.residue_number)
+        
+        line += atom_type_charge
+        line += pdb_info
+        line += ' '*(65-len(line))                                  # For a good alignment
+        line += "{0.mask:>2s}".format(self)                         # Mask
+        line += "{0.x:>14.8f}{0.x:>14.8f}{0.z:>14.8f}".format(self) # X,Y,Z
+        line += " {0.layer:s}".format(self)                          # Layer
+
+        if self.link_element != None:
+            line += ' %s' % (self.link_element)                     # Link atom ELEMENT
+        if self.link_mm_type != None:
+            line += '-%s' % (self.link_mm_type)                     # Link atom MM type
+        if self.link_bound_to != None:
+            line += ' %d' % (int(self.link_bound_to))               # Link BOUND TO
+        if self.link_scale1 != None:
+            line += ' %f' % (float(self.link_scale1))               # Link atom scale factor
+
+        line += '\n'
+        return line
+
+
+
+
        
