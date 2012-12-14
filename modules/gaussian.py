@@ -9,6 +9,7 @@ import subprocess
 
 # my python modules
 import atoms
+import molecules
 
 # my c extensions
 import c_grep
@@ -131,6 +132,7 @@ class GaussianCom(EmptyGaussianCom):
             self.atoms_list = self._read_structure()
             self.additional_input_dict = self._read_additional_input()
             self.connectivity_list = self.additional_input_dict["connect"]
+            self.bonds_list = self._read_bonds_list()
             self.modredundant_list = self.additional_input_dict["modred"]
             self.gen_list = self.additional_input_dict["gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
@@ -197,6 +199,56 @@ class GaussianCom(EmptyGaussianCom):
                 shift += 1
         return additional_input_dict
 
+    def _read_bonds_list(self):
+        """ Create bonds list from the connectivity info on the file"""
+        bonds_list = []
+        if self.connectivity_list == [] or self.connectivity_list == None:
+            return None
+
+        for line in self.connectivity_list:
+            numbers = line.split()
+            if len(numbers) == 1:
+                pass
+            else:
+                this_atom = self.atoms_list[int(numbers[0])-1]
+                other_numbers = numbers[1::]
+                for no, number in enumerate(other_numbers):
+                    if no%2 ==0: #even
+                        other_atom = self.atoms_list[int(number)-1]
+                    else:
+                        order = other_numbers[no]
+                        bond = molecules.Bond(this_atom, other_atom, order)
+                        bonds_list.append(bond)
+        return bonds_list
+
+    def redo_connectivity_list(self):
+        """ Create new connectivity list from the bonds and atoms list"""
+        bonds_list = self.bonds_list[:]
+        connectivity_list = []
+        for index, atom in enumerate(self.atoms_list):
+            this_atom_bonds = []
+            bonds_to_remove = []
+            for no_b, bond in enumerate(bonds_list):
+                if atom is bond.atom_a or atom is bond.atom_b:
+                    this_atom_bonds.append(bond)
+            line = " {0}".format(index+1)
+            for bond in this_atom_bonds:
+                bonds_list.remove(bond)
+                if bond.atom_a is atom:
+                    atom_to_put = bond.atom_b
+                else:
+                    atom_to_put = bond.atom_a
+                
+                line += " {0} {1}".format(self.atoms_list.index(atom_to_put)+1,bond.order)
+            line += "\n"
+            connectivity_list.append(line)
+        
+        self.connectivity_list = connectivity_list
+        return None
+                    
+                    
+                    
+            
 
 class GaussianLog(GaussianFile):
     def __init__(self, name):

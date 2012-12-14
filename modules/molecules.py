@@ -75,9 +75,19 @@ class Molecule(list):
                 this_residue.append(atom)
         #last residue
         residues_list.append(Molecule(this_residue_name,this_residue))
-        
         return residues_list
-                    
+    
+    def build_connectivity(self):
+        """ Returns a list of bonds between atoms, 
+        order is always 1"""
+        bonds_list = []
+        for no, atom_a in enumerate(self.atoms_list):
+            for atom_b in self.atoms_list[no+1:]:
+                if atom_a.is_bonded_to(atom_b):
+                    bond = Bond(atom_a, atom_b, order = 1)
+                    bonds_list.append(bond)
+        return bonds_list
+
 
 def create_molecules(atoms_list):
     """ Turns a list of atoms into a list of molecules
@@ -112,3 +122,12 @@ def create_molecules(atoms_list):
         proper_molecules_list.append(proper_molecule)
     
     return proper_molecules_list
+
+class Bond():
+    def __init__(self, atom_a, atom_b, order = 1):
+        self.atom_a = atom_a
+        self.atom_b = atom_b
+        self.order = order
+        
+    def __repr__(self):
+        return (str((self.atom_a, self.atom_b,self.order)))
