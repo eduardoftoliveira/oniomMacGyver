@@ -1,0 +1,4 @@
+# Needs superuser rights
+
+#1 python3 setup.py build
+#2 python3 setup.py install

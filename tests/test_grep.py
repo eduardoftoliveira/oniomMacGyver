@@ -1,7 +1,8 @@
 import c_grep
+out = c_grep.c_grep("big_scan_oniom.log", ['Z-mat', "Step n"])
+print(out)
+print(type(out))
 
-
-
-
-out = c_grep.c_grep("big_scan_oniom.log", "Step n")
+#for line in out:
+#    print(line)
 
