@@ -4,34 +4,58 @@ static PyObject* c_grep(PyObject* self, PyObject *args)
 {
     FILE *f;
     const char *filename;
-    const char *pattern;
     long position;
     char buffer[100];
-    char output[100];
-    PyObject *lst = PyList_New(0);
+    int i;
+    PyObject *lst  = PyList_New(0);
     PyObject *num;
     PyObject *line;
-    
+    PyObject *py_pattern_lst;
 
-    
-    if (!PyArg_ParseTuple(args, "ss", &filename, &pattern))
+    if (!PyArg_ParseTuple(args, "sO", &filename, &py_pattern_lst))
         return NULL;
- 
+
+    // Check c_pattern_lst
+    if (!PySequence_Check(py_pattern_lst)) {
+        PyErr_SetString(PyExc_TypeError, "expected sequence");
+        return NULL;
+    }
+    int n_patterns; 
+    n_patterns = PyObject_Length(py_pattern_lst);
+
+    char *c_pattern_lst[n_patterns];
+    char *each_pattern; 
+    PyObject * temp;
+    int index;
+    for (index = 0; index < n_patterns; index++) {
+        /* get the element from the list/tuple */
+        temp = PyList_GetItem(py_pattern_lst, index);   // temp is a PyUnicodeObject
+        temp = PyUnicode_AsASCIIString(temp);           // temp becomes a PyBytesObject
+        each_pattern = PyBytes_AsString(temp);          // each_pattern is a C string
+        c_pattern_lst[index] = each_pattern;
+    }
+
     if ((f = fopen(filename, "r")) == NULL) {
         PyErr_SetString(PyExc_IOError,"File not Found");
         return NULL;
     }   
+
     while(fgets(buffer, sizeof(buffer), f)) {
-        if (strstr(buffer, pattern)) {
-            position = ftell(f);
-            num = PyLong_FromLong(position);
-            line = PyUnicode_FromString(buffer);
-            PyObject *byte_line_tuple = PyTuple_New(2);
-            PyTuple_SET_ITEM(byte_line_tuple,0,num);
-            PyTuple_SET_ITEM(byte_line_tuple,1,line);
-            PyList_Append(lst,byte_line_tuple);
+        for (i = 0; i < n_patterns; i++){
+            //return Py_BuildValue("i", i);
+            if (strstr(buffer, c_pattern_lst[i])) {
+                //return Py_BuildValue("i", 88);
+                position = ftell(f);
+                num = PyLong_FromLong(position);
+                line = PyUnicode_FromString(buffer);
+                PyObject *byte_line_tuple = PyTuple_New(2);
+                PyTuple_SET_ITEM(byte_line_tuple,0,num);
+                PyTuple_SET_ITEM(byte_line_tuple,1,line);
+                PyList_Append(lst, byte_line_tuple);
+            }
         }
     }
+    //return Py_BuildValue("S", c_pattern_lst[0]);
     return Py_BuildValue("O", lst);
 }
 
