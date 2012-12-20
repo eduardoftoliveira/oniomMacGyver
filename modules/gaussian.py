@@ -75,9 +75,9 @@ class GaussianFile():
 
     def writeZMat(self,atom):
         if type(atom) == atoms.QmmmAtom:
-            atom_type_charge = "{0.element}-{0.mm_type}-{0.charge:.6f}"\
+            atom_type_charge = " {0.element}-{0.mm_type}-{0.charge:.6f}"\
                                 .format(atom)
-            line = ("{0:16s}{1.mask:>2s}{1.x:>14.8f}{1.y:>14.8f}"
+            line = ("{0:18s}{1.mask:>2s}{1.x:>14.8f}{1.y:>14.8f}"
                     "{1.z:>14.8f} {1.layer:s}\n"
                     .format(atom_type_charge,atom))
             return line
@@ -85,7 +85,7 @@ class GaussianFile():
         elif type(atom) == atoms.QmmmAtomPdb:
             return atom.get_formatted_line()
         else: 
-            line = ("{0.element:18s}{0.x:>14.8f}{0.y:>14.8f}"
+            line = (" {0.element:18s}{0.x:>14.8f}{0.y:>14.8f}"
                     "{0.z:>14.8f}\n".format(atom))
             return line
 
@@ -238,15 +238,14 @@ class GaussianCom(EmptyGaussianCom):
                     atom_to_put = bond.atom_b
                 else:
                     atom_to_put = bond.atom_a
-                
-                line += " {0} {1}".format(self.atoms_list.index(atom_to_put)+1,bond.order)
+                if atom_to_put in self.atoms_list:
+                    line += " {0} {1}".format(self.atoms_list.index(atom_to_put)+1,bond.order)
             line += "\n"
             connectivity_list.append(line)
         
         self.connectivity_list = connectivity_list
+        self.additional_input_dict["connect"] = connectivity_list
         return None
-                    
-                    
                     
             
 

@@ -99,15 +99,15 @@ class QmmmAtomPdb(QmmmAtom):
     def get_formatted_line(self):
         line = ''
 
-        atom_type_charge = "{0.element}-{0.mm_type}-{0.charge:.6f}"\
+        atom_type_charge = " {0.element}-{0.mm_type}-{0.charge:.6f}"\
                             .format(self)
         pdb_info = '(PDBName=%s,ResName=%s,ResNum=%s)' % (self.pdb_name, self.residue_name, self.residue_number)
         
         line += atom_type_charge
         line += pdb_info
-        line += ' '*(65-len(line))                                  # For a good alignment
+        line += ' '*(61-len(line))                                  # For a good alignment
         line += "{0.mask:>2s}".format(self)                         # Mask
-        line += "{0.x:>14.8f}{0.x:>14.8f}{0.z:>14.8f}".format(self) # X,Y,Z
+        line += "{0.x:>14.8f}{0.y:>14.8f}{0.z:>14.8f}".format(self) # X,Y,Z
         line += " {0.layer:s}".format(self)                          # Layer
 
         if self.link_element != None:

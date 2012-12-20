@@ -127,7 +127,7 @@ class Bond():
     def __init__(self, atom_a, atom_b, order = 1):
         self.atom_a = atom_a
         self.atom_b = atom_b
-        self.order = order
+        self.order = float(order)
         
     def __repr__(self):
         return (str((self.atom_a, self.atom_b,self.order)))
