@@ -154,6 +154,23 @@ def read_prmtop_charges(name):
         charges_list[no] = float(charges_list[no]) / 18.2223
     
     return charges_list
+    
+    
+def read_amber_atom_type_list(name):
+    with open(name, 'r', encoding='UTF-8') as prmtop_file:
+        prmtop_lines = prmtop_file.readlines()
+        for line in range(0,len(prmtop_lines)):
+            if 'FLAG AMBER_ATOM_TYPE' in prmtop_lines[line]:
+                current_line = line + 2 
+                break
+        atom_type_list = []
+        while prmtop_lines[current_line][0] != '%':
+            atom_type_list.extend(prmtop_lines[current_line].split())
+            current_line += 1
+    return atom_type_list
+
+    
+    
 
 ### out file
 def read_out_energies(name, patern="EAMBER (non-restraint)  ="):
