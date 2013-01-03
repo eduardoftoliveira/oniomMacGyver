@@ -416,8 +416,8 @@ class GaussianLog(GaussianFile):
         start_step_byte = 0
         # o ideal seria por a funcao em C a aceitar mais padroes
         # para nao multiplicar o tempo pelo numero de pesquisas
-        c_grep_step = c_grep.c_grep(self.name, "Step number")
-        c_grep_energy = c_grep.c_grep(self.name, search_str)
+        c_grep_step = c_grep.c_grep(self.name, ["Step number"])
+        c_grep_energy = c_grep.c_grep(self.name, [search_str])
         c_grep_step_energy = c_grep_step + c_grep_energy
         c_grep_step_energy.sort()
         c_grep_step_energy = [ ":".join((str(element[0]),element[1])) 
