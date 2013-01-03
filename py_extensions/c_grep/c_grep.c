@@ -40,12 +40,12 @@ static PyObject* c_grep(PyObject* self, PyObject *args)
         return NULL;
     }   
 
+    position = ftell(f);
     while(fgets(buffer, sizeof(buffer), f)) {
         for (i = 0; i < n_patterns; i++){
             //return Py_BuildValue("i", i);
             if (strstr(buffer, c_pattern_lst[i])) {
                 //return Py_BuildValue("i", 88);
-                position = ftell(f);
                 num = PyLong_FromLong(position);
                 line = PyUnicode_FromString(buffer);
                 PyObject *byte_line_tuple = PyTuple_New(2);
@@ -54,6 +54,7 @@ static PyObject* c_grep(PyObject* self, PyObject *args)
                 PyList_Append(lst, byte_line_tuple);
             }
         }
+        position = ftell(f); 
     }
     //return Py_BuildValue("S", c_pattern_lst[0]);
     return Py_BuildValue("O", lst);
