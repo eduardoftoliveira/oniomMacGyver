@@ -251,7 +251,109 @@ class GaussianCom(EmptyGaussianCom):
         self.additional_input_dict["connect"] = connectivity_list
         return None
                     
-            
+class GaussianLog2(GaussianFile):
+    def __init__(self, name):
+        self.name = name
+        self.grep_bytes     = self._grep_bytes()
+        self.energies       = self._read_energies()
+        #self.convergency    = self._read_convergency()  # RMS Force, etc...
+
+    def _grep_bytes(self):
+        self.grep_keywords = [
+            'orientation:',                 # works for both g03 and g09
+            'ONIOM: calculating energy.',   # ONIOM energy
+            'SCF Done:',
+            'scan point',                   # Not really necessary...
+            'Converged?',
+            'Optimized Parameters',         # Also reads Non-Opt...
+        ]
+
+        # This will be included in C extension
+        raw_grepped_bytes =  c_grep.c_grep(self.name, self.grep_keywords)
+
+        # Now Parse
+        grep_bytes = {}
+        grep_bytes['orientation:']                  = [[]]
+        grep_bytes['ONIOM: calculating energy.']    = [[]]
+        grep_bytes['SCF Done:']                     = [[]]
+        grep_bytes['scan point']                    = [[]]
+        grep_bytes['Converged?']                    = [[]]
+
+        for linetuple in raw_grepped_bytes:
+
+            if 'orientation:' in linetuple[1]:
+                buffer_orientation = linetuple[0]
+
+            elif 'SCF Done:' in linetuple[1]:
+                buffer_SCF_Done = linetuple[0]
+
+            elif 'ONIOM: calculating energy.' in linetuple[1]: 
+                grep_bytes['ONIOM: calculating energy.'][-1].append(linetuple[0])
+
+            elif 'scan point' in linetuple[1]:
+                grep_bytes['scan point'][-1].append(linetuple[0])
+
+            elif 'Converged?' in linetuple[1]:
+                grep_bytes['Converged?'][-1].append(linetuple[0])
+                grep_bytes['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
+                grep_bytes['orientation:'][-1].append(buffer_orientation)   # buffered
+
+            elif 'Optimized Parameters' in linetuple[1]:
+                grep_bytes['ONIOM: calculating energy.'].append([])
+                grep_bytes['SCF Done:'].append([])
+                grep_bytes['scan point'].append([])
+                grep_bytes['Converged?'].append([])
+                grep_bytes['orientation:'].append([])
+
+        # Last list may be a ghost
+        if grep_bytes['orientation:'][-1] == []:
+            for data in grep_bytes:
+                grep_bytes[data].pop(-1)
+
+        return grep_bytes
+
+    def _read_energies(self):
+        oniom_loc_bytes = self.grep_bytes['ONIOM: calculating energy.']
+        scf_loc_bytes   = self.grep_bytes['SCF Done:']
+
+        ONIOM_extrapol  = []
+        ONIOM_model_high= []
+        ONIOM_model_low = []
+        ONIOM_real_low  = []
+        ONIOM_lowlayer_low = []
+        SCF_energy = []
+
+        f = open(self.name)
+        for complete_opt in oniom_loc_bytes:
+            ONIOM_model_high.append([])
+            ONIOM_model_high.append([])
+            ONIOM_model_low.append([])
+            ONIOM_real_low.append([])
+            ONIOM_lowlayer_low.append([])
+            ONIOM_extrapol.append([])
+            for location_byte in complete_opt:
+                f.seek(location_byte)
+                f.readline() # discard this line
+                model_low  = float(f.readline().split('low   system:  model energy:')[1])
+                ONIOM_model_low[-1].append(model_low)
+
+                model_high = float(f.readline().split('high  system:  model energy:')[1])
+                ONIOM_model_high[-1].append(model_high)
+
+                real_low   = float(f.readline().split('low   system:  real  energy:')[1])
+                ONIOM_real_low[-1].append(real_low)
+
+                extrapol   = float(f.readline().split('extrapolated energy =')[1])
+                ONIOM_extrapol[-1].append(extrapol)
+                
+                ONIOM_lowlayer_low[-1].append(real_low-model_low)
+
+        for complete_opt in scf_loc_bytes:
+            SCF_energy.append([])
+            for location_byte in complete_opt:
+                f.seek(location_byte)
+                SCF_energy[-1].append(float(f.readline().split('=')[1].split()[0]))
+
 
 class GaussianLog(GaussianFile):
     def __init__(self, name):
@@ -312,8 +414,8 @@ class GaussianLog(GaussianFile):
             search_str = "SCF Done"
         previous_scan_step = scan_step = 0
         start_step_byte = 0
-        # o ideal seria por a funcão em C a aceitar mais padrões
-        # para não multiplicar o tempo pelo número de pesquisas
+        # o ideal seria por a funcao em C a aceitar mais padroes
+        # para nao multiplicar o tempo pelo numero de pesquisas
         c_grep_step = c_grep.c_grep(self.name, "Step number")
         c_grep_energy = c_grep.c_grep(self.name, search_str)
         c_grep_step_energy = c_grep_step + c_grep_energy
