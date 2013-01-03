@@ -40,26 +40,20 @@ static PyObject* c_grep(PyObject* self, PyObject *args)
         return NULL;
     }   
 
-    char * ptr;
-    char nha[100];
-    position = ftell(f);
     while(fgets(buffer, sizeof(buffer), f)) {
-        ptr = &buffer[31];
-        //ptr = ptr + 31;
-        //strncpy(nha, ptr, 9);
-        //for (i = 0; i < n_patterns; i++){
-            //if (strstr(buffer, c_pattern_lst[i])) {
-            if (!strncmp(ptr, "Optimized", 9)){
+        for (i = 0; i < n_patterns; i++){
+            //return Py_BuildValue("i", i);
+            if (strstr(buffer, c_pattern_lst[i])) {
+                //return Py_BuildValue("i", 88);
+                position = ftell(f);
                 num = PyLong_FromLong(position);
-                //line = PyUnicode_FromString(buffer);
-                line = PyUnicode_FromString(nha);
+                line = PyUnicode_FromString(buffer);
                 PyObject *byte_line_tuple = PyTuple_New(2);
                 PyTuple_SET_ITEM(byte_line_tuple,0,num);
                 PyTuple_SET_ITEM(byte_line_tuple,1,line);
                 PyList_Append(lst, byte_line_tuple);
             }
-        //}
-        position = ftell(f);
+        }
     }
     //return Py_BuildValue("S", c_pattern_lst[0]);
     return Py_BuildValue("O", lst);
