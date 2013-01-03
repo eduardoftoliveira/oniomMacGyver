@@ -1,5 +1,5 @@
 import c_grep
-out = c_grep.c_grep("big_scan_oniom.log", ['Z-mat', "Step n"])
+out = c_grep.c_grep("big_scan_oniom.log", ['Z-mat', "Optimized P"])
 #print(out)
 #print(type(out))
 
