@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
 from gaussian import GaussianCom, GaussianLog2
-GaussianLog = GaussianLog2
 
+GaussianLog = GaussianLog2
 
 print("Trying to read qm_modred_gen.com, a simple gassian.com file")
 gaussian_file_name = "qm_modred_gen.com"
