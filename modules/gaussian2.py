@@ -7,7 +7,7 @@ import linecache
 import subprocess
 
 # my modules
-import atoms
+import atoms2 as atoms
 
 
 class GaussianFile():

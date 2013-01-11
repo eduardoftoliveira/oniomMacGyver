@@ -57,7 +57,7 @@ class Atom(object):
 
 class QmmmAtom(Atom):
     def __init__(self, element, mm_type, charge, mask, x, y, z, layer):
-        super().__init__(element, x, y, z)
+        #super().__init__(element, x, y, z)
         self.mm_type = mm_type
         self.charge = float(charge)
         self.mask = mask
@@ -65,8 +65,12 @@ class QmmmAtom(Atom):
 
 class QmmmAtomPdb(QmmmAtom):
     def __init__(self,element, mm_type, charge, mask, x, y, z, layer, pdb_name, residue_name, residue_number):
-        super().__init__(element, mm_type, charge, mask, x, y, z, layer)
+        #super().__init__(element, mm_type, charge, mask, x, y, z, layer)
+        self.x = float(x)
+        self.y = float(y)
+        self.z = float(z)
         self.pdb_name = pdb_name
         self.residue_name = residue_name
         self.residue_number = residue_number
-       
+        self.charge = float(charge)
+        
