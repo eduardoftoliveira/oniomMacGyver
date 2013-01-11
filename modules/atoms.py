@@ -52,7 +52,7 @@ class Atom(object):
         d13 = self.distance(atom_3)
         d23 = atom_2.distance(atom_3)
         #round. To avoid things like 1.000000001
-        angle = math.acos(round((d12**2 + d13**2 - d23**2)/(2*d12*d13),5))
+        angle = math.acos(round((d12**2 + d13**2 - d23**2)/(2*d12*d13),7))
         return angle
 
 
