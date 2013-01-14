@@ -121,4 +121,15 @@ class prmtop():
         return all_data
 
 
+class parm_bond():
+    def __init_(self, atom1, atom2, equil, const):
+        self.atom1 = atom1
+        self.atom2 = atom2
+        self.equil = equil
+        self.const = const
+
+    def print_gaussian_way(self):
+        return('HrmBnd %2s %2s %6.2f %6.4f' 
+              % (self.atom1, self.atom2, self.equil, )
+
 
