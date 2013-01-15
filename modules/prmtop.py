@@ -40,7 +40,8 @@ class prmtop():
     def __init__(self, name, file_limit_MB=150):
         self.name = name
         self.flags = self._get_all_flags(file_limit_MB)
-        self.all_data_dict = self._read_all()
+        ###self.all_data_dict = self._read_all()
+
 
     def _get_all_flags(self, file_limit_MB):
         file_size_MB = float(os.stat(self.name).st_size) / (1024**2)
@@ -120,16 +121,65 @@ class prmtop():
             all_data[flag] = self.get_flag_data_as_list(self.flags[flag]) 
         return all_data
 
+    def retrieve_parm_bond(self):
+
+        # We need a list of atoms
+        # By default, use all :(
+        # This shows the necessity of vmdsel module
+        # n_atoms = self.get_flag_data_as_list(
+        #    self.flags['POINTERS'])[0]
+
+        # Create parms
+        BOND_FORCE_CONSTANT = self.get_flag_data_as_list(
+            self.flags['BOND_FORCE_CONSTANT'])
+        BOND_EQUIL_VALUE    = self.get_flag_data_as_list(
+            self.flags['BOND_EQUIL_VALUE'])
+        BONDS_INC_HYDROGEN = self.get_flag_data_as_list(
+            self.flags['BONDS_INC_HYDROGEN'])
+        BONDS_WITHOUT_HYDROGEN ) self.get_flag_data_as_list(
+            self.flags['BONDS_WITHOUT_HYDROGEN'])
+
+        AMBER_ATOM_TYPE = self.get_flag_data_as_list(
+            self.flags['AMBER_ATOM_TYPE'])
+
+        # PARSE ALL Bonds
+        n_bonds = int(len(BONDS_WITHOUT_HYDROGEN)/3)
+        for i in range(n_bonds):
+            idx1 = BONDS_WITHOUT_HYDROGEN[i*3+0]
+            idx2 = BONDS_WITHOUT_HYDROGEN[i*3+1]
+            bond_idx  = BOND_EQUIL_VALUE[i*3+2]
+            amber_type1 = AMBER_ATOM_TYPE[int(idx1/3)]
+            amber_type2 = AMBER_ATOM_TYPE[int(idx2/3)]
+
+        
+        
+
+    def gen_oniom(self):
+        return 0
 
 class parm_bond():
     def __init_(self, atom1, atom2, equil, const):
         self.atom1 = atom1
         self.atom2 = atom2
-        self.equil = equil
-        self.const = const
+        self.equil = float(equil)
+        self.const = float(const)
+
+    def defines_same_atoms(other_parm_bond):
+        cis = (self.atom1 == other_parm_bond.atom1 and
+               self.atom2 == other_parm_bond.atom2)
+        trans = (self.atom1 == other_parm_bond.atom2 and
+                 self.atom2 == other_parm_bond.atom1)
+        if cis or trans:
+            return True
+        else:
+            return False
+
+    def defines_same_values(other_parm_bond):
+        return (self.equil == other_parm_bond.equil and
+                self.const == other_parm_bond.const)
 
     def print_gaussian_way(self):
         return('HrmBnd %2s %2s %6.2f %6.4f' 
-              % (self.atom1, self.atom2, self.equil, )
+              % (self.atom1, self.atom2, self.equil, self.const))
 
 

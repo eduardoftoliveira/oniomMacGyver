@@ -89,7 +89,7 @@ class QmmmAtomPdb(QmmmAtom):
         self.layer = layer
         self.pdb_name = pdb_name
         self.residue_name = residue_name
-        self.residue_number = residue_number
+        self.residue_number = int(residue_number)
         self.link_element   = link_element
         self.link_mm_type   = link_mm_type
         self.link_bound_to  = link_bound_to
@@ -123,7 +123,26 @@ class QmmmAtomPdb(QmmmAtom):
         line += '\n'
         return line
 
+    def get_pdb_line(self):
+        o = 'ATOM  '                        # 1-6 ATOM
+        o += ' '*5                          # 7-11 (NOT USED)
+        o += ' '                            # 12
+        o += '%4s' % (self.pdb_name)        # 13-16
+        o += ' '                            # 17 altLoc (NOT USED)
+        o += '%3s' % (self.residue_name)    # 18-20 
+        o += ' '                            # 21
+        o += self.layer                     # 22 chain 
+        o += '%4d' % (self.residue_number)  # 23-26 Res Num 
+        o += ' '                            # 27 icode (NOT USED)
+        o += '   '                          # 28-30
+        o += '%8.3f' % (self.x)             # 31-38 x
+        o += '%8.3f' % (self.y)             # 39-46 y
+        o += '%8.3f' % (self.z)             # 47-54 z
+        o += ' '*6                          # 55-60 occupancy (NOT USED)
+        o += ' '*6                          # 61-66 tempFactor (NOT USED)
+        o += ' '*10                         # 67-76
+        o += '%2s' % self.element           # 77-78
+        o += ' '*2                          # 79-80 charge (NOT USED)
+        o += '\n'
+        return o
 
-
-
-       
