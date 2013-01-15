@@ -45,7 +45,7 @@ for input_file in input_file_list:
            atom_c = structure[pair[2]-1]
            this_angle = atom_b.angle(atom_a, atom_c)
            this_angle = math.degrees(this_angle)
-           results_dict[input_file_no_suf].append("{0:7.3f}".format(this_dist))
+           results_dict[input_file_no_suf].append("{0:7.3f}".format(this_angle))
 
            #print("{0:>3}{3[0]:<4}-{1:>3}{3[1]:<4}-{2:>3}{3[2]:<4}:   {4:7.3f}".format(atom_a,atom_b,atom_c,pair,this_angle))
 
