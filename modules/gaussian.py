@@ -37,7 +37,7 @@ class GaussianFile():
                     if 'ResNum' in info:
                         pdb_res_number = info.split("=")[1]
                         if '_' in pdb_res_number : # presence of chain information
-                            pdb_res_number, pdb_chain  = info.split("_")
+                            pdb_res_number, pdb_chain  = pdb_res_number.split("_")
             else:
                 pdb_atom_name = pdb_res_name = pdb_res_number = pdb_chain = None
                 has_pdb_info = False
@@ -67,7 +67,7 @@ class GaussianFile():
                     mm_type =  None
                     mm_charge = 0
                 if has_pdb_info:
-                    this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, mask, x, y, z, layer, pdb_atom_name, pdb_res_name, pdb_res_number, link_element, link_mm_type, link_bound_to, link_scale1)
+                    this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, mask, x, y, z, layer, pdb_atom_name, pdb_res_name, pdb_res_number, pdb_chain, link_element, link_mm_type, link_bound_to, link_scale1)
                 else:
                     this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer, link_element, link_mm_type, link_bound_to, link_scale1)
             atoms_list.append(this_atom)
