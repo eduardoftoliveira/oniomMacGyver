@@ -67,6 +67,8 @@ class GaussianFile():
                     mm_type =  None
                     mm_charge = 0
                 if has_pdb_info:
+                    if 'chain' not in locals():
+                        chain = None
                     this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, mask, x, y, z, layer, pdb_atom_name, pdb_res_name, pdb_res_number, pdb_chain, link_element, link_mm_type, link_bound_to, link_scale1)
                 else:
                     this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer, link_element, link_mm_type, link_bound_to, link_scale1)

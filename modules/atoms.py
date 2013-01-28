@@ -76,7 +76,7 @@ class QmmmAtom(Atom):
         # self.link_scale3
 
 class QmmmAtomPdb(QmmmAtom):
-    def __init__(self,element, mm_type, charge, mask, x, y, z, layer, pdb_name, residue_name, residue_number, residue_chain, link_element, link_mm_type, link_bound_to, link_scale1):
+    def __init__(self,element, mm_type, charge, mask, x, y, z, layer, pdb_name, residue_name, residue_number, chain, link_element, link_mm_type, link_bound_to, link_scale1):
         self.element = element
         self.x = float(x)
         self.y = float(y)
@@ -90,7 +90,7 @@ class QmmmAtomPdb(QmmmAtom):
         self.pdb_name = pdb_name
         self.residue_name = residue_name
         self.residue_number = int(residue_number)
-        self.residue_chain = residue_chain
+        self.chain = chain
         self.link_element   = link_element
         self.link_mm_type   = link_mm_type
         self.link_bound_to  = link_bound_to
@@ -129,10 +129,10 @@ class QmmmAtomPdb(QmmmAtom):
         o += ' '*5                          # 7-11 (NOT USED)
         o += ' '                            # 12
         o += '%4s' % (self.pdb_name)        # 13-16
-        o += ' '                            # 17 altLoc (NOT USED)
+        o += '%1s' % (self.layer)           # 17 altLoc
         o += '%3s' % (self.residue_name)    # 18-20 
         o += ' '                            # 21
-        o += self.layer                     # 22 chain 
+        o += self.chain                     # 22 chain 
         o += '%4d' % (self.residue_number)  # 23-26 Res Num 
         o += ' '                            # 27 icode (NOT USED)
         o += '   '                          # 28-30
