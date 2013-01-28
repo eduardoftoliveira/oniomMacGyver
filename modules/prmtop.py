@@ -3,7 +3,7 @@
 import os
 from subprocess import getoutput
 
-class flagInfo():
+class FlagInfo():
     def __init__(self, ptr_byte, ptr_line, read_n_lines, textformat):
         self.byte = ptr_byte
         self.line = ptr_line            # Unused
@@ -79,7 +79,7 @@ class prmtop():
             read_n_lines = -2 + flag_lines[i+1] - flag_lines[i]     
             i += 1
 
-            flags_dict[name] = flagInfo(
+            flags_dict[name] = FlagInfo(
                 pointer_byte, pointer_line, read_n_lines, textformat)
 
         return flags_dict

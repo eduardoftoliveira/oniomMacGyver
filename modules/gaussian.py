@@ -256,10 +256,27 @@ class GaussianLog2(GaussianFile):
         self.name = name
         self.grep_bytes     = self._grep_bytes()
         self.energies       = self._read_energies()
-        #self.convergency    = self._read_convergency()  # RMS Force, etc...
+        #self.convergency   = self._read_convergency()  # RMS Force, etc...
+        self.atoms_list     = self._Zmat_to_atoms_list()
+
+    def _Zmat_to_atoms_list(self):
+        f = open(self.name)
+        f.seek(self.grep_bytes['Z-mat'])
+        for i in range(4):
+            f.readline()
+        Zmat_text = ''
+        while True:
+            line = f.readline()
+            if line.strip().replace(' ','') == '':
+                break
+            Zmat_text += line
+        Zmat_text = Zmat_text.split('\n')
+        return self.read_gaussian_input_structure(Zmat_text)
+
 
     def _grep_bytes(self):
         self.grep_keywords = [
+            'Z-matrix',
             'orientation:',                 # works for both g03 and g09
             'ONIOM: calculating energy.',   # ONIOM energy
             'SCF Done:',
@@ -278,6 +295,7 @@ class GaussianLog2(GaussianFile):
         grep_bytes['SCF Done:']                     = [[]]
         grep_bytes['scan point']                    = [[]]
         grep_bytes['Converged?']                    = [[]]
+
 
         for linetuple in raw_grepped_bytes:
 
@@ -309,6 +327,13 @@ class GaussianLog2(GaussianFile):
         if grep_bytes['orientation:'][-1] == []:
             for data in grep_bytes:
                 grep_bytes[data].pop(-1)
+
+
+        # Less apearing keywords 
+        for linetuple in raw_grepped_bytes:
+            if 'Z-matrix' in linetuple[1]:
+                grep_bytes['Z-mat'] = int(linetuple[0])
+                break
 
         return grep_bytes
 
@@ -353,6 +378,13 @@ class GaussianLog2(GaussianFile):
             for location_byte in complete_opt:
                 f.seek(location_byte)
                 SCF_energy[-1].append(float(f.readline().split('=')[1].split()[0]))
+
+        energies = {}
+        energies['ONIOM_extrapol'] = ONIOM_extrapol
+        energies['ONIOM_model_high'] = ONIOM_model_high
+        energies['ONIOM_lowlayer_low'] = ONIOM_lowlayer_low
+        energies['SCF_energy'] = SCF_energy
+        return energies
 
 
 class GaussianLog(GaussianFile):
