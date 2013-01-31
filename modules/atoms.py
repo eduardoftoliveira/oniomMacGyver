@@ -6,14 +6,34 @@ import math
 # my modules
 from  elements_database import * 
 
+# 3D Cross Product
+def crossprod(a, b): 
+    c = [
+    a[1]*b[2] - a[2]*b[1],
+    a[2]*b[0] - a[0]*b[2],
+    a[0]*b[1] - a[1]*b[0]]
+    return c
+
+# Multidimensional dot product
+def dotprod(a, b):
+    if len(a) != len(b):
+        raise RuntimeError('vectors must have same length')
+    return [a[i] * b[i] for i in range(len(a))]
+
 class Atom(object):    
     def __init__(self, element, x=None, y=None, z=None):
+        if element.isdigit():
+            element = int(element)
+            self.atomic_number = element
+            self.element = ATOMIC_NUMBER_DICT_REVERSE[element]
+        else:
+            self.element = element
+            self.atomic_number  = ATOMIC_NUMBER_DICT[element]
         self.element = element
         self.x = float(x)
         self.y = float(y)
         self.z = float(z)
         self.coordinates = (self.x, self.y ,self.z)
-        self.atomic_number  = ATOMIC_NUMBER_DICT[element]
         
     def __repr__(self):
         return self.element
@@ -54,6 +74,16 @@ class Atom(object):
         #round. To avoid things like 1.000000001
         angle = math.acos(round((d12**2 + d13**2 - d23**2)/(2*d12*d13),7))
         return angle
+
+    def dihedral(self, atom_2, atom_3, atom_4):
+        """ Calculate dihedral considering this atom in the beggining"""
+        b1 = [atom_2.coordinates[i] - self.coordinates[i] for i in range(3)]
+        b2 = [atom_3.coordinates[i] - atom_2.coordinates[i] for i in range(3)]
+        b3 = [atom_4.coordinates[i] - atom_3.coordinates[i] for i in range(3)]
+        #y = 
+        x = dotprod(crossprod(b1,b2),crossprod(b2,b3))
+        return math.atan2(y,x)
+
 
 
 class QmmmAtom(Atom):

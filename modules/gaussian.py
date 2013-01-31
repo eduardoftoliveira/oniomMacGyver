@@ -5,7 +5,7 @@ import re
 import collections
 import linecache
 import subprocess
-
+from copy import deepcopy
 
 # my python modules
 import atoms
@@ -264,16 +264,47 @@ class GaussianLog2(GaussianFile):
     def _Zmat_to_atoms_list(self):
         f = open(self.name)
         f.seek(self.grep_bytes['Z-mat'])
-        for i in range(4):
-            f.readline()
-        Zmat_text = ''
+        # Skip present line
+        f.readline() 
+        # Skip charge/multiplicity lines
+        while True:
+            lastpos = f.tell()
+            line = f.readline()
+            if 'Charge' not in line:
+                break
+        f.seek(lastpos)
+        Zmat_text = []
         while True:
             line = f.readline()
-            if line.strip().replace(' ','') == '':
+            test_end = line.strip().replace(' ','')
+            if test_end != '':
+                Zmat_text .append(line.strip())
+            else:
                 break
-            Zmat_text += line
-        Zmat_text = Zmat_text.split('\n')
+        f.close()
         return self.read_gaussian_input_structure(Zmat_text)
+
+    def get_orientation(self, at_this_byte, name):
+        out = open(name,'w')
+        f = open(self.name)
+        f.seek(at_this_byte)
+        new_atoms_list = deepcopy(self.atoms_list)
+        count = 0
+        for i in range(5):
+            f.readline()
+        while True:
+            line = f.readline()
+            if '--------' in line:
+                break
+            count += 1
+            ls = line.split()
+            x = float(ls[-3])
+            y = float(ls[-2])
+            z = float(ls[-1])
+            out.write('%12.6f %12.6f %12.6f\n' % (x,y,z))
+        out.close()
+            
+
 
 
     def _grep_bytes(self):
