@@ -18,7 +18,14 @@ def crossprod(a, b):
 def dotprod(a, b):
     if len(a) != len(b):
         raise RuntimeError('vectors must have same length')
-    return [a[i] * b[i] for i in range(len(a))]
+    return sum([a[i] * b[i] for i in range(len(a))])
+
+def vecnorm(V):
+    sq = [v**2 for v in V]
+    return math.sqrt(sum(sq))
+
+def rad2deg(rads):
+    return rads*(180/math.pi)
 
 class Atom(object):    
     def __init__(self, element, x=None, y=None, z=None):
@@ -80,11 +87,11 @@ class Atom(object):
         b1 = [atom_2.coordinates[i] - self.coordinates[i] for i in range(3)]
         b2 = [atom_3.coordinates[i] - atom_2.coordinates[i] for i in range(3)]
         b3 = [atom_4.coordinates[i] - atom_3.coordinates[i] for i in range(3)]
-        #y = 
+        temp = [vecnorm(b2) * b1[i] for i in range(3)]
+        y = dotprod(temp ,crossprod(b2,b3))
         x = dotprod(crossprod(b1,b2),crossprod(b2,b3))
-        return math.atan2(y,x)
-
-
+        rad = math.atan2(y,x)
+        return rad2deg(rad)
 
 class QmmmAtom(Atom):
     def __init__(self, element, mm_type, charge, mask, x, y, z, layer, link_element, link_mm_type, link_bound_to, link_scale1):
