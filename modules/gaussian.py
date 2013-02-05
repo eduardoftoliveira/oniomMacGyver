@@ -284,6 +284,32 @@ class GaussianLog2(GaussianFile):
         f.close()
         return self.read_gaussian_input_structure(Zmat_text)
 
+    def set_orientation(self, at_this_byte):
+        n_atoms = len(self.atoms_list)
+        f = open(self.name)
+        f.seek(at_this_byte)
+        # just to check file integrity
+        count_atoms = 0
+        # skip 5 lines
+        for i in range(5): 
+            f.readline()
+        while True:
+            line = f.readline()
+            if '--------' in line:
+                break
+            ls = line.split()
+            self.atoms_list[count_atoms].x = float(ls[-3])
+            self.atoms_list[count_atoms].y = float(ls[-2])
+            self.atoms_list[count_atoms].z = float(ls[-1])
+            self.atoms_list[count_atoms].coordinates = (
+                self.atoms_list[count_atoms].x,
+                self.atoms_list[count_atoms].y,
+                self.atoms_list[count_atoms].z)
+            count_atoms += 1
+        if count_atoms != n_atoms:
+            raise RuntimeError(
+                'Number of atoms differs in input and other orientation')
+
     def get_orientation(self, at_this_byte, name):
         out = open(name,'w')
         f = open(self.name)

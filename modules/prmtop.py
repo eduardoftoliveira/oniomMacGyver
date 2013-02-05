@@ -151,9 +151,6 @@ class prmtop():
             amber_type1 = AMBER_ATOM_TYPE[int(idx1/3)]
             amber_type2 = AMBER_ATOM_TYPE[int(idx2/3)]
 
-        
-        
-
     def gen_oniom(self):
         return 0
 
