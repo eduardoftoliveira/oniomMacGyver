@@ -14,7 +14,7 @@ import molecules
 # my c extensions
 try:
     import c_grep
-    c_grep_installed = False
+    c_grep_installed = True
 except ImportError:
     c_grep_installed = False
 if c_grep_installed:
@@ -302,10 +302,10 @@ class GaussianLog(GaussianFile):
             'orientation:',                 # works for both g03 and g09
             'ONIOM: calculating energy.',   # ONIOM energy
             'SCF Done:',
-            'scan point',                   # Not really necessary...
+            #'scan point',                   # Not really necessary...
             'Converged?',
-            #'Step number',                  # le opts e divide por scan steps
-            'Optimized Parameters',         # Also reads Non-Opt...
+            'Step number',                  
+            'Optimized Parameters',         # Also reads Non-Opt... 
         ]
         
         if c_grep_installed==False: #usa o grep do linux            
@@ -313,7 +313,7 @@ class GaussianLog(GaussianFile):
             grep_bytes['orientation:']                  = [[]]
             grep_bytes['ONIOM: calculating energy.']    = [[]]
             grep_bytes['SCF Done:']                     = [[]]
-            grep_bytes['scan point']                    = [[]]
+            grep_bytes['Step number']                   = [[]]
             grep_bytes['Converged?']                    = [[]]
         
             grep_string=""
@@ -335,8 +335,8 @@ class GaussianLog(GaussianFile):
                 elif "ONIOM: calculating energy." in words[1]:
                     grep_bytes['ONIOM: calculating energy.'][-1].append(int(words[0]))  
 
-                elif "scan point" in words[1]:
-                    grep_bytes['scan point'][-1].append(int(words[0]))
+                elif "Step number" in words[1]:
+                    grep_bytes['Step number'][-1].append(int(words[0]))
 
                 elif "Converged?" in words[1]:
                     grep_bytes['Converged?'][-1].append(int(words[0]))
@@ -347,7 +347,7 @@ class GaussianLog(GaussianFile):
                 elif "Optimized Parameters" in words[1]:
                     grep_bytes['ONIOM: calculating energy.'].append([])
                     grep_bytes['SCF Done:'].append([])
-                    grep_bytes['scan point'].append([])
+                    grep_bytes['Step number'].append([])
                     grep_bytes['Converged?'].append([])
                     grep_bytes['orientation:'].append([])       
 
@@ -376,7 +376,7 @@ class GaussianLog(GaussianFile):
             grep_bytes['orientation:']                  = [[]]
             grep_bytes['ONIOM: calculating energy.']    = [[]]
             grep_bytes['SCF Done:']                     = [[]]
-            grep_bytes['scan point']                    = [[]]
+            grep_bytes['Step number']                   = [[]]
             grep_bytes['Converged?']                    = [[]]
     
     
@@ -391,8 +391,8 @@ class GaussianLog(GaussianFile):
                 elif 'ONIOM: calculating energy.' in linetuple[1]: 
                     grep_bytes['ONIOM: calculating energy.'][-1].append(linetuple[0])
     
-                elif 'scan point' in linetuple[1]:
-                    grep_bytes['scan point'][-1].append(linetuple[0])
+                elif 'Step number' in linetuple[1]:
+                    grep_bytes['Step number'][-1].append(linetuple[0])
     
                 elif 'Converged?' in linetuple[1]:
                     grep_bytes['Converged?'][-1].append(linetuple[0])
@@ -402,7 +402,7 @@ class GaussianLog(GaussianFile):
                 elif 'Optimized Parameters' in linetuple[1]:
                     grep_bytes['ONIOM: calculating energy.'].append([])
                     grep_bytes['SCF Done:'].append([])
-                    grep_bytes['scan point'].append([])
+                    grep_bytes['Step number'].append([])
                     grep_bytes['Converged?'].append([])
                     grep_bytes['orientation:'].append([])
     
