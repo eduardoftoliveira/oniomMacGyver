@@ -39,9 +39,8 @@ class FlagInfo():
 class prmtop():
     def __init__(self, name, file_limit_MB=150):
         self.name = name
-        self.flags = self._get_all_flags(file_limit_MB)
+        self._flags = self._get_all_flags(file_limit_MB)
         ###self.all_data_dict = self._read_all()
-
 
     def _get_all_flags(self, file_limit_MB):
         file_size_MB = float(os.stat(self.name).st_size) / (1024**2)
@@ -84,7 +83,10 @@ class prmtop():
 
         return flags_dict
 
-    def get_flag_data_as_list(self, flagObj): 
+    def get_flag_data_as_list(self, flag_str): 
+
+        # Seek appropriate flag object
+        flagObj = self._flags[flag_str]
 
         f = open(self.name)
         f.seek(flagObj.byte)
@@ -96,7 +98,7 @@ class prmtop():
         data_list = []
         for i in range(flagObj.read_n_lines):                   #LOOP over lines
             line = f.readline()
-            for j in range(int(len(line.strip()) / flagObj.chars_per_data)): 
+            for j in range(int(len(line.strip('\n')) / flagObj.chars_per_data)): 
                 data_as_str = line[j*flagObj.chars_per_data : 
                                    (j+1)*flagObj.chars_per_data]
                 data_list.append(data_as_str)
@@ -116,52 +118,183 @@ class prmtop():
 
     def _read_all(self):
         all_data = {}
-        for flag in self.flags:
+        for flag in self._flags:
             print (flag)
-            all_data[flag] = self.get_flag_data_as_list(self.flags[flag]) 
+            all_data[flag] = self.get_flag_data_as_list(self._flags[flag]) 
         return all_data
 
-    def retrieve_parm_bond(self):
+    def vmdsel(self, selexpr):
+        
+        atom_name   = self.get_flag_data_as_list('ATOM_NAME')
+        resname_raw  = self.get_flag_data_as_list('RESIDUE_LABEL')
+        resi_idx    = self.get_flag_data_as_list('RESIDUE_POINTER')
+        self.n_atoms = self.get_flag_data_as_list('POINTERS')[0]
+        resid = self._pointers2list(resi_idx, self.n_atoms) # returns strings
+        resname = [resname_raw[int(resid[i])-1] for i in range(self.n_atoms)]
+        master_approved = [True for i in range(self.n_atoms)]
+        
+        vmdsel_list = selexpr.split('and')
+
+        for expr in vmdsel_list:
+            neg, sele_by, selection_items = self._parse_unit(expr)
+            if sele_by == 'name':    atom_list = atom_name
+            if sele_by == 'resid':   atom_list = resid
+            if sele_by == 'resname': atom_list = resname
+            approved = self._unitsel(neg, selection_items, atom_list)
+            for i in range(self.n_atoms):
+                if not approved[i]:
+                    master_approved[i] = False
+
+        # Create list of approved atom indexes
+        # Create self lists of pdbInfo for selected atoms
+        self.vmdsel_name = []
+        self.vmdsel_resname = []
+        self.vmdsel_resid = []
+        approved_indexes = []
+        for i in range(self.n_atoms):
+            if master_approved[i]:
+                approved_indexes.append(i)
+                self.vmdsel_name   .append(atom_name[i])
+                self.vmdsel_resname.append(resname  [i])
+                self.vmdsel_resid  .append(resid    [i])
+        return approved_indexes
+
+    def _pointers2list(self, pointrs, N):
+        out_list = [0 for i in range(N)]
+        pointrs.append('fake pointer')
+        pointr_idx = 0
+        for i in range(N):
+            # index starting at 1, as specified in pointrs
+            if pointrs[pointr_idx] == i+1:
+                pointr_idx += 1
+            out_list[i] = str(pointr_idx) 
+        return out_list
+
+    def _parse_unit(self, unit):
+        """called in vmdselection"""
+    
+        unit_fields = unit.split()
+        u = 0
+    
+        # Negation?
+        if unit_fields[0] == 'not':
+            negative = True
+            u += 1
+        else:   negative = False
+    
+        # Selecting by what?
+        sele_by = unit_fields[u]
+        u += 1
+    
+        # List of what to select
+        sele_items = unit_fields[u:] 
+        
+        # Selection range? (resid only)
+        if (sele_by == 'resid') and 'to' in sele_items:
+            n_TOs = sele_items.count('to')
+            for i in range(n_TOs):
+                idx = sele_items.index('to')
+                start = int(sele_items[idx-1])
+                stop =  int(sele_items[idx+1])
+                sele_items.pop(idx)
+                requested_range = []
+                int_range = [ i for i in range(start+1,stop)]
+                int_range.reverse()
+                for i in int_range:
+                    sele_items.insert(idx,str(i)) 
+        #print 'Negation:  ' + str(negative)
+        #print 'Select_by: ' + sele_by
+        #print 'Items:     ' + str(sele_items)
+        return negative, sele_by, sele_items
+    
+    def _unitsel(self, negation, selection_list, atom_list):
+    
+        n_atoms = len(atom_list)
+        approvals = [False for i in range(n_atoms)]
+        
+        i = 0
+        for atom in atom_list:
+            if atom in selection_list:
+                approvals[i] = True
+            i += 1
+    
+        if negation:
+            for i in range(n_atoms):
+                if approvals[i]:
+                    approvals[i] = False
+                elif not approvals[i]:
+                    approvals[i] = True
+    
+        return approvals
+
+    def _retrieve_parm_bond(self, vmdsel_expr):
+
+        sel_idx = self.vmdsel(vmdsel_expr)
 
         # We need a list of atoms
         # By default, use all :(
         # This shows the necessity of vmdsel module
-        # n_atoms = self.get_flag_data_as_list(
-        #    self.flags['POINTERS'])[0]
+        n_atoms = self.get_flag_data_as_list('POINTERS')[0]
 
-        # Create parms
-        BOND_FORCE_CONSTANT = self.get_flag_data_as_list(
-            self.flags['BOND_FORCE_CONSTANT'])
-        BOND_EQUIL_VALUE    = self.get_flag_data_as_list(
-            self.flags['BOND_EQUIL_VALUE'])
-        BONDS_INC_HYDROGEN = self.get_flag_data_as_list(
-            self.flags['BONDS_INC_HYDROGEN'])
-        BONDS_WITHOUT_HYDROGEN ) self.get_flag_data_as_list(
-            self.flags['BONDS_WITHOUT_HYDROGEN'])
+        # Read parms
+        force_list = self.get_flag_data_as_list('BOND_FORCE_CONSTANT')
+        equil_list = self.get_flag_data_as_list('BOND_EQUIL_VALUE')
+        bonds_inc_h = self.get_flag_data_as_list('BONDS_INC_HYDROGEN')
+        bonds_not_h = self.get_flag_data_as_list('BONDS_WITHOUT_HYDROGEN')
 
-        AMBER_ATOM_TYPE = self.get_flag_data_as_list(
-            self.flags['AMBER_ATOM_TYPE'])
+        # Get atom types
+        # Will be change to self.atoms_retyped[vmd_sel]
+        amber_atom_type = self.get_flag_data_as_list('AMBER_ATOM_TYPE')
 
-        # PARSE ALL Bonds
-        n_bonds = int(len(BONDS_WITHOUT_HYDROGEN)/3)
+        # All bonds
+        bonds = bonds_inc_h + bonds_not_h
+        
+        bonds_out = []
+
+        n_bonds = int(len(bonds)/3)
+        print ('Working with %d bonds.' % (n_bonds))
         for i in range(n_bonds):
-            idx1 = BONDS_WITHOUT_HYDROGEN[i*3+0]
-            idx2 = BONDS_WITHOUT_HYDROGEN[i*3+1]
-            bond_idx  = BOND_EQUIL_VALUE[i*3+2]
-            amber_type1 = AMBER_ATOM_TYPE[int(idx1/3)]
-            amber_type2 = AMBER_ATOM_TYPE[int(idx2/3)]
+            idx1 = int(bonds[i*3+0]/3) # atom 1 index
+            idx2 = int(bonds[i*3+1]/3) # atom 2 index
+            if idx1 in sel_idx and idx2 in sel_idx:
 
-    def gen_oniom(self):
+                bond_idx = bonds[i*3+2]-1  # 1 indexed
+                amber_type1 = amber_atom_type[idx1]
+                amber_type2 = amber_atom_type[idx2]
+                force = force_list[bond_idx]
+                equil = equil_list[bond_idx]
+                #print(amber_type1, amber_type2, force, equil)
+                this_bond = parm_bond(
+                    amber_type1, amber_type2, equil, force)
+
+                # Verify if bond exists and conflicts
+                is_bond_new = True
+                for existing_bond in bonds_out:
+                    if this_bond.has_same_atoms(existing_bond):
+                        is_bond_new = False
+                        if not this_bond.has_same_values(existing_bond):
+                            print ('WARNING: INCONSISTENT parameters:')
+                            print (this_bond.print_gaussian_way())
+                            print (existing_bond.print_gaussian_way())
+
+                if is_bond_new:
+                    bonds_out.append(this_bond)
+
+        return bonds_out
+
+
+    def gen_oniom(self, vmd_sel = ''):
+        """Freaking awesome function"""
         return 0
 
 class parm_bond():
-    def __init_(self, atom1, atom2, equil, const):
+    def __init__(self, atom1, atom2, equil, const):
         self.atom1 = atom1
         self.atom2 = atom2
         self.equil = float(equil)
         self.const = float(const)
 
-    def defines_same_atoms(other_parm_bond):
+    def has_same_atoms(self, other_parm_bond):
         cis = (self.atom1 == other_parm_bond.atom1 and
                self.atom2 == other_parm_bond.atom2)
         trans = (self.atom1 == other_parm_bond.atom2 and
@@ -171,7 +304,7 @@ class parm_bond():
         else:
             return False
 
-    def defines_same_values(other_parm_bond):
+    def has_same_values(self, other_parm_bond):
         return (self.equil == other_parm_bond.equil and
                 self.const == other_parm_bond.const)
 
