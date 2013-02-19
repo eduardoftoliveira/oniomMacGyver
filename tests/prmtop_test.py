@@ -2,18 +2,20 @@
 
 from prmtop import *
 
-x = prmtop('model.prmtop')
-flag = x._flags['BONDS_INC_HYDROGEN']
-sel = x.vmdsel('resid 25 103')
-print ('Chosen atoms:', len(sel))
-print (x.vmdsel_resid)
-print (x.vmdsel_resname)
-print (x.vmdsel_name)
-bonds_inc_h = x.get_flag_data_as_list('BONDS_INC_HYDROGEN')
-amber_atom_type = x.get_flag_data_as_list('ATOM_NAME')
+x = prmtop('efpp.prmtop')
+x.gen_oniom('testoniom.com', 'efpp.inpcrd', 'resid 1 to 300')
 
-bonds = x._retrieve_parm_bond('resid 1 to 10')
-print('N bonds:',len(bonds))
+#print (x.vmdsel_resid)
+#print (x.vmdsel_resname)
+#print (x.vmdsel_name)
+#bonds_inc_h = x.read_flag('BONDS_INC_HYDROGEN')
+#amber_atom_type = x.read_flag('ATOM_NAME')
+#x._gen_gaff_uppercase()
+#dh = x._retrieve_parm_dihedral()
+#for d in dh:
+#    print(d.print_gaussian_way())
+#bonds = x._retrieve_parm_bond('resid 1 to 10')
+#print('N bonds:',len(bonds))
 #for bond in bonds:
 #    print(bond.print_gaussian_way())
 

@@ -12,7 +12,15 @@ import atoms
 import molecules
 
 # my c extensions
-import c_grep
+try:
+    import c_grep
+    c_grep_installed = True
+except ImportError:
+    c_grep_installed = False
+if c_grep_installed:
+    print("c_grep instalado")
+else:
+    print("c_grep nao instalado")
 
 
 class GaussianFile():
@@ -252,14 +260,18 @@ class GaussianCom(EmptyGaussianCom):
         self.connectivity_list = connectivity_list
         self.additional_input_dict["connect"] = connectivity_list
         return None
-                    
-class GaussianLog2(GaussianFile):
+
+class GaussianLog(GaussianFile):
     def __init__(self, name):
         self.name = name
+        self.file = open(self.name, 'r')
         self.grep_bytes     = self._grep_bytes()
+        self.route_section  = self._read_route_section()
         self.energies       = self._read_energies()
         #self.convergency   = self._read_convergency()  # RMS Force, etc...
         self.atoms_list     = self._Zmat_to_atoms_list()
+        #self.summary = self._generate_summary()
+        self.final_geometry = self.read_geometry(-1, -1)
 
     def _Zmat_to_atoms_list(self):
         f = open(self.name)
@@ -278,60 +290,11 @@ class GaussianLog2(GaussianFile):
             line = f.readline()
             test_end = line.strip().replace(' ','')
             if test_end != '':
-                Zmat_text .append(line.strip())
+                Zmat_text.append(line.strip())
             else:
                 break
         f.close()
         return self.read_gaussian_input_structure(Zmat_text)
-
-    def set_orientation(self, at_this_byte):
-        n_atoms = len(self.atoms_list)
-        f = open(self.name)
-        f.seek(at_this_byte)
-        # just to check file integrity
-        count_atoms = 0
-        # skip 5 lines
-        for i in range(5): 
-            f.readline()
-        while True:
-            line = f.readline()
-            if '--------' in line:
-                break
-            ls = line.split()
-            self.atoms_list[count_atoms].x = float(ls[-3])
-            self.atoms_list[count_atoms].y = float(ls[-2])
-            self.atoms_list[count_atoms].z = float(ls[-1])
-            self.atoms_list[count_atoms].coordinates = (
-                self.atoms_list[count_atoms].x,
-                self.atoms_list[count_atoms].y,
-                self.atoms_list[count_atoms].z)
-            count_atoms += 1
-        if count_atoms != n_atoms:
-            raise RuntimeError(
-                'Number of atoms differs in input and other orientation')
-
-    def get_orientation(self, at_this_byte, name):
-        out = open(name,'w')
-        f = open(self.name)
-        f.seek(at_this_byte)
-        new_atoms_list = deepcopy(self.atoms_list)
-        count = 0
-        for i in range(5):
-            f.readline()
-        while True:
-            line = f.readline()
-            if '--------' in line:
-                break
-            count += 1
-            ls = line.split()
-            x = float(ls[-3])
-            y = float(ls[-2])
-            z = float(ls[-1])
-            out.write('%12.6f %12.6f %12.6f\n' % (x,y,z))
-        out.close()
-            
-
-
 
     def _grep_bytes(self):
         self.grep_keywords = [
@@ -339,62 +302,141 @@ class GaussianLog2(GaussianFile):
             'orientation:',                 # works for both g03 and g09
             'ONIOM: calculating energy.',   # ONIOM energy
             'SCF Done:',
-            'scan point',                   # Not really necessary...
+            #'scan point',                   # Not really necessary...
             'Converged?',
-            'Optimized Parameters',         # Also reads Non-Opt...
+            'Step number',                  
+            'Optimized Parameters',         # Also reads Non-Opt... 
         ]
+        
+        if c_grep_installed==False: #usa o grep do linux            
+            grep_bytes = {}
+            grep_bytes['orientation:']                  = [[]]
+            grep_bytes['ONIOM: calculating energy.']    = [[]]
+            grep_bytes['SCF Done:']                     = [[]]
+            grep_bytes['Step number']                   = [[]]
+            grep_bytes['Converged?']                    = [[]]
+        
+            grep_string=""
+            for keywords in self.grep_keywords:
+                grep_string += '-e "'+keywords+'" '
+                
+            grep_output = subprocess.Popen('grep -b ' +  grep_string + self.name , shell=True , stdout=subprocess.PIPE)
+            grep_output = grep_output.communicate()[0]
+            raw_grepped_bytes = str( grep_output, encoding='utf8' ).splitlines()
+            for i, line in enumerate(raw_grepped_bytes):
+                words = line.split(':', 1)
+                
+                if "orientation:"  in words[1]:
+                    buffer_orientation=int(words[0]) #este valor fica em buffer
+        
+                elif "SCF Done:" in words[1]: #SCF Done:  E(RB3LYP) =  -3316.51285198     A.U. after    8 cycles
+                    buffer_SCF_Done=int(words[0]) #este valor fica em buffer
+        
+                elif "ONIOM: calculating energy." in words[1]:
+                    grep_bytes['ONIOM: calculating energy.'][-1].append(int(words[0]))  
 
-        # This will be included in C extension
-        raw_grepped_bytes =  c_grep.c_grep(self.name, self.grep_keywords)
+                elif "Step number" in words[1]:
+                    grep_bytes['Step number'][-1].append(int(words[0]))
 
-        # Now Parse
-        grep_bytes = {}
-        grep_bytes['orientation:']                  = [[]]
-        grep_bytes['ONIOM: calculating energy.']    = [[]]
-        grep_bytes['SCF Done:']                     = [[]]
-        grep_bytes['scan point']                    = [[]]
-        grep_bytes['Converged?']                    = [[]]
+                elif "Converged?" in words[1]:
+                    grep_bytes['Converged?'][-1].append(int(words[0]))
+                    grep_bytes['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
+                    grep_bytes['orientation:'][-1].append(buffer_orientation)   # buffered
+                    
 
+                elif "Optimized Parameters" in words[1]:
+                    grep_bytes['ONIOM: calculating energy.'].append([])
+                    grep_bytes['SCF Done:'].append([])
+                    grep_bytes['Step number'].append([])
+                    grep_bytes['Converged?'].append([])
+                    grep_bytes['orientation:'].append([])       
 
-        for linetuple in raw_grepped_bytes:
+                    
+            # Last list may be a ghost
+            if grep_bytes['orientation:'][-1] == []:
+                for data in grep_bytes:
+                    grep_bytes[data].pop(-1)
 
-            if 'orientation:' in linetuple[1]:
-                buffer_orientation = linetuple[0]
+            # Less apearing keywords 
+            for line in raw_grepped_bytes:
+                words = line.split(':', 1)
+                if 'Z-matrix' in words[1]:
+                    grep_bytes['Z-mat'] = int(words[0])
+                    break
+                
+            return grep_bytes
+            
+            
+        else: #usa o c_grep
+            # This will be included in C extension
+            raw_grepped_bytes =  c_grep.c_grep(self.name, self.grep_keywords)
+    
+            # Now Parse
+            grep_bytes = {}
+            grep_bytes['orientation:']                  = [[]]
+            grep_bytes['ONIOM: calculating energy.']    = [[]]
+            grep_bytes['SCF Done:']                     = [[]]
+            grep_bytes['Step number']                   = [[]]
+            grep_bytes['Converged?']                    = [[]]
+    
+    
+            for linetuple in raw_grepped_bytes:
+    
+                if 'orientation:' in linetuple[1]:
+                    buffer_orientation = linetuple[0]
+    
+                elif 'SCF Done:' in linetuple[1]:
+                    buffer_SCF_Done = linetuple[0]
+    
+                elif 'ONIOM: calculating energy.' in linetuple[1]: 
+                    grep_bytes['ONIOM: calculating energy.'][-1].append(linetuple[0])
+    
+                elif 'Step number' in linetuple[1]:
+                    grep_bytes['Step number'][-1].append(linetuple[0])
+    
+                elif 'Converged?' in linetuple[1]:
+                    grep_bytes['Converged?'][-1].append(linetuple[0])
+                    grep_bytes['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
+                    grep_bytes['orientation:'][-1].append(buffer_orientation)   # buffered
+    
+                elif 'Optimized Parameters' in linetuple[1]:
+                    grep_bytes['ONIOM: calculating energy.'].append([])
+                    grep_bytes['SCF Done:'].append([])
+                    grep_bytes['Step number'].append([])
+                    grep_bytes['Converged?'].append([])
+                    grep_bytes['orientation:'].append([])
+    
+            # Last list may be a ghost
+            if grep_bytes['orientation:'][-1] == []:
+                for data in grep_bytes:
+                    grep_bytes[data].pop(-1)
+    
+    
+            # Less apearing keywords 
+            for linetuple in raw_grepped_bytes:
+                if 'Z-matrix' in linetuple[1]:
+                    grep_bytes['Z-mat'] = int(linetuple[0])
+                    break
+    
+            return grep_bytes
+    
+    
+    def _read_route_section(self):
+        """ Returns a string with the route section commands"""
+        self.file.seek(0)
+        reading = False
+        for line in self.file:
+            if '#' in line:
+                route_section = line
+                reading = True
+            elif reading:
+                if'-------' in line:
+                    break
+                else:
+                    route_section += line
+        route_section = route_section.strip()
+        return route_section
 
-            elif 'SCF Done:' in linetuple[1]:
-                buffer_SCF_Done = linetuple[0]
-
-            elif 'ONIOM: calculating energy.' in linetuple[1]: 
-                grep_bytes['ONIOM: calculating energy.'][-1].append(linetuple[0])
-
-            elif 'scan point' in linetuple[1]:
-                grep_bytes['scan point'][-1].append(linetuple[0])
-
-            elif 'Converged?' in linetuple[1]:
-                grep_bytes['Converged?'][-1].append(linetuple[0])
-                grep_bytes['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
-                grep_bytes['orientation:'][-1].append(buffer_orientation)   # buffered
-
-            elif 'Optimized Parameters' in linetuple[1]:
-                grep_bytes['ONIOM: calculating energy.'].append([])
-                grep_bytes['SCF Done:'].append([])
-                grep_bytes['scan point'].append([])
-                grep_bytes['Converged?'].append([])
-                grep_bytes['orientation:'].append([])
-
-        # Last list may be a ghost
-        if grep_bytes['orientation:'][-1] == []:
-            for data in grep_bytes:
-                grep_bytes[data].pop(-1)
-
-
-        # Less apearing keywords 
-        for linetuple in raw_grepped_bytes:
-            if 'Z-matrix' in linetuple[1]:
-                grep_bytes['Z-mat'] = int(linetuple[0])
-                break
-
-        return grep_bytes
 
     def _read_energies(self):
         oniom_loc_bytes = self.grep_bytes['ONIOM: calculating energy.']
@@ -446,144 +488,6 @@ class GaussianLog2(GaussianFile):
         return energies
 
 
-class GaussianLog(GaussianFile):
-    def __init__(self, name):
-        self.name = name
-        self.file = open(self.name, 'r')
-        self.route_section = self._read_route_section()
-        self.amber = "amber" in self.route_section.lower()
-        self.opt = "opt" in self.route_section.lower()
-        self.energies_list, self.steps_list = self._read_steps_and_energies()
-        self.symbolic_zmatrix = self.read_symbolic_zmatrix()
-        self.initial_geometry = self.read_geometry(0, 0)
-        self.final_geometry = self.read_geometry(-1, -1)
-        self.summary = self._generate_summary()
-
-    def _read_route_section(self):
-        """ Returns a string with the route section commands"""
-        self.file.seek(0)
-        reading = False
-        for line in self.file:
-            if '#' in line:
-                route_section = line
-                reading = True
-            elif reading:
-                if'-------' in line:
-                    break
-                else:
-                    route_section += line
-        route_section = route_section.strip()
-        return route_section
-                           
-    def _read_steps(self):
-        """Creates a two dimensions list with the a tuple corresponding
-        to where where the steps start and finish (lines or bytes?)"""
-        steps_list = [[]]
-        previous_scan_step = scan_step = 0
-        start_step_byte = 0
-        grep_out = subprocess.check_output("grep -b 'Step number' {}".format(self.name), shell=True)
-        grep_out = str(grep_out)[2:-2]
-        lines_grep = grep_out.split("\\n")
-        for line in lines_grep:
-            end_step_byte = int(line.split(":")[0])
-            steps_list[scan_step].append((start_step_byte, end_step_byte))
-            start_step_byte = end_step_byte
-            if "scan point" in line:
-                scan_step = int(line.split()[13]) - 1
-                if scan_step != previous_scan_step:
-                    steps_list.append([])
-                    previous_scan_step = scan_step
-        steps_list[scan_step].append((start_step_byte, -1)) # last structure
-        return steps_list
-
-    def _read_steps_and_energies(self):
-        false_steps_list = [[]]
-        energies_list = [[0]]
-        if self.amber:
-            search_str = "extrapolated energy"
-        else:
-            search_str = "SCF Done"
-        previous_scan_step = scan_step = 0
-        start_step_byte = 0
-        # o ideal seria por a funcao em C a aceitar mais padroes
-        # para nao multiplicar o tempo pelo numero de pesquisas
-        c_grep_step = c_grep.c_grep(self.name, ["Step number"])
-        c_grep_energy = c_grep.c_grep(self.name, [search_str])
-        c_grep_step_energy = c_grep_step + c_grep_energy
-        c_grep_step_energy.sort()
-        c_grep_step_energy = [ ":".join((str(element[0]),element[1])) 
-                              for element in c_grep_step_energy]
-        #rep_out = subprocess.check_output("grep -b '\(Step number\|{}\)' {}".format(search_str,self.name), shell=True)
-        #grep_out = str(grep_out)[2:-3]
-        lines_grep = c_grep_step_energy
-        for line in lines_grep:
-            if "Step number" in line:
-                end_step_byte = int(line.split(":")[0])
-                false_steps_list[scan_step].append((start_step_byte, end_step_byte))
-                start_step_byte = end_step_byte
-                if "scan point" in line:
-                    scan_step = int(line.split()[13]) - 1
-                    if scan_step != previous_scan_step:
-                        false_steps_list.append([])
-                        previous_energy= energies_list[-1].pop(-1)
-                        energies_list.append([previous_energy])
-                        previous_scan_step = scan_step
-                false_steps_list[scan_step].append((start_step_byte, -1)) # last structure
-                energies_list[-1].append(0)
-            if search_str in line:
-                energy = float(line.split()[5])
-                energies_list[-1][-1] = energy
-        energies_list[-1].pop(-1)
-        #for single points
-        if not self.opt:
-            for line in self.file:
-                if search_str in line:
-                    energy = float(line.split()[4])
-                    energies_list = [[energy]]
-                    break
-        return energies_list, false_steps_list
-    
-    def read_geometry(self, opt_step, scan_step):
-        "Returns a list of atoms with the respective coordinates"
-        # lines to read
-        if self.opt:
-            step_start = self.steps_list[scan_step][opt_step][0]
-        else:
-            step_start = 0
-        self.file.seek(step_start)
-        atoms_list = []
-        reading = False
-        for line in self.file:
-            if reading:
-                if "-------" in line:
-                    break
-                else:
-                    atomic_number = line.split()[1]
-                    x, y, z = line.split()[3:6]
-                    element = [key for key in iter(atoms.ATOMIC_NUMBER_DICT) \
-                               if atoms.ATOMIC_NUMBER_DICT[key] == int(atomic_number)][0] #hack
-                    atoms_list.append(atoms.Atom(element, x, y, z))
-            elif " orientation:" in line:
-                for _ in range(4): next(self.file)
-                reading = True    
-        return atoms_list
-      
-    def read_symbolic_zmatrix(self):
-        self.file.seek(0)
-        reading = False
-        atoms_lines = []
-        for no, line in enumerate(self.file):
-            if reading:
-                if "Charge" in line:
-                    pass
-                elif line.strip() == '':
-                    break
-                else:
-                    atoms_lines.append(line)
-            if "Symbolic Z-matrix:" in line:
-                reading = True
-        return self.read_gaussian_input_structure(atoms_lines)
-    
     def _generate_summary(self):
         no_opts = 0
         for scan_step in self.steps_list:
@@ -603,5 +507,22 @@ class GaussianLog(GaussianFile):
         Last Energy: {5}
         """.format(self, self.initial_geometry[:100], len(self.initial_geometry), no_opts, no_scans, energy)
         return summary
+    
 
+    def read_geometry(self, opt_step, scan_step):
+        with open(self.name, 'r') as f:
+            f.seek(self.grep_bytes['orientation:'][scan_step][opt_step])
+            atoms_list = []
+            for _ in range(5):
+                f.readline()
+            for model_atom in self.atoms_list:
+                line = f.readline()
+                atom = deepcopy(model_atom)
+                atomic_number = line.split()[1]
+                x, y, z = line.split()[3:6]
+                element = [key for key in iter(atoms.ATOMIC_NUMBER_DICT) \
+                                if atoms.ATOMIC_NUMBER_DICT[key] == int(atomic_number)][0] #hack
+                atom.x, atom.y, atom.z = x,y,z
+                atoms_list.append(atom)    
+        return atoms_list
 
