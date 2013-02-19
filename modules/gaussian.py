@@ -265,8 +265,9 @@ class GaussianLog(GaussianFile):
     def __init__(self, name):
         self.name = name
         self.file = open(self.name, 'r')
-        self.grep_bytes     = self._grep_bytes()
         self.route_section  = self._read_route_section()
+        self.grep_bytes, self._OptimizedParameters     = self._grep_bytes()
+        self._sanity_check  = self._sanity_check(self._OptimizedParameters)
         self.energies       = self._read_energies()
         #self.convergency   = self._read_convergency()  # RMS Force, etc...
         self.atoms_list     = self._Zmat_to_atoms_list()
@@ -296,7 +297,7 @@ class GaussianLog(GaussianFile):
         f.close()
         return self.read_gaussian_input_structure(Zmat_text)
 
-    def _grep_bytes(self):
+    def _grep_bytes(self): #NOTE: Doesnt work for singlepoints yet. No 'Converged?' string in the output
         self.grep_keywords = [
             'Z-matrix',
             'orientation:',                 # works for both g03 and g09
@@ -308,117 +309,77 @@ class GaussianLog(GaussianFile):
             'Optimized Parameters',         # Also reads Non-Opt... 
         ]
         
-        if c_grep_installed==False: #usa o grep do linux            
-            grep_bytes = {}
-            grep_bytes['orientation:']                  = [[]]
-            grep_bytes['ONIOM: calculating energy.']    = [[]]
-            grep_bytes['SCF Done:']                     = [[]]
-            grep_bytes['Step number']                   = [[]]
-            grep_bytes['Converged?']                    = [[]]
+        grep_bytes = {}
+        grep_bytes['orientation:']                  = [[]]
+        grep_bytes['ONIOM: calculating energy.']    = [[]]
+        grep_bytes['SCF Done:']                     = [[]]
+        grep_bytes['Step number']                   = [[]]
+        grep_bytes['Converged?']                    = [[]]
+        _OptimizedParameters                        = [] #stores the bytes of "Optimized Parameters" to parse it to _sanity_check
         
+        if c_grep_installed==False: #usa o grep do linux            
+
             grep_string=""
             for keywords in self.grep_keywords:
                 grep_string += '-e "'+keywords+'" '
                 
             grep_output = subprocess.Popen('grep -b ' +  grep_string + self.name , shell=True , stdout=subprocess.PIPE)
             grep_output = grep_output.communicate()[0]
-            raw_grepped_bytes = str( grep_output, encoding='utf8' ).splitlines()
-            for i, line in enumerate(raw_grepped_bytes):
-                words = line.split(':', 1)
+            grep_output = str( grep_output, encoding='utf8' ).splitlines()
+            raw_grepped_bytes = []
+            for i, line in enumerate(grep_output):
+                raw_grepped_bytes.append( (int(line.split(':', 1)[0]), line.split(':', 1)[1]) ) #transforms output into list of tuples
                 
-                if "orientation:"  in words[1]:
-                    buffer_orientation=int(words[0]) #este valor fica em buffer
-        
-                elif "SCF Done:" in words[1]: #SCF Done:  E(RB3LYP) =  -3316.51285198     A.U. after    8 cycles
-                    buffer_SCF_Done=int(words[0]) #este valor fica em buffer
-        
-                elif "ONIOM: calculating energy." in words[1]:
-                    grep_bytes['ONIOM: calculating energy.'][-1].append(int(words[0]))  
-
-                elif "Step number" in words[1]:
-                    grep_bytes['Step number'][-1].append(int(words[0]))
-
-                elif "Converged?" in words[1]:
-                    grep_bytes['Converged?'][-1].append(int(words[0]))
-                    grep_bytes['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
-                    grep_bytes['orientation:'][-1].append(buffer_orientation)   # buffered
-                    
-
-                elif "Optimized Parameters" in words[1]:
-                    grep_bytes['ONIOM: calculating energy.'].append([])
-                    grep_bytes['SCF Done:'].append([])
-                    grep_bytes['Step number'].append([])
-                    grep_bytes['Converged?'].append([])
-                    grep_bytes['orientation:'].append([])       
-
-                    
-            # Last list may be a ghost
-            if grep_bytes['orientation:'][-1] == []:
-                for data in grep_bytes:
-                    grep_bytes[data].pop(-1)
-
-            # Less apearing keywords 
-            for line in raw_grepped_bytes:
-                words = line.split(':', 1)
-                if 'Z-matrix' in words[1]:
-                    grep_bytes['Z-mat'] = int(words[0])
-                    break
-                
-            return grep_bytes
-            
-            
         else: #usa o c_grep
             # This will be included in C extension
             raw_grepped_bytes =  c_grep.c_grep(self.name, self.grep_keywords)
-    
-            # Now Parse
-            grep_bytes = {}
-            grep_bytes['orientation:']                  = [[]]
-            grep_bytes['ONIOM: calculating energy.']    = [[]]
-            grep_bytes['SCF Done:']                     = [[]]
-            grep_bytes['Step number']                   = [[]]
-            grep_bytes['Converged?']                    = [[]]
-    
-    
-            for linetuple in raw_grepped_bytes:
-    
-                if 'orientation:' in linetuple[1]:
-                    buffer_orientation = linetuple[0]
-    
-                elif 'SCF Done:' in linetuple[1]:
-                    buffer_SCF_Done = linetuple[0]
-    
-                elif 'ONIOM: calculating energy.' in linetuple[1]: 
-                    grep_bytes['ONIOM: calculating energy.'][-1].append(linetuple[0])
-    
-                elif 'Step number' in linetuple[1]:
-                    grep_bytes['Step number'][-1].append(linetuple[0])
-    
-                elif 'Converged?' in linetuple[1]:
-                    grep_bytes['Converged?'][-1].append(linetuple[0])
-                    grep_bytes['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
-                    grep_bytes['orientation:'][-1].append(buffer_orientation)   # buffered
-    
-                elif 'Optimized Parameters' in linetuple[1]:
-                    grep_bytes['ONIOM: calculating energy.'].append([])
-                    grep_bytes['SCF Done:'].append([])
-                    grep_bytes['Step number'].append([])
-                    grep_bytes['Converged?'].append([])
-                    grep_bytes['orientation:'].append([])
-    
-            # Last list may be a ghost
-            if grep_bytes['orientation:'][-1] == []:
-                for data in grep_bytes:
-                    grep_bytes[data].pop(-1)
-    
-    
-            # Less apearing keywords 
-            for linetuple in raw_grepped_bytes:
-                if 'Z-matrix' in linetuple[1]:
-                    grep_bytes['Z-mat'] = int(linetuple[0])
-                    break
-    
-            return grep_bytes
+            
+
+        for linetuple in raw_grepped_bytes:
+
+            if 'orientation:' in linetuple[1]:
+                buffer_orientation = linetuple[0]
+
+            elif 'SCF Done:' in linetuple[1]:
+                buffer_SCF_Done = linetuple[0]
+
+            elif 'ONIOM: calculating energy.' in linetuple[1]:
+                buffer_ONIOM_calculating_energy = linetuple[0]
+
+            elif 'Step number' in linetuple[1]:
+                buffer_Step_number = linetuple[0]
+
+            elif 'Converged?' in linetuple[1]:
+                grep_bytes['Converged?'][-1].append(linetuple[0])
+                grep_bytes['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
+                grep_bytes['orientation:'][-1].append(buffer_orientation)   # buffered
+                grep_bytes['Step number'][-1].append(buffer_Step_number)    # buffered
+                
+                if 'buffer_ONIOM_calculating_energy' in locals(): #only appends when it is an oniom calculation
+                    grep_bytes['ONIOM: calculating energy.'][-1].append(buffer_ONIOM_calculating_energy) #buffered
+                    del buffer_ONIOM_calculating_energy
+
+            elif 'Optimized Parameters' in linetuple[1]:
+                _OptimizedParameters.append(linetuple[0])
+                grep_bytes['ONIOM: calculating energy.'].append([])
+                grep_bytes['SCF Done:'].append([])
+                grep_bytes['Step number'].append([])
+                grep_bytes['Converged?'].append([])
+                grep_bytes['orientation:'].append([])
+
+        # Last list may be a ghost
+        if grep_bytes['orientation:'][-1] == []:
+            for data in grep_bytes:
+                grep_bytes[data].pop(-1)
+
+        # Less apearing keywords 
+        for linetuple in raw_grepped_bytes:
+            if 'Z-matrix' in linetuple[1]:
+                grep_bytes['Z-mat'] = int(linetuple[0])
+                break
+            
+        return grep_bytes, _OptimizedParameters
+
     
     
     def _read_route_section(self):
@@ -452,7 +413,6 @@ class GaussianLog(GaussianFile):
         f = open(self.name)
         for complete_opt in oniom_loc_bytes:
             ONIOM_model_high.append([])
-            ONIOM_model_high.append([])
             ONIOM_model_low.append([])
             ONIOM_real_low.append([])
             ONIOM_lowlayer_low.append([])
@@ -473,7 +433,6 @@ class GaussianLog(GaussianFile):
                 ONIOM_extrapol[-1].append(extrapol)
                 
                 ONIOM_lowlayer_low[-1].append(real_low-model_low)
-
         for complete_opt in scf_loc_bytes:
             SCF_energy.append([])
             for location_byte in complete_opt:
@@ -526,3 +485,56 @@ class GaussianLog(GaussianFile):
                 atoms_list.append(atom)    
         return atoms_list
 
+    def _sanity_check(self, _OptimizedParameters):  #ve se os passos opt e scanpoint estao consecutivos ou se ficheiro foi danificado entre isso #nos scan ve se optimizaram
+    #checks if it is a singlepoint_job or opt_job or scan_job; checks if it is oniom_job
+        with open(self.name, 'r') as f:
+            if 'oniom' in self.route_section.lower(): oniom_job=True
+            else: oniom_job=False
+            
+            #ver se eh scan, opt ou singlepoint
+            if 'opt' in self.route_section.lower(): #not singlepoint; it can be opt_job or scan_job
+                singlepoint_job = False
+                f.seek(self.grep_bytes['Step number'][0][0])
+                stepnr_line = f.readline()
+                if 'scan point' in stepnr_line: scan_job = True; opt_job = False
+                else: #it is an opt_job
+                    scan_job = False; opt_job = True
+                    if len(_OptimizedParameters) == 0: print('#WARNING : Unfinished opt job after', stepnr_line.strip('\n'))
+                    elif len(_OptimizedParameters) > 1: print('#WARNING : Very odd error. It is supposed to be an opt job but has more than one "Optimized Parameters" keyword')
+                    else:
+                        f.seek(_OptimizedParameters[0])
+                        if "Non-Optimized Parameters" in f.readline(): print('#WARNING : Not fully optimized opt job')
+                
+                for scanstep, i in enumerate(self.grep_bytes['Step number']):
+                    for optstep, i in enumerate(self.grep_bytes['Step number'][scanstep]):
+                        f.seek(self.grep_bytes['Step number'][scanstep][optstep])
+                        step_line = f.readline()
+                        opt_step_line = int(step_line.split()[2])
+                        if optstep > 0:
+                            if opt_step_line != previous_opt_step_line+1:
+                                print('#WARNING : Unconsecutive opt steps! File might be damaged betwen:')
+                                f.seek(self.grep_bytes['Step number'][scanstep][optstep-1])
+                                print(f.readline(), "\n and \n", step_line)
+                        previous_opt_step_line = opt_step_line
+                    f.seek(self.grep_bytes['Step number'][scanstep][-1])
+                    stepnr_line = f.readline()
+                    if scan_job == True: # if it is a scan job, checks if scan steps are consecutive; if it is fully optimized
+                        scan_step_line = int(stepnr_line.split()[12])
+                        if scanstep > 0:
+                            if scan_step_line != previous_scan_step_line+1:
+                                print('#WARNING : Unconsecutive scan steps! File might be damaged betwen:')
+                                f.seek(self.grep_bytes['Step number'][scanstep][-1])
+                                print(f.readline(), "\n and \n", stepnr_line)
+                        previous_scan_step_line = scan_step_line
+                        
+                        #checks if scan step was fully optimized and if scan_job finished prematurely
+                        try:
+                            f.seek(_OptimizedParameters[scanstep])
+                            if "Non-Optimized Parameters" in f.readline():
+                                print('#WARNING :', stepnr_line.strip('\n'), ' - NOT Fully Optimized'),
+                        except IndexError:
+                            print('#WARNING : Unfinished scan job. Ended after', stepnr_line.strip('\n'))
+                        
+                    elif len(self.grep_bytes['Step number']) > 1: print("#WARNING : Doesn't seem to be a scan job, however GaussianLog read it as such!") #for very odd errors only
+
+            else: singlepoint = True, print('#WARNING : Not checking singlepoint sanity yet!') #for singlepoint_job
