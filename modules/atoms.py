@@ -20,6 +20,38 @@ def dotprod(a, b):
         raise RuntimeError('vectors must have same length')
     return [a[i] * b[i] for i in range(len(a))]
 
+# read pdb and store "Atom" or "QMmmAtomPDB" objects
+def read_pdb_line(lines_list):
+    atoms_list = []
+    for line in lines_list:
+        if line[0:6] == "ATOM  " or line[0:6] == "HETATM" and line[17:20] != "   " : #has residue info
+            element = line[76:78].strip()
+            mm_type = ""
+            mm_charge = 0
+            mask = "" #frozen
+            x = line[30:38].strip()
+            y = line[38:46].strip()
+            z = line[46:54].strip()
+            layer = line[16]
+            pdb_atom_name = line[12:16].strip()
+            pdb_res_name = line[17:20].strip()
+            pdb_res_number = line[22:26].strip()
+            pdb_chain = line[21].strip()
+            link_element = ""
+            link_mm_type = ""
+            link_bound_to = ""
+            link_scale1 = ""
+            
+            this_atom = QmmmAtomPdb(element, mm_type, mm_charge, mask, x, y, z, layer, pdb_atom_name, pdb_res_name, pdb_res_number, pdb_chain, link_element, link_mm_type, link_bound_to, link_scale1)
+            atoms_list.append(this_atom)
+            
+        elif line[0:6] == "ATOM  " or line[0:6] == "HETATM" and line[17:20] == "   " : #doesnt have residue info
+            this_atom = Atom(line[76:78].strip(), line[30:38].strip(), line[38:46].strip(), line[46:54].strip()) #Atom(element, x=, y=, z=)
+            atoms_list.append(this_atom)
+    return atoms_list
+
+            
+
 class Atom(object):    
     def __init__(self, element, x=None, y=None, z=None):
         if element.isdigit():
@@ -133,7 +165,7 @@ class QmmmAtomPdb(QmmmAtom):
 
         atom_type_charge = " {0.element}-{0.mm_type}-{0.charge:.6f}"\
                             .format(self)
-        pdb_info = '(PDBName=%s,ResName=%s,ResNum=%s)' % (self.pdb_name, self.residue_name, self.residue_number)
+        pdb_info = '(PDBName=%s,ResName=%s,ResNum=%s_%s)' % (self.pdb_name, self.residue_name, self.residue_number, self.chain)
         
         line += atom_type_charge
         line += pdb_info
@@ -146,16 +178,16 @@ class QmmmAtomPdb(QmmmAtom):
             line += ' %s' % (self.link_element)                     # Link atom ELEMENT
         if self.link_mm_type != None:
             line += '-%s' % (self.link_mm_type)                     # Link atom MM type
-        if self.link_bound_to != None:
+        if self.link_bound_to != None and self.link_bound_to != '':
             line += ' %d' % (int(self.link_bound_to))               # Link BOUND TO
-        if self.link_scale1 != None:
+        if self.link_scale1 != None and self.link_scale1 != '':
             line += ' %f' % (float(self.link_scale1))               # Link atom scale factor
 
         line += '\n'
         return line
 
     def get_pdb_line(self):
-        o = 'ATOM  '                        # 1-6 ATOM
+        o = 'ATOM  '                        # 1-6 ATOM HETATM
         o += ' '*5                          # 7-11 (NOT USED)
         o += ' '                            # 12
         o += '%4s' % (self.pdb_name)        # 13-16

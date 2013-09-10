@@ -80,7 +80,9 @@ class GaussianFile():
                     this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, mask, x, y, z, layer, pdb_atom_name, pdb_res_name, pdb_res_number, pdb_chain, link_element, link_mm_type, link_bound_to, link_scale1)
                 else:
                     this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer, link_element, link_mm_type, link_bound_to, link_scale1)
-            atoms_list.append(this_atom)
+            if 'this_atom' in locals():
+                atoms_list.append(this_atom) #NOTA: por causa desta linha n podemos dar um .com desde o inicio para esta funcao, pois n sabe o k fazer com linhas k n sao atomos
+            this_atom = None
         return atoms_list
 
     def writeZMat(self,atom):
@@ -142,12 +144,14 @@ class GaussianCom(EmptyGaussianCom):
             self.title_line = self._read_title_line()
             self.multiplicity_line = self._read_multiplicity_line()
             self.atoms_list = self._read_structure()
-            self.additional_input_dict = self._read_additional_input()
+            self.additional_input_dict = self._read_additional_input2()            
+#            self.additional_input_dict = self._read_additional_input()
             self.connectivity_list = self.additional_input_dict["connect"]
-            self.bonds_list = self._read_bonds_list()
+            self.bonds_list = self._read_bonds_list()                          #Nao sei para que serve o bonds list, eh diferente de connectivity
             self.modredundant_list = self.additional_input_dict["modred"]
             self.gen_list = self.additional_input_dict["gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
+            self.MM_external_params = self.additional_input_dict["first"]
 
     def _read_lines(self):
         """Reads lines to a list and strips the \\n"""
@@ -162,7 +166,7 @@ class GaussianCom(EmptyGaussianCom):
         for no, line in enumerate(self.lines):
             if line.strip() == '':
                 blank_lines.append(no)
-        return blank_lines
+        return blank_lines #lista de index das blank lines
 
     def _read_link_0_commands(self):
         """Return a list with Link 0 commands"""
@@ -170,7 +174,7 @@ class GaussianCom(EmptyGaussianCom):
         for line in self.lines[:self.blank_lines[0]]:
             if '%' in line: link_0_commands.append(line)
         return link_0_commands
-
+        
     def _read_route_section(self):
         """Return a string with the route section"""
         read_route_section = False
@@ -198,10 +202,38 @@ class GaussianCom(EmptyGaussianCom):
         """ Return a list of atoms"""
         return self.read_gaussian_input_structure(self.lines[self.blank_lines[1]+2:self.blank_lines[2]])
 
-    def _read_additional_input(self):
+    def _read_additional_input2(self):
         """Reads additional input and stores it in a ordered dict"""
         additional_input_dict = collections.OrderedDict(\
         [("connect",None),("modred",None),("gen",None),("pseudo=read",None),("first",None)])
+        shift=0
+        b_lines = self.blank_lines
+        for key in additional_input_dict:
+            if key in self.route_section.lower():
+                if key == "first":
+                    shift += 1
+                if key == "modred" and self.lines[ b_lines[2+shift]+1 ] != "\n":
+                    if self.lines[ b_lines[2+shift]+1 ][1] not in ["X","B","A","D","L"]:
+                    #ex: " X 1 2 F"
+                    #no modredundant lines in the end of file (mask option used)
+                        print('continue : no modredundant line in the end')
+                        continue
+                elif key == "modred" and self.lines[ b_lines[2+shift]+1 ] == "\n":
+                    print('continue : no modredundant line in the end')
+                    continue
+                i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                additional_input_dict[key]= self.lines[i_start: i_finish]
+                shift += 1
+        return additional_input_dict
+        
+    
+    def _read_additional_input(self):
+        """Reads additional input and stores it in a ordered dict"""
+        additional_input_dict = collections.OrderedDict(\
+        [("connect",None),("gen",None),("pseudo=read",None),("first",None)])
+#        [("connect",None),("modred",None),("gen",None),("pseudo=read",None),("first",None)])
+#IMPORTANT: with g09 modredundant can be present in route_section\
+#but without aditional lines in the end of file (g09 allows "mask" in z-matriz"""
         shift = 0
         b_lines = self.blank_lines
         for key in additional_input_dict:
@@ -481,7 +513,7 @@ class GaussianLog(GaussianFile):
                 x, y, z = line.split()[3:6]
                 element = [key for key in iter(atoms.ATOMIC_NUMBER_DICT) \
                                 if atoms.ATOMIC_NUMBER_DICT[key] == int(atomic_number)][0] #hack
-                atom.x, atom.y, atom.z = x,y,z
+                atom.x, atom.y, atom.z = float(x),float(y),float(z)
                 atoms_list.append(atom)    
         return atoms_list
 
