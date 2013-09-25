@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import time
 
 #user input
-number_of_steps = 500000
+number_of_steps = 200000
 lambda_values = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9]
 ###
 

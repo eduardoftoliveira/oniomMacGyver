@@ -167,7 +167,9 @@ class GaussianCom(EmptyGaussianCom):
         route_section = ''
         for line in self.lines[:self.blank_lines[0]]:
             if read_route_section:
-                route_section += "\n{}".format(line)
+                #route_section += "\n{}".format(line)
+                route_section += line
+                pass
             if '#' in line:
                 read_route_section = True
                 route_section += line
@@ -368,6 +370,9 @@ class GaussianLog(GaussianFile):
         self.final_geometry = self.read_geometry(-1, -1)
         self.summary = self._generate_summary()
 
+    def close_file(self):
+        self.file.close()
+    
     def _read_route_section(self):
         """ Returns a string with the route section commands"""
         self.file.seek(0)

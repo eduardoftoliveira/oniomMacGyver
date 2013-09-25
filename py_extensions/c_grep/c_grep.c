@@ -57,6 +57,7 @@ static PyObject* c_grep(PyObject* self, PyObject *args)
         position = ftell(f); 
     }
     //return Py_BuildValue("S", c_pattern_lst[0]);
+    fclose(f);
     return Py_BuildValue("O", lst);
 }
 

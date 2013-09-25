@@ -62,7 +62,8 @@ for no, residue in enumerate(residues_list):
 script_file_name = "{0}/{1}".format(new_folder_name,"run.sh")
 with open(script_file_name, 'w') as run_script:
     for job in input_list:
-        run_script.write("g09 {0}\n".format(job))
+        out_name = job[:-4]+".log"
+        run_script.write("g09 {0} {1}\n".format(job,out_name))
 
 
 
