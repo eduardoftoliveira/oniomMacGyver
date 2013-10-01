@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+from atoms import *
+
 class Molecule(list):
     """ List of Atoms """
     def __init__(self, name ,atoms_list):
@@ -131,3 +133,30 @@ class Bond():
         
     def __repr__(self):
         return (str((self.atom_a, self.atom_b,self.order)))
+
+def QMMM_to_QM(atoms_list):
+    """Takes a QM/MM atoms list and returns the QM system only.
+    It corrects the type and position of link atoms"""
+    SCALING = {"C":0.723886, "N":0.786011}
+    qm_atoms_list = []
+    for atom in atoms_list:
+        if atom.layer[0] == 'H':
+            qm_atom = Atom(atom.element, atom.x, atom.y, atom.z)
+            qm_atoms_list.append(qm_atom)
+        elif atom.link_element:
+            linked_atom = atoms_list[int(atom.link_bound_to)-1]
+            atom.x = (atom.x-linked_atom.x) *SCALING[linked_atom.element] + linked_atom.x
+            atom.y = (atom.y-linked_atom.y) *SCALING[linked_atom.element] + linked_atom.y
+            atom.z = (atom.z-linked_atom.z) *SCALING[linked_atom.element] + linked_atom.z
+            qm_atom = Atom(atom.link_element, atom.x, atom.y, atom.z)
+            qm_atoms_list.append(qm_atom)
+        else:
+            pass
+    return qm_atoms_list
+
+            
+
+
+
+
+

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import subprocess
+import copy
+
 
 ### RESP
 def produce_resp_in(esp_in_name, atoms_list, instructions_list, total_charge = False):
@@ -33,26 +35,25 @@ def produce_resp_qin(resp_qin_name, atoms_list):
         n = 0
         for atom in atoms_list:
             n += 1
-            charge_str = '{0:10.6f}'.format(atom.charge)
+            if atom.charge:
+                charge_str = '{0:10.6f}'.format(atom.charge)
+            else:
+                charge_str = '{0:10.6f}'.format(0)
             if n == 8:
                 charge_str += '\n'
                 n = 0
             resp_qin_file.write(charge_str)
 
-def produce_resp_dat_from_gaussian_log(esp_dat_name, gaussian_log_name, qmmm_high_atoms_list_number=None):
+def produce_resp_dat_from_gaussian_log(esp_dat_name, gaussian_log_name, qm_atoms_list):
     unit = 0.529177249  # 1 ansgtrom = 1 bohr /unit
     with open(gaussian_log_name, 'r', encoding='UTF-8') as gaussian_log_file:
         atomic_center_list = []
         esp_fit_list = []
         fit_list = []
+        for atom in qm_atoms_list:
+            atomic_center_list.append((atom.x/unit,atom.y/unit,atom.z/unit))
         for line in gaussian_log_file:
-            if 'Atomic Center ' in line:
-                x = float(line[32:42])/unit
-                y = float(line[42:52])/unit
-                z = float(line[52:62])/unit
-                if not qmmm_high_atoms_list_number or (int(line.split()[2]) in qmmm_high_atoms_list_number):
-                    atomic_center_list.append((x,y,z))
-            elif 'ESP Fit ' in line:
+            if 'ESP Fit ' in line:
                 x = float(line[32:42])/unit
                 y = float(line[42:52])/unit
                 z = float(line[52:62])/unit
@@ -90,23 +91,63 @@ def read_resp_out(name):
             charges_list.append(float(line.split()[3])) 
     return charges_list
 
+def give_resp_charges(old_atoms_list, new_charges):
+    """writes new charges to the atoms in atom list
+    It corrects the overall charge by
+    scaling the charges of link atoms"""
+    new_atoms_list = copy.deepcopy(old_atoms_list) 
+    for index, atom in enumerate(new_atoms_list):
+        atom.charge = new_charges[index]
+     
+    old_charges_sum = new_charges_sum = 0    
+    for no, charge in enumerate(new_charges):
+        old_charges_sum += old_atoms_list[no].charge
+        new_charges_sum += new_atoms_list[no].charge
+
+    diff = new_charges_sum - old_charges_sum
+
+    no_link_atoms = 0.0
+    for atom in old_atoms_list:
+        if atom.link_mm_type:
+            no_link_atoms += 1.0
+    
+    for atom in new_atoms_list:
+        if atom.link_mm_type:
+            atom.charge = atom.charge - diff/no_link_atoms
+
+    return new_atoms_list
+
+
+
+
+
+
 ###CRD file
-def write_crd_file(name, coordinate_list, box_info=True):
+def write_crd_file(name, coordinate_list, box_info=True, velocities=False):
     with open(name, mode='w', encoding='utf-8') as crd_file:
         if box_info:
-            no_atoms = len(coordinate_list)-2
-        else:
-            no_atoms = len(coordinate_list)
+            box_coord = coordinate_list[-2:]
+            coordinate_list = coordinate_list[:-2]
+        no_atoms = len(coordinate_list)
+        if velocities:
+            no_atoms = no_atoms//2
+
+        
         first_line = '\n {0}\n'.format(no_atoms)
         amber_crd_lines = [first_line]
         for no, coordinates in enumerate(coordinate_list):
             line = '{0[0]:12.7f}{0[1]:12.7f}{0[2]:12.7f}'.format(coordinates)
-            if no%2 != 0: line += '\n'
-            amber_crd_lines.append(line)
-        amber_crd_lines[-1] += '\n'
+            if no%2 != 0:
+                amber_crd_lines[-1] += line+'\n'
+            else:
+                amber_crd_lines.append(line)
+        if no%2 != 1:
+            amber_crd_lines[-1] += '\n'
+        
         if box_info:
-            amber_crd_lines[-2] = amber_crd_lines[-2].replace("\n","")
-            amber_crd_lines[-3] += '\n'
+            line = '{0[0]:12.7f}{0[1]:12.7f}{0[2]:12.7f}'.format(box_coord[0])
+            line +='{0[0]:12.7f}{0[1]:12.7f}{0[2]:12.7f}\n'.format(box_coord[1])
+            amber_crd_lines.append(line) 
         for line in amber_crd_lines: 
             crd_file.write(line)
     return None
@@ -116,9 +157,8 @@ def read_crd_file(name):
         extended_coordinates_list = []
         coordinates_list = []
         amber_crd_lines = crd_file.readlines()
-        for line in amber_crd_lines:
+        for line in amber_crd_lines[2:]:
             extended_coordinates_list.extend(line.split())
-        extended_coordinates_list.pop(0)
         extended_coordinates_list = [float(no) for no in extended_coordinates_list]
         for no in range(0,len(extended_coordinates_list),3):
             coordinates_list.append(extended_coordinates_list[no:no+3])
@@ -154,7 +194,34 @@ def read_prmtop_charges(name):
         charges_list[no] = float(charges_list[no]) / 18.2223
     
     return charges_list
+
+def write_prmtop_charges(old_prmtop_name, new_prmtop_name, charges_list):
+    """ write a new prmtop file from a old one with the charges given in charges_list"""
     
+    with open(old_prmtop_name, 'r', encoding='UTF-8') as prmtop_file:
+        model_prmtop_lines = prmtop_file.readlines()
+        for line in range(0,len(model_prmtop_lines)):
+            if 'FLAG CHARGE' in model_prmtop_lines[line]:
+                starting_line = line + 2
+                break
+
+    charges_for_prmtop = [charge * 18.2223 for charge in charges_list]
+    lines_for_prmtop = []
+    for no,charge in enumerate(charges_for_prmtop):
+        if no % 5 == 0:
+            lines_for_prmtop.append("")
+        charge_str = "{0:>16.8E}".format(charge)
+        lines_for_prmtop[-1] += charge_str
+    lines_for_prmtop = [ "".join((line,"\n")) for line in lines_for_prmtop]
+    ending_line = starting_line + len(lines_for_prmtop)
+    prmtop_lines = model_prmtop_lines[:starting_line] + lines_for_prmtop +\
+    model_prmtop_lines[ending_line:]  
+    with open(new_prmtop_name,'w') as new_prmtop_file:
+        for line in prmtop_lines:
+            new_prmtop_file.write(line)
+
+
+
     
 def read_amber_atom_type_list(name):
     with open(name, 'r', encoding='UTF-8') as prmtop_file:
@@ -184,4 +251,58 @@ def read_out_energies(name, patern="EAMBER (non-restraint)  ="):
     return energies_list
 
     
+#####
+
+def create_restraint_mask(atoms_numbers_list):
+    "returns a restraint mask for amber calculations"
+    restraint_mask = "@"
+    jump_this = []
+    for index, atom_no in enumerate(atoms_numbers_list):
+        if atom_no in jump_this:
+            pass
+        else:
+            restraint_mask += str(atom_no+1)
+            sequence = False
+            last_sub_atom = atom_no
+            for sub_atom_no in atoms_numbers_list[index+1:]:
+                if sub_atom_no != last_sub_atom + 1:
+                    if not sequence:
+                        restraint_mask += ','
+                        break
+                    elif sequence:
+                        restraint_mask += '-{},'.format(last_sub_atom+1)
+                        break
+                else:
+                    if sub_atom_no == atoms_numbers_list[-1]:
+                        restraint_mask += '-{}'.format(sub_atom_no+1)
+                        jump_this.append(sub_atom_no)
+                    else:
+                        jump_this.append(sub_atom_no)
+                        last_sub_atom = sub_atom_no
+                        sequence = True
+    return restraint_mask
+
+##### mdcrd
+
+def extract_from_mdcrd(mdcrd_name, no_atoms, snapshot):
+    """ Extract the coordinates from a snapshot of a mdcrd file"""
+    mdcrd_file = open(mdcrd_name,'r')
+    bytes_per_structure =  ((3*no_atoms)//10)*81 + ((3*no_atoms)%10)*8 
+    bytes_to_jump = 81+bytes_per_structure*snapshot+ (snapshot*26)
+    mdcrd_file.seek(bytes_to_jump)
+    crd_text = mdcrd_file.read(bytes_per_structure)
+    crd_numbers = crd_text.split()
+    coordinates = []
+    for n in range(0,len(crd_numbers),3):
+        xyz = tuple([float(no) for no in crd_numbers[n:n+3]])
+        coordinates.append(xyz)
     
+    mdcrd_file.close()
+
+    return coordinates
+
+
+
+
+
+

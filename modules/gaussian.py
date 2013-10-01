@@ -5,14 +5,11 @@ import re
 import collections
 import linecache
 import subprocess
+from copy import deepcopy
 
-
-# my python modules
+# our python modules
 import atoms
 import molecules
-
-# my c extensions
-import c_grep
 
 
 class GaussianFile():
@@ -37,9 +34,9 @@ class GaussianFile():
                     if 'ResNum' in info:
                         pdb_res_number = info.split("=")[1]
                         if '_' in pdb_res_number : # presence of chain information
-                            pdb_res_number, pdb_chain  = info.split("_")
+                            pdb_res_number, pdb_chain  = pdb_res_number.split("_")
             else:
-                pdb_atom_name = pdb_res_name = pdb_res_number = pdb_chain = None
+                pdb_atom_name = pdb_res_name = pdb_res_number = pdb_chain = ''
                 has_pdb_info = False
             line_list = line.split(None) # line has no pdb at this point
 
@@ -67,10 +64,14 @@ class GaussianFile():
                     mm_type =  None
                     mm_charge = 0
                 if has_pdb_info:
-                    this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, mask, x, y, z, layer, pdb_atom_name, pdb_res_name, pdb_res_number, link_element, link_mm_type, link_bound_to, link_scale1)
+                    if 'pdb_chain' not in locals():
+                        pdb_chain = 'Q'
+                    this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, mask, x, y, z, layer, pdb_atom_name, pdb_res_name, pdb_res_number, pdb_chain, link_element, link_mm_type, link_bound_to, link_scale1)
                 else:
                     this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer, link_element, link_mm_type, link_bound_to, link_scale1)
-            atoms_list.append(this_atom)
+            if 'this_atom' in locals():
+                atoms_list.append(this_atom) #NOTA: por causa desta linha n podemos dar um .com desde o inicio para esta funcao, pois n sabe o k fazer com linhas k n sao atomos
+            this_atom = None
         return atoms_list
 
     def writeZMat(self,atom):
@@ -120,7 +121,7 @@ class EmptyGaussianCom(GaussianFile):
                         gaussian_com_file.write("\n")
                     for line in self.additional_input_dict[section]:
                         gaussian_com_file.write(line)
-            gaussian_com_file.write("\n")
+            gaussian_com_file.write("\n\n\n\n\n")
 
 class GaussianCom(EmptyGaussianCom):
     def __init__(self, name):
@@ -132,12 +133,14 @@ class GaussianCom(EmptyGaussianCom):
             self.title_line = self._read_title_line()
             self.multiplicity_line = self._read_multiplicity_line()
             self.atoms_list = self._read_structure()
-            self.additional_input_dict = self._read_additional_input()
+            self.additional_input_dict = self._read_additional_input2()            
+#            self.additional_input_dict = self._read_additional_input()
             self.connectivity_list = self.additional_input_dict["connect"]
-            self.bonds_list = self._read_bonds_list()
+            self.bonds_list = self._read_bonds_list()                          #Nao sei para que serve o bonds list, eh diferente de connectivity
             self.modredundant_list = self.additional_input_dict["modred"]
             self.gen_list = self.additional_input_dict["gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
+            self.MM_external_params = self.additional_input_dict["first"]
 
     def _read_lines(self):
         """Reads lines to a list and strips the \\n"""
@@ -152,7 +155,7 @@ class GaussianCom(EmptyGaussianCom):
         for no, line in enumerate(self.lines):
             if line.strip() == '':
                 blank_lines.append(no)
-        return blank_lines
+        return blank_lines #lista de index das blank lines
 
     def _read_link_0_commands(self):
         """Return a list with Link 0 commands"""
@@ -160,7 +163,7 @@ class GaussianCom(EmptyGaussianCom):
         for line in self.lines[:self.blank_lines[0]]:
             if '%' in line: link_0_commands.append(line)
         return link_0_commands
-
+        
     def _read_route_section(self):
         """Return a string with the route section"""
         read_route_section = False
@@ -190,10 +193,38 @@ class GaussianCom(EmptyGaussianCom):
         """ Return a list of atoms"""
         return self.read_gaussian_input_structure(self.lines[self.blank_lines[1]+2:self.blank_lines[2]])
 
-    def _read_additional_input(self):
+    def _read_additional_input2(self):
         """Reads additional input and stores it in a ordered dict"""
         additional_input_dict = collections.OrderedDict(\
         [("connect",None),("modred",None),("gen",None),("pseudo=read",None),("first",None)])
+        shift=0
+        b_lines = self.blank_lines
+        for key in additional_input_dict:
+            if key in self.route_section.lower():
+                if key == "first":
+                    shift += 1
+                if key == "modred" and self.lines[ b_lines[2+shift]+1 ] != "\n":
+                    if self.lines[ b_lines[2+shift]+1 ][1] not in ["X","B","A","D","L"]:
+                    #ex: " X 1 2 F"
+                    #no modredundant lines in the end of file (mask option used)
+                        print('continue : no modredundant line in the end')
+                        continue
+                elif key == "modred" and self.lines[ b_lines[2+shift]+1 ] == "\n":
+                    print('continue : no modredundant line in the end')
+                    continue
+                i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                additional_input_dict[key]= self.lines[i_start: i_finish]
+                shift += 1
+        return additional_input_dict
+        
+    
+    def _read_additional_input(self):
+        """Reads additional input and stores it in a ordered dict"""
+        additional_input_dict = collections.OrderedDict(\
+        [("connect",None),("gen",None),("pseudo=read",None),("first",None)])
+#        [("connect",None),("modred",None),("gen",None),("pseudo=read",None),("first",None)])
+#IMPORTANT: with g09 modredundant can be present in route_section\
+#but without aditional lines in the end of file (g09 allows "mask" in z-matriz"""
         shift = 0
         b_lines = self.blank_lines
         for key in additional_input_dict:
@@ -252,34 +283,77 @@ class GaussianCom(EmptyGaussianCom):
         self.connectivity_list = connectivity_list
         self.additional_input_dict["connect"] = connectivity_list
         return None
-                    
-class GaussianLog2(GaussianFile):
+
+class GaussianLog(GaussianFile):
     def __init__(self, name):
         self.name = name
-        self.grep_bytes     = self._grep_bytes()
+        self.file = open(self.name, 'r')
+        self.route_section  = self._read_route_section()
+        self.grep_bytes, self._OptimizedParameters     = self._grep_bytes()
+        self._sanity_check  = self._sanity_check(self._OptimizedParameters)
         self.energies       = self._read_energies()
-        #self.convergency    = self._read_convergency()  # RMS Force, etc...
+        #self.convergency   = self._read_convergency()  # RMS Force, etc...
+        self.atoms_list     = self._Zmat_to_atoms_list()
+        #self.summary = self._generate_summary()
+        self.final_geometry = self.read_geometry(-1, -1)
 
-    def _grep_bytes(self):
+    def _Zmat_to_atoms_list(self):
+        f = open(self.name)
+        f.seek(self.grep_bytes['Z-mat'])
+        # Skip present line
+        f.readline() 
+        # Skip charge/multiplicity lines
+        while True:
+            lastpos = f.tell()
+            line = f.readline()
+            if 'Charge' not in line:
+                break
+        f.seek(lastpos)
+        Zmat_text = []
+        while True:
+            line = f.readline()
+            test_end = line.strip().replace(' ','')
+            if test_end != '':
+                Zmat_text.append(line.strip())
+            else:
+                break
+        f.close()
+        return self.read_gaussian_input_structure(Zmat_text)
+
+    def _grep_bytes(self): 
+        """       
+        NOTE: Doesnt work for singlepoints yet. No 'Converged?' string in the output
+        """
         self.grep_keywords = [
+            'Z-matrix',
             'orientation:',                 # works for both g03 and g09
             'ONIOM: calculating energy.',   # ONIOM energy
             'SCF Done:',
-            'scan point',                   # Not really necessary...
+            #'scan point',                   # Not really necessary...
             'Converged?',
-            'Optimized Parameters',         # Also reads Non-Opt...
+            'Step number',                  
+            'Optimized Parameters',         # Also reads Non-Opt... 
         ]
-
-        # This will be included in C extension
-        raw_grepped_bytes =  c_grep.c_grep(self.name, self.grep_keywords)
-
-        # Now Parse
+        
         grep_bytes = {}
         grep_bytes['orientation:']                  = [[]]
         grep_bytes['ONIOM: calculating energy.']    = [[]]
         grep_bytes['SCF Done:']                     = [[]]
-        grep_bytes['scan point']                    = [[]]
+        grep_bytes['Step number']                   = [[]]
         grep_bytes['Converged?']                    = [[]]
+        _OptimizedParameters                        = [] #stores the bytes of "Optimized Parameters" to parse it to _sanity_check
+        
+        grep_string=""
+        for keywords in self.grep_keywords:
+            grep_string += '-e "'+keywords+'" '
+            
+        grep_output = subprocess.Popen('grep -b ' +  grep_string + self.name , shell=True , stdout=subprocess.PIPE)
+        grep_output = grep_output.communicate()[0]
+        grep_output = str( grep_output, encoding='utf8' ).splitlines()
+        raw_grepped_bytes = []
+        for i, line in enumerate(grep_output):
+            raw_grepped_bytes.append( (int(line.split(':', 1)[0]), line.split(':', 1)[1]) ) #transforms output into list of tuples
+            
 
         for linetuple in raw_grepped_bytes:
 
@@ -289,21 +363,27 @@ class GaussianLog2(GaussianFile):
             elif 'SCF Done:' in linetuple[1]:
                 buffer_SCF_Done = linetuple[0]
 
-            elif 'ONIOM: calculating energy.' in linetuple[1]: 
-                grep_bytes['ONIOM: calculating energy.'][-1].append(linetuple[0])
+            elif 'ONIOM: calculating energy.' in linetuple[1]:
+                buffer_ONIOM_calculating_energy = linetuple[0]
 
-            elif 'scan point' in linetuple[1]:
-                grep_bytes['scan point'][-1].append(linetuple[0])
+            elif 'Step number' in linetuple[1]:
+                buffer_Step_number = linetuple[0]
 
             elif 'Converged?' in linetuple[1]:
                 grep_bytes['Converged?'][-1].append(linetuple[0])
                 grep_bytes['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
                 grep_bytes['orientation:'][-1].append(buffer_orientation)   # buffered
+                grep_bytes['Step number'][-1].append(buffer_Step_number)    # buffered
+                
+                if 'buffer_ONIOM_calculating_energy' in locals(): #only appends when it is an oniom calculation
+                    grep_bytes['ONIOM: calculating energy.'][-1].append(buffer_ONIOM_calculating_energy) #buffered
+                    del buffer_ONIOM_calculating_energy
 
             elif 'Optimized Parameters' in linetuple[1]:
+                _OptimizedParameters.append(linetuple[0])
                 grep_bytes['ONIOM: calculating energy.'].append([])
                 grep_bytes['SCF Done:'].append([])
-                grep_bytes['scan point'].append([])
+                grep_bytes['Step number'].append([])
                 grep_bytes['Converged?'].append([])
                 grep_bytes['orientation:'].append([])
 
@@ -312,7 +392,32 @@ class GaussianLog2(GaussianFile):
             for data in grep_bytes:
                 grep_bytes[data].pop(-1)
 
-        return grep_bytes
+        # Less apearing keywords 
+        for linetuple in raw_grepped_bytes:
+            if 'Z-matrix' in linetuple[1]:
+                grep_bytes['Z-mat'] = int(linetuple[0])
+                break
+            
+        return grep_bytes, _OptimizedParameters
+
+    
+    
+    def _read_route_section(self):
+        """ Returns a string with the route section commands"""
+        self.file.seek(0)
+        reading = False
+        for line in self.file:
+            if '#' in line:
+                route_section = line
+                reading = True
+            elif reading:
+                if'-------' in line:
+                    break
+                else:
+                    route_section += line
+        route_section = route_section.strip()
+        return route_section
+
 
     def _read_energies(self):
         oniom_loc_bytes = self.grep_bytes['ONIOM: calculating energy.']
@@ -327,7 +432,6 @@ class GaussianLog2(GaussianFile):
 
         f = open(self.name)
         for complete_opt in oniom_loc_bytes:
-            ONIOM_model_high.append([])
             ONIOM_model_high.append([])
             ONIOM_model_low.append([])
             ONIOM_real_low.append([])
@@ -349,139 +453,23 @@ class GaussianLog2(GaussianFile):
                 ONIOM_extrapol[-1].append(extrapol)
                 
                 ONIOM_lowlayer_low[-1].append(real_low-model_low)
-
         for complete_opt in scf_loc_bytes:
             SCF_energy.append([])
             for location_byte in complete_opt:
                 f.seek(location_byte)
                 SCF_energy[-1].append(float(f.readline().split('=')[1].split()[0]))
 
+        energies = {}
+        energies['ONIOM_extrapol'] = ONIOM_extrapol
+        energies['ONIOM_model_high'] = ONIOM_model_high
+        energies['ONIOM_lowlayer_low'] = ONIOM_lowlayer_low
+        energies['SCF_energy'] = SCF_energy
+        return energies
 
-class GaussianLog(GaussianFile):
-    def __init__(self, name):
-        self.name = name
-        self.file = open(self.name, 'r')
-        self.route_section = self._read_route_section()
-        self.amber = "amber" in self.route_section.lower()
-        self.opt = "opt" in self.route_section.lower()
-        self.energies_list, self.steps_list = self._read_steps_and_energies()
-        self.symbolic_zmatrix = self.read_symbolic_zmatrix()
-        self.initial_geometry = self.read_geometry(0, 0)
-        self.final_geometry = self.read_geometry(-1, -1)
-        self.summary = self._generate_summary()
 
     def close_file(self):
         self.file.close()
     
-    def _read_route_section(self):
-        """ Returns a string with the route section commands"""
-        self.file.seek(0)
-        reading = False
-        for line in self.file:
-            if '#' in line:
-                route_section = line
-                reading = True
-            elif reading:
-                if'-------' in line:
-                    break
-                else:
-                    route_section += line
-        route_section = route_section.strip()
-        return route_section
-                           
-    def _read_steps(self):
-        """Creates a two dimensions list with the a tuple corresponding
-        to where where the steps start and finish (lines or bytes?)"""
-        steps_list = [[]]
-        previous_scan_step = scan_step = 0
-        start_step_byte = 0
-        grep_out = subprocess.check_output("grep -b 'Step number' {}".format(self.name), shell=True)
-        grep_out = str(grep_out)[2:-2]
-        lines_grep = grep_out.split("\\n")
-        for line in lines_grep:
-            end_step_byte = int(line.split(":")[0])
-            steps_list[scan_step].append((start_step_byte, end_step_byte))
-            start_step_byte = end_step_byte
-            if "scan point" in line:
-                scan_step = int(line.split()[13]) - 1
-                if scan_step != previous_scan_step:
-                    steps_list.append([])
-                    previous_scan_step = scan_step
-        steps_list[scan_step].append((start_step_byte, -1)) # last structure
-        return steps_list
-
-    def _read_steps_and_energies(self):
-        false_steps_list = [[]]
-        energies_list = [[0]]
-        if self.amber:
-            search_str = "extrapolated energy"
-        else:
-            search_str = "SCF Done"
-        previous_scan_step = scan_step = 0
-        start_step_byte = 0
-        # o ideal seria por a funcao em C a aceitar mais padroes
-        # para nao multiplicar o tempo pelo numero de pesquisas
-        c_grep_step = c_grep.c_grep(self.name, ["Step number"])
-        c_grep_energy = c_grep.c_grep(self.name, [search_str])
-        c_grep_step_energy = c_grep_step + c_grep_energy
-        c_grep_step_energy.sort()
-        c_grep_step_energy = [ ":".join((str(element[0]),element[1])) 
-                              for element in c_grep_step_energy]
-        #rep_out = subprocess.check_output("grep -b '\(Step number\|{}\)' {}".format(search_str,self.name), shell=True)
-        #grep_out = str(grep_out)[2:-3]
-        lines_grep = c_grep_step_energy
-        for line in lines_grep:
-            if "Step number" in line:
-                end_step_byte = int(line.split(":")[0])
-                false_steps_list[scan_step].append((start_step_byte, end_step_byte))
-                start_step_byte = end_step_byte
-                if "scan point" in line:
-                    scan_step = int(line.split()[13]) - 1
-                    if scan_step != previous_scan_step:
-                        false_steps_list.append([])
-                        previous_energy= energies_list[-1].pop(-1)
-                        energies_list.append([previous_energy])
-                        previous_scan_step = scan_step
-                false_steps_list[scan_step].append((start_step_byte, -1)) # last structure
-                energies_list[-1].append(0)
-            if search_str in line:
-                energy = float(line.split()[5])
-                energies_list[-1][-1] = energy
-        energies_list[-1].pop(-1)
-        #for single points
-        if not self.opt:
-            for line in self.file:
-                if search_str in line:
-                    energy = float(line.split()[4])
-                    energies_list = [[energy]]
-                    break
-        return energies_list, false_steps_list
-    
-    def read_geometry(self, opt_step, scan_step):
-        "Returns a list of atoms with the respective coordinates"
-        # lines to read
-        if self.opt:
-            step_start = self.steps_list[scan_step][opt_step][0]
-        else:
-            step_start = 0
-        self.file.seek(step_start)
-        atoms_list = []
-        reading = False
-        for line in self.file:
-            if reading:
-                if "-------" in line:
-                    break
-                else:
-                    atomic_number = line.split()[1]
-                    x, y, z = line.split()[3:6]
-                    element = [key for key in iter(atoms.ATOMIC_NUMBER_DICT) \
-                               if atoms.ATOMIC_NUMBER_DICT[key] == int(atomic_number)][0] #hack
-                    atoms_list.append(atoms.Atom(element, x, y, z))
-            elif " orientation:" in line:
-                for _ in range(4): next(self.file)
-                reading = True    
-        return atoms_list
-      
     def read_symbolic_zmatrix(self):
         self.file.seek(0)
         reading = False
@@ -517,5 +505,105 @@ class GaussianLog(GaussianFile):
         Last Energy: {5}
         """.format(self, self.initial_geometry[:100], len(self.initial_geometry), no_opts, no_scans, energy)
         return summary
+    
+
+    def read_geometry(self, opt_step, scan_step):
+        with open(self.name, 'r') as f:
+            f.seek(self.grep_bytes['orientation:'][scan_step][opt_step])
+            atoms_list = []
+            for _ in range(5):
+                f.readline()
+            for model_atom in self.atoms_list:
+                line = f.readline()
+                atom = deepcopy(model_atom)
+                atomic_number = line.split()[1]
+                x, y, z = line.split()[3:6]
+                element = [key for key in iter(atoms.ATOMIC_NUMBER_DICT) \
+                                if atoms.ATOMIC_NUMBER_DICT[key] == int(atomic_number)][0] #hack
+                atom.x, atom.y, atom.z = float(x),float(y),float(z)
+                atoms_list.append(atom)    
+        return atoms_list
+
+    def _sanity_check(self, _OptimizedParameters):
+        """"
+        #ve se os passos opt e scanpoint estao consecutivos ou se ficheiro foi danificado entre isso #nos scan ve se optimizaram
+        #checks if it is a singlepoint_job or opt_job or scan_job; checks if it is oniom_job
+        """
+        with open(self.name, 'r') as f:
+            if 'oniom' in self.route_section.lower(): oniom_job=True
+            else: oniom_job=False
+            
+            #ver se eh scan, opt ou singlepoint
+            if 'opt' in self.route_section.lower(): #not singlepoint; it can be opt_job or scan_job
+                singlepoint_job = False
+                f.seek(self.grep_bytes['Step number'][0][0])
+                stepnr_line = f.readline()
+                if 'scan point' in stepnr_line: scan_job = True; opt_job = False
+                else: #it is an opt_job
+                    scan_job = False; opt_job = True
+                    if len(_OptimizedParameters) == 0: print('#WARNING : Unfinished opt job after', stepnr_line.strip('\n'))
+                    elif len(_OptimizedParameters) > 1: print('#WARNING : Very odd error. It is supposed to be an opt job but has more than one "Optimized Parameters" keyword')
+                    else:
+                        f.seek(_OptimizedParameters[0])
+                        if "Non-Optimized Parameters" in f.readline(): print('#WARNING : Not fully optimized opt job')
+                
+                for scanstep, i in enumerate(self.grep_bytes['Step number']):
+                    for optstep, i in enumerate(self.grep_bytes['Step number'][scanstep]):
+                        f.seek(self.grep_bytes['Step number'][scanstep][optstep])
+                        step_line = f.readline()
+                        opt_step_line = int(step_line.split()[2])
+                        if optstep > 0:
+                            if opt_step_line != previous_opt_step_line+1:
+                                print('#WARNING : Unconsecutive opt steps! File might be damaged betwen:')
+                                f.seek(self.grep_bytes['Step number'][scanstep][optstep-1])
+                                print(f.readline(), "\n and \n", step_line)
+                        previous_opt_step_line = opt_step_line
+                    f.seek(self.grep_bytes['Step number'][scanstep][-1])
+                    stepnr_line = f.readline()
+                    if scan_job == True: # if it is a scan job, checks if scan steps are consecutive; if it is fully optimized
+                        scan_step_line = int(stepnr_line.split()[12])
+                        if scanstep > 0:
+                            if scan_step_line != previous_scan_step_line+1:
+                                print('#WARNING : Unconsecutive scan steps! File might be damaged betwen:')
+                                f.seek(self.grep_bytes['Step number'][scanstep][-1])
+                                print(f.readline(), "\n and \n", stepnr_line)
+                        previous_scan_step_line = scan_step_line
+                        
+                        #checks if scan step was fully optimized and if scan_job finished prematurely
+                        try:
+                            f.seek(_OptimizedParameters[scanstep])
+                            if "Non-Optimized Parameters" in f.readline():
+                                print('#WARNING :', stepnr_line.strip('\n'), ' - NOT Fully Optimized'),
+                        except IndexError:
+                            print('#WARNING : Unfinished scan job. Ended after', stepnr_line.strip('\n'))
+                        
+                    elif len(self.grep_bytes['Step number']) > 1: print("#WARNING : Doesn't seem to be a scan job, however GaussianLog read it as such!") #for very odd errors only
+
+            else: singlepoint = True, print('#WARNING : Not checking singlepoint sanity yet!') #for singlepoint_job
+
+
+
+
+###orphans
+
+def read_mulliken_charges(filename):
+    """Returns a list of the Mulliken charges that first appear in the file"""
+    with open(filename,'r') as gaussian_file:
+        for line in gaussian_file:
+            if "Mulliken atomic charges:" in line:
+                gaussian_file.readline()
+                break
+        charges = []
+        for line in gaussian_file:
+            words = line.split()
+            if len(words) > 3:
+                break
+            charges.append(float(words[2]))
+        
+    return charges
+
+
+
+
 
 
