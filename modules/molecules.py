@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 
-from atoms import *
+# python modules
+import copy
+
+# qt modules
+from atoms import *   ## BAD
 
 class Molecule(list):
     """ List of Atoms """
@@ -134,28 +138,71 @@ class Bond():
     def __repr__(self):
         return (str((self.atom_a, self.atom_b,self.order)))
 
-def QMMM_to_QM(atoms_list):
+def QMMM_to_QM(atoms_list, make_new='True'):
     """Takes a QM/MM atoms list and returns the QM system only.
     It corrects the type and position of link atoms"""
+
     SCALING = {"C":0.723886, "N":0.786011}
     qm_atoms_list = []
     for atom in atoms_list:
         if atom.layer[0] == 'H':
-            qm_atom = Atom(atom.element, atom.x, atom.y, atom.z)
-            qm_atoms_list.append(qm_atom)
+            if make_new:
+                ## Warning: At this point we are changing the original atoms"
+                atom = Atom(atom.element, atom.x, atom.y, atom.z)
         elif atom.link_element:
             linked_atom = atoms_list[int(atom.link_bound_to)-1]
-            atom.x = (atom.x-linked_atom.x) *SCALING[linked_atom.element] + linked_atom.x
-            atom.y = (atom.y-linked_atom.y) *SCALING[linked_atom.element] + linked_atom.y
-            atom.z = (atom.z-linked_atom.z) *SCALING[linked_atom.element] + linked_atom.z
-            qm_atom = Atom(atom.link_element, atom.x, atom.y, atom.z)
-            qm_atoms_list.append(qm_atom)
+            new_x = (atom.x-linked_atom.x) *SCALING[linked_atom.element] + linked_atom.x
+            new_y = (atom.y-linked_atom.y) *SCALING[linked_atom.element] + linked_atom.y
+            new_z = (atom.z-linked_atom.z) *SCALING[linked_atom.element] + linked_atom.z
+            if make_new:
+                atom = Atom(atom.link_element, 0, 0, 0)
+            atom.x, atom.y, atom.z = new_x, new_y, new_z
         else:
-            pass
+             continue
+        
+        qm_atoms_list.append(atom)
+    
     return qm_atoms_list
 
-            
 
+def find_linear_angles(atoms_list, max_angle=178, max_distance=3, 
+                       ignore_low_layer = 'False'):
+    """Finds linear angles in a list of atoms
+    return a list of (angle, atom1, atom2, atom3) tuples"""
+    
+    ### extract QM atoms and correct link atoms position
+    # Save old atoms coordinates because qmmm_to_qm() changes them
+    if ignore_low_layer:
+        atoms_list_cp = copy.deepcopy(atoms_list)
+        atoms_list_qm = QMMM_to_QM(atoms_list, make_new=False)
+
+    ### tuples should be (angle, atom1, atom2, atom3)
+    output_tuples = []
+    for atom1 in atoms_list_qm:
+        for atom2 in atoms_list_qm[atoms_list_qm.index(atom1)+1:]:
+            for atom3 in atoms_list_qm[atoms_list_qm.index(atom2)+1:]:
+                if atom1.distance(atom2) + atom1.distance(atom3)\
+                        + atom2.distance(atom3) < (4 * max_distance):
+                
+                    angle1 = atom1.angle(atom2, atom3, units = 'deg')
+                    angle2 = atom2.angle(atom1, atom3, units = 'deg')
+                    angle3 = atom3.angle(atom1, atom2, units = 'deg')
+                    
+                    if angle1 > max_angle:
+                        output_tuples.append( (angle1, atom2, atom1, atom3) )
+                    elif angle2 > max_angle:
+                        output_tuples.append( (angle2, atom1, atom2, atom3) )
+                    elif angle3 > max_angle:
+                        output_tuples.append( (angle3, atom1, atom3, atom2) )
+
+    ## give old coordinates back
+    if ignore_low_layer:
+        for atom in atoms_list_qm:
+            atom.x = atoms_list_cp[atoms_list.index(atom)].x
+            atom.y = atoms_list_cp[atoms_list.index(atom)].y
+            atom.z = atoms_list_cp[atoms_list.index(atom)].z
+    
+    return output_tuples
 
 
 
