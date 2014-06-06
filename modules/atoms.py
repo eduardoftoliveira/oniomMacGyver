@@ -72,7 +72,7 @@ class Atom(object):
         self.x = float(x)
         self.y = float(y)
         self.z = float(z)
-        self.coordinates = (self.x, self.y ,self.z)
+        # self.coordinates =  (self.x, self.y ,self.z) !!! must be a function 
         
     def __repr__(self):
         return self.element
@@ -131,7 +131,7 @@ class QmmmAtom(Atom):
         self.x = float(x)
         self.y = float(y)
         self.z = float(z)
-        self.coordinates = (self.x, self.y ,self.z)
+        #self.coordinates = (self.x, self.y ,self.z) must be a function
         self.atomic_number  = ATOMIC_NUMBER_DICT[element]
         self.mm_type = mm_type
         self.charge = float(charge)
@@ -150,7 +150,7 @@ class QmmmAtomPdb(QmmmAtom):
         self.x = float(x)
         self.y = float(y)
         self.z = float(z)
-        self.coordinates = (self.x, self.y ,self.z)
+        #self.coordinates = (self.x, self.y ,self.z) # must be a function
         self.atomic_number  = ATOMIC_NUMBER_DICT[element]
         self.mm_type = mm_type
         self.charge = float(charge)
