@@ -15,8 +15,81 @@ import molecules
 class GaussianFile():
     def __init__(self):
         pass
+        
+    nope =""""
+    def read_gaussian_qm_structure(self, lines):
+        \"""Reads lines of a gaussian qm input and returns a list of atoms\"""
+        return [atom.Atom(line.split()) for atom in lines]
+    """
+    
+    def read_gaussian_qmmm_structure(self,lines):
+        """ Read a list of lines and return a list of atoms"""
+        atoms_list = []
+        for line in lines:
+            line = line.strip()
+            ### check for PDB information
+            if '(' in line and ')' in line:
+                has_pdb_info = True
+                pdb_info = line.split("(")[1].split(")")[0]
+                pdb_info_list = pdb_info.split(",")
+                line = line.replace("({})".format(pdb_info), "") 
+                for info in pdb_info_list:
+                    if 'PDBName' in info:
+                        pdb_atom_name = info.split("=")[1]
+                    if 'ResName' in info:
+                        pdb_res_name = info.split("=")[1]
+                    if 'ResNum' in info:
+                        pdb_res_number = info.split("=")[1]
+                        if '_' in pdb_res_number : # presence of chain information
+                            pdb_res_number, pdb_chain  = pdb_res_number.split("_")
+            else:
+                pdb_atom_name = pdb_res_name = pdb_res_number = pdb_chain = ''
+                has_pdb_info = False
+            line_list = line.split(None) # line has no pdb at this point
+
+            mm_type_charge, mask, x, y, z, layer = lines[0:6]
+            link_atom_stuff = line_list[6:]
+            
+
+            if link_atom_stuff[0] == "":
+                link_element = ""
+                link_mm_type = ""
+            else:
+                # expecting something like "H-HC"
+                link_element, link_mm_type = link_atom_stuff[0].split('-')  
+            link_bound_to = link_atom_stuff[1]
+            link_scale1  = link_atom_stuff[2]
+            if link_scale1:  
+                link_scale1 = float(link_scale1)
+            try:
+                element, mm_type, mm_charge = mm_type_charge.split('-', 2)
+            except ValueError:
+                print("WARNING: Atom no {} does not have all amber info\n"\
+                .format(len(atoms_list)+1),
+                "        Setting mm_charge to 0 and mm_type to None")
+                element = mm_type_charge.split('-', 2)[0]
+                mm_type =  None
+                mm_charge = 0
+            if has_pdb_info:
+                if 'pdb_chain' not in locals():
+                    pdb_chain = 'Q'
+                this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, 
+                    mask, x, y, z, layer, pdb_atom_name, pdb_res_name, 
+                    pdb_res_number, pdb_chain, link_element, link_mm_type, 
+                    link_bound_to, link_scale1)
+            else:
+                this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, 
+                    mask, x, y, z, layer, link_element, link_mm_type, 
+                    link_bound_to, link_scale1)
+            if 'this_atom' in locals():
+                atoms_list.append(this_atom) 
+            this_atom = None
+        return atoms_list
+
+
 
     def read_gaussian_input_structure(self, lines_list):
+        """ Read a list of lines and return a list of atoms"""
         atoms_list = []
         for line in lines_list:
             line = line.strip()
@@ -46,60 +119,80 @@ class GaussianFile():
             elif len(line_list) >= 6:
                 mm_type_charge, mask, x, y, z, layer = line_list[0:6]
                 link_atom_stuff = line_list[6:]
-                for i in range(3-len(link_atom_stuff)): 
-                    link_atom_stuff.append(None)
-                if link_atom_stuff[0] == None:
-                    link_element = None
-                    link_mm_type = None
+                for _ in range(3-len(link_atom_stuff)): 
+                    link_atom_stuff.append("")
+                if link_atom_stuff[0] == "":
+                    link_element = ""
+                    link_mm_type = ""
                 else:
-                    link_element, link_mm_type = link_atom_stuff[0].split('-')  # expecting something like "H-HC"
-                link_bound_to= link_atom_stuff[1]
-                link_scale1  = link_atom_stuff[2]                           # Scale 2 and 3 omitted
+                    # expecting something like "H-HC"
+                    link_element, link_mm_type = link_atom_stuff[0].split('-')  
+                link_bound_to = link_atom_stuff[1]
+                link_scale1  = link_atom_stuff[2]
+                if link_scale1:  
+                    link_scale1 = float(link_scale1)
                 try:
-                    element, mm_type, mm_charge = mm_type_charge.split('-',2)
+                    element, mm_type, mm_charge = mm_type_charge.split('-', 2)
                 except ValueError:
-                    print("WARNING: Atom no {} does not have all amber info\n".format(len(atoms_list)+1),
-                          "        Setting mm_charge to 0 and mm_type to None")
-                    element = mm_type_charge.split('-',2)[0]
+                    print("WARNING: Atom no {} does not have all amber info\n"\
+                    .format(len(atoms_list)+1),
+                    "        Setting mm_charge to 0 and mm_type to None")
+                    element = mm_type_charge.split('-', 2)[0]
                     mm_type =  None
                     mm_charge = 0
                 if has_pdb_info:
                     if 'pdb_chain' not in locals():
                         pdb_chain = 'Q'
-                    this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, mask, x, y, z, layer, pdb_atom_name, pdb_res_name, pdb_res_number, pdb_chain, link_element, link_mm_type, link_bound_to, link_scale1)
+                    this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, 
+                        mask, x, y, z, layer, pdb_atom_name, pdb_res_name, 
+                        pdb_res_number, pdb_chain, link_element, link_mm_type, 
+                        link_bound_to, link_scale1)
                 else:
-                    this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, mask, x, y, z, layer, link_element, link_mm_type, link_bound_to, link_scale1)
+                    this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, 
+                        mask, x, y, z, layer, link_element, link_mm_type, 
+                        link_bound_to, link_scale1)
             if 'this_atom' in locals():
-                atoms_list.append(this_atom) #NOTA: por causa desta linha n podemos dar um .com desde o inicio para esta funcao, pois n sabe o k fazer com linhas k n sao atomos
+                atoms_list.append(this_atom) 
             this_atom = None
         return atoms_list
 
-    def writeZMat(self,atom):
-        if type(atom) == atoms.QmmmAtom:
-            atom_type_charge = " {0.element}-{0.mm_type}-{0.charge:.6f}"\
+    def write_zmat(self, atom, include_pdb_info=True):
+        """ Writes the Atom line for gaussian com files.
+        It works for the classes Atom, QmmmAtom, and QmmmAtomPdb"""
+        
+        if type(atom) == atoms.Atom:
+            line = (" {0.element:15s}{0.x:>12.6f}{0.y:>12.6f}"
+                    "{0.z:>12.6f}\n".format(atom))
+            return line
+        
+        elif type(atom) == atoms.QmmmAtom or type(atom) == atoms.QmmmAtomPdb:
+            atom_type_charge = " {0.element}-{0.mm_type}-{0.charge:.9f}"\
                                 .format(atom)
-            line = ("{0:18s}{1.mask:>2s}{1.x:>14.8f}{1.y:>14.8f}"
-                    "{1.z:>14.8f} {1.layer:s}"
-                    .format(atom_type_charge,atom))
-            if atom.link_element != None:
-                line += ' %s' % (atom.link_element)                     # Link atom ELEMENT
-            if atom.link_mm_type != None:
-                line += '-%s' % (atom.link_mm_type)                     # Link atom MM type
-            if atom.link_bound_to != None and atom.link_bound_to != '':
-                line += ' %d' % (int(atom.link_bound_to))               # Link BOUND TO
-            if atom.link_scale1 != None and atom.link_scale1 != '':
-                line += ' %f' % (float(atom.link_scale1))               # Link atom scale factor
-            line += "\n"
+            
+            if atom.link_mm_type:
+                link_info = ("{0.link_element}-{0.link_mm_type} "
+                    "{0.link_bound_to} {0.link_scale1:.3f} ".format(atom))
+            else:
+                link_info = ''
+        
+            if type(atom) == atoms.QmmmAtom:
+                line = ("{1:.15s}{0.mask:>4s}"
+                        "{0.x:>12.6f}{0.y:>12.6f}{0.z:>12.6f} "
+                        "{0.layer:s} {2}\n".format(atom, 
+                        atom_type_charge, link_info))
+
+            elif type(atom) == atoms.QmmmAtomPdb and include_pdb_info:
+                pdb_info = ("(PDBName={0.pdb_name},ResName={0.residue_name},"
+                        "ResNum={0.residue_number}_{0.chain})               "
+                        "".format(atom))
+                
+                line = ("{1:.15s}{3:.40s}{0.mask:>4s}"
+                        "{0.x:>12.6f}{0.y:>12.6f}{0.z:>12.6f} "
+                        "{0.layer:s} {2}\n".format(atom, 
+                        atom_type_charge, link_info,pdb_info))
+            
             return line
 
-        elif type(atom) == atoms.QmmmAtomPdb:
-            return atom.get_formatted_line()
-        else: 
-            line = (" {0.element:18s}{0.x:>14.8f}{0.y:>14.8f}"
-                    "{0.z:>14.8f}\n".format(atom))
-            return line
-
-    # if QmmmAtomPdb(QmmmAtomPdb)
 
 class EmptyGaussianCom(GaussianFile):
     def __init__(self, name):
@@ -121,7 +214,7 @@ class EmptyGaussianCom(GaussianFile):
             gaussian_com_file.write("\n")
             gaussian_com_file.write(self.multiplicity_line)
             for atom in self.atoms_list:
-                    line = self.writeZMat(atom)
+                    line = self.write_zmat(atom)
                     gaussian_com_file.write(line)                
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:

@@ -1,65 +1,17 @@
 #!/usr/bin/env python3
+""" Definition of the Atom Class and its subclasses"""
 
-#python modules
+# python modules
 import math
+import numpy as np
 
-# my modules
-from  elements_database import * 
+# qt modules
+from  elements_database import ATOMIC_NUMBER_DICT, \
+                               ATOMIC_NUMBER_DICT_REVERSE, \
+                               BONDS_DISTANCES_PAIRS
 
-# 3D Cross Product
-def crossprod(a, b): 
-    c = [
-    a[1]*b[2] - a[2]*b[1],
-    a[2]*b[0] - a[0]*b[2],
-    a[0]*b[1] - a[1]*b[0]]
-    return c
-
-# Multidimensional dot product
-def dotprod(a, b):
-    if len(a) != len(b):
-        raise RuntimeError('vectors must have same length')
-    return sum([a[i] * b[i] for i in range(len(a))])
-
-def vecnorm(V):
-    sq = [v**2 for v in V]
-    return math.sqrt(sum(sq))
-
-def rad2deg(rads):
-    return rads*(180/math.pi)
-
-# read pdb and store "Atom" or "QMmmAtomPDB" objects
-def read_pdb_line(lines_list):
-    atoms_list = []
-    for line in lines_list:
-        if line[0:6] == "ATOM  " or line[0:6] == "HETATM" and line[17:20] != "   " : #has residue info
-            element = line[76:78].strip()
-            mm_type = ""
-            mm_charge = 0
-            mask = "" #frozen
-            x = line[30:38].strip()
-            y = line[38:46].strip()
-            z = line[46:54].strip()
-            layer = line[16]
-            pdb_atom_name = line[12:16].strip()
-            pdb_res_name = line[17:20].strip()
-            pdb_res_number = line[22:26].strip()
-            pdb_chain = line[21].strip()
-            link_element = ""
-            link_mm_type = ""
-            link_bound_to = ""
-            link_scale1 = ""
-            
-            this_atom = QmmmAtomPdb(element, mm_type, mm_charge, mask, x, y, z, layer, pdb_atom_name, pdb_res_name, pdb_res_number, pdb_chain, link_element, link_mm_type, link_bound_to, link_scale1)
-            atoms_list.append(this_atom)
-            
-        elif line[0:6] == "ATOM  " or line[0:6] == "HETATM" and line[17:20] == "   " : #doesnt have residue info
-            this_atom = Atom(line[76:78].strip(), line[30:38].strip(), line[38:46].strip(), line[46:54].strip()) #Atom(element, x=, y=, z=)
-            atoms_list.append(this_atom)
-    return atoms_list
-
-            
-
-class Atom(object):    
+class Atom(object):
+    """Basic Atom object with element and coordinates"""
     def __init__(self, element, x=None, y=None, z=None):
         if element.isdigit():
             element = int(element)
@@ -72,20 +24,23 @@ class Atom(object):
         self.x = float(x)
         self.y = float(y)
         self.z = float(z)
-        # self.coordinates =  (self.x, self.y ,self.z) !!! must be a function 
         
     def __repr__(self):
         return self.element
 
-    def distance(self, atom_b):
-        """ Return the distance to another atom"""
-        distance = math.sqrt((self.x-atom_b.x)**2 + \
-        (self.y-atom_b.y)**2 + (self.z-atom_b.z)**2)
-        return distance
+    def get_coordinates(self):
+        """Returs Atom coordinates as a numpy array"""
+        return np.array((self.x, self.y, self.z))
 
+    def distance(self, atom_b):
+        """Return the distance to another atom"""
+        distance = math.sqrt((self.x - atom_b.x)**2 + \
+        (self.y - atom_b.y)**2 + (self.z - atom_b.z)**2)
+        return distance
+        
     def is_bonded_to(self, another_atom):
-        """ Check if the is bonded to another  atom"""
-        if self.distance(another_atom) > 3:    #discard far atoms
+        """Check if this Atom is bonded to another Atom"""
+        if self.distance(another_atom) > 3:  
             return False
         if self.distance(another_atom) < 0.1:    #same atom
             return False
@@ -111,33 +66,36 @@ class Atom(object):
         d12 = self.distance(atom_2)
         d13 = self.distance(atom_3)
         d23 = atom_2.distance(atom_3)
+        
         #round. To avoid things like 1.000000001
-        angle = math.acos(round((d12**2 + d13**2 - d23**2)/(2*d12*d13),7))
+        angle = math.acos(round((d12**2 + d13**2 - d23**2)/(2*d12*d13), 7))
        
         if units.startswith('rad'):
-           return angle
+            return angle
         elif units.startswith('deg'):
-           return angle*(180.0/math.pi)
+            return np.degrees(angle)
 
 
-    def dihedral(self, atom_2, atom_3, atom_4):
-        """ Calculate dihedral considering this atom in the beggining"""
-        b1 = [atom_2.coordinates[i] - self.coordinates[i] for i in range(3)]
-        b2 = [atom_3.coordinates[i] - atom_2.coordinates[i] for i in range(3)]
-        b3 = [atom_4.coordinates[i] - atom_3.coordinates[i] for i in range(3)]
-        temp = [vecnorm(b2) * b1[i] for i in range(3)]
-        y = dotprod(temp ,crossprod(b2,b3))
-        x = dotprod(crossprod(b1,b2),crossprod(b2,b3))
-        rad = math.atan2(y,x)
-        return rad2deg(rad)
+    def dihedral(self, atom2, atom3, atom4):
+        """Calculate dihedral considering this atom in the beggining"""
+        coord1 = self.get_coordinates()
+        coord2 = atom2.get_coordinates()
+        coord3 = atom3.get_coordinates()
+        coord4 = atom4.get_coordinates()
+        b1 = coord2 - coord1
+        b2 = coord3 - coord2
+        b3 = coord4 - coord3
+        temp = np.linalg.norm(b2) * b1
+        y = np.dot(temp, np.cross(b2, b3))
+        x = np.dot(np.cross(b1, b2), np.cross(b2, b3))
+        return np.degrees(math.atan2(y, x))
 
 class QmmmAtom(Atom):
-    def __init__(self, element, mm_type, charge, mask, x, y, z, layer, link_element, link_mm_type, link_bound_to, link_scale1):
-        self.element = element
-        self.x = float(x)
-        self.y = float(y)
-        self.z = float(z)
-        #self.coordinates = (self.x, self.y ,self.z) must be a function
+    """"QmmmAtom with all the data required by gaussian """
+    def __init__(self, element, mm_type, charge, mask, x, y, z, layer, 
+                 link_element, link_mm_type, link_bound_to, link_scale1):
+                     
+        Atom.__init__(self, element, x, y, z)
         self.atomic_number  = ATOMIC_NUMBER_DICT[element]
         self.mm_type = mm_type
         self.charge = float(charge)
@@ -147,78 +105,88 @@ class QmmmAtom(Atom):
         self.link_mm_type   = link_mm_type
         self.link_bound_to  = link_bound_to
         self.link_scale1    = link_scale1
-        # self.link_scale2
-        # self.link_scale3
+
 
 class QmmmAtomPdb(QmmmAtom):
-    def __init__(self,element, mm_type, charge, mask, x, y, z, layer, pdb_name, residue_name, residue_number, chain, link_element, link_mm_type, link_bound_to, link_scale1):
-        self.element = element
-        self.x = float(x)
-        self.y = float(y)
-        self.z = float(z)
-        #self.coordinates = (self.x, self.y ,self.z) # must be a function
-        self.atomic_number  = ATOMIC_NUMBER_DICT[element]
-        self.mm_type = mm_type
-        self.charge = float(charge)
-        self.mask = mask
-        self.layer = layer
+    """QmmmAtom with all the data required by gaussian includind PDB info"""
+    def __init__(self, element, mm_type, charge, mask, x, y, z, layer, 
+                 pdb_name, residue_name, residue_number, chain, link_element, 
+                 link_mm_type, link_bound_to, link_scale1):
+        
+        QmmmAtom.__init__(self, element, mm_type, charge, mask, x, y, z, 
+                layer, link_element, link_mm_type, link_bound_to, link_scale1)
+        
         self.pdb_name = pdb_name
         self.residue_name = residue_name
         self.residue_number = int(residue_number)
         self.chain = chain
-        self.link_element   = link_element
-        self.link_mm_type   = link_mm_type
-        self.link_bound_to  = link_bound_to
-        self.link_scale1    = link_scale1
-        # self.link_scale2
-        # self.link_scale3
 
-    def get_formatted_line(self):
-        line = ''
-
-        atom_type_charge = " {0.element}-{0.mm_type}-{0.charge:.6f}"\
-                            .format(self)
-        pdb_info = '(PDBName=%s,ResName=%s,ResNum=%s_%s)' % (self.pdb_name, self.residue_name, self.residue_number, self.chain)
-        
-        line += atom_type_charge
-        line += pdb_info
-        line += ' '*(61-len(line))                                  # For a good alignment
-        line += "{0.mask:>2s}".format(self)                         # Mask
-        line += "{0.x:>14.8f}{0.y:>14.8f}{0.z:>14.8f}".format(self) # X,Y,Z
-        line += " {0.layer:s}".format(self)                          # Layer
-
-        if self.link_element != None:
-            line += ' %s' % (self.link_element)                     # Link atom ELEMENT
-        if self.link_mm_type != None:
-            line += '-%s' % (self.link_mm_type)                     # Link atom MM type
-        if self.link_bound_to != None and self.link_bound_to != '':
-            line += ' %d' % (int(self.link_bound_to))               # Link BOUND TO
-        if self.link_scale1 != None and self.link_scale1 != '':
-            line += ' %f' % (float(self.link_scale1))               # Link atom scale factor
-
+    def get_pdb_line(self):
+        """Returns the Atom line for a pdb file"""
+        line = 'ATOM  '                        # 1-6 ATOM HETATM
+        line += ' '*5                          # 7-11 (NOT USED)
+        line += ' '                            # 12
+        line += '%4s' % (self.pdb_name)        # 13-16
+        line += '%1s' % (self.layer)           # 17 altLoc
+        line += '%3s' % (self.residue_name)    # 18-20 
+        line += ' '                            # 21
+        line += self.chain                     # 22 chain 
+        line += '%4d' % (self.residue_number)  # 23-26 Res Num 
+        line += ' '                            # 27 icode (NOT USED)
+        line += '   '                          # 28-30
+        line += '%8.3f' % (self.x)             # 31-38 x
+        line += '%8.3f' % (self.y)             # 39-46 y
+        line += '%8.3f' % (self.z)             # 47-54 z
+        line += ' '*6                          # 55-60 occupancy (NOT USED)
+        line += ' '*6                          # 61-66 tempFactor (NOT USED)
+        line += ' '*10                         # 67-76
+        line += '%2s' % self.element           # 77-78
+        line += ' '*2                          # 79-80 charge (NOT USED)
         line += '\n'
         return line
 
-    def get_pdb_line(self):
-        o = 'ATOM  '                        # 1-6 ATOM HETATM
-        o += ' '*5                          # 7-11 (NOT USED)
-        o += ' '                            # 12
-        o += '%4s' % (self.pdb_name)        # 13-16
-        o += '%1s' % (self.layer)           # 17 altLoc
-        o += '%3s' % (self.residue_name)    # 18-20 
-        o += ' '                            # 21
-        o += self.chain                     # 22 chain 
-        o += '%4d' % (self.residue_number)  # 23-26 Res Num 
-        o += ' '                            # 27 icode (NOT USED)
-        o += '   '                          # 28-30
-        o += '%8.3f' % (self.x)             # 31-38 x
-        o += '%8.3f' % (self.y)             # 39-46 y
-        o += '%8.3f' % (self.z)             # 47-54 z
-        o += ' '*6                          # 55-60 occupancy (NOT USED)
-        o += ' '*6                          # 61-66 tempFactor (NOT USED)
-        o += ' '*10                         # 67-76
-        o += '%2s' % self.element           # 77-78
-        o += ' '*2                          # 79-80 charge (NOT USED)
-        o += '\n'
-        return o
+def read_pdb_lines(lines_list):
+    """Reads a list of PDB lines and return a list of Atoms
+    Depending on the pdb info it creates Atom or QmmmAtomPdb"""
+    
+    atoms_list = []
+    for line in lines_list:
+        element = line[76:78].strip()
+        x = line[30:38].strip()
+        y = line[38:46].strip()
+        z = line[46:54].strip()
+        
+        # if it contains residue info it saves a QmmmAtomPdb
+        if line[0:6] == "ATOM  " or line[0:6] == "HETATM"\
+                                 and line[17:20] != "   " :
+            element = line[76:78].strip()
+            mm_type = ""
+            mm_charge = 0
+            mask = "" #frozen
+            x = line[30:38].strip()
+            y = line[38:46].strip()
+            z = line[46:54].strip()
+            layer = line[16]
+            pdb_atom_name = line[12:16].strip()
+            pdb_res_name = line[17:20].strip()
+            pdb_res_number = line[22:26].strip()
+            pdb_chain = line[21].strip()
+            link_element = ""
+            link_mm_type = ""
+            link_bound_to = ""
+            link_scale1 = ""
+            
+            this_atom = QmmmAtomPdb(element, mm_type, mm_charge, mask, 
+                                    x, y, z, layer, pdb_atom_name, 
+                                    pdb_res_name, pdb_res_number, pdb_chain,
+                                    link_element, link_mm_type, link_bound_to,
+                                    link_scale1)
+                                    
+            atoms_list.append(this_atom)
+        else:
+            atoms_list.append(Atom(element, x, y, z))
+            
+    return atoms_list
+
+
 

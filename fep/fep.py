@@ -121,7 +121,7 @@ SP_ONIOM_FOLDER = ARGS.sp_oniom_folder
 
 
 # names
-MD_NO_ATOMS = 35338  ##!!!!! HACK
+MD_NO_ATOMS = 28336  ##!!!!! HACK
 SP_ONIOM_RUN_SCRIPT = "run.sh" 
 RESULTS_FILE = "results.log"
 
