@@ -325,7 +325,7 @@ class GaussianLog(GaussianFile):
         NOTE: Doesnt work for singlepoints yet. No 'Converged?' string in the output
         """
         self.grep_keywords = [
-            'Z-matrix',
+            'atrix:',
             'orientation:',                 # works for both g03 and g09
             'ONIOM: calculating energy.',   # ONIOM energy
             'SCF Done:',
@@ -394,7 +394,7 @@ class GaussianLog(GaussianFile):
 
         # Less apearing keywords 
         for linetuple in raw_grepped_bytes:
-            if 'Z-matrix' in linetuple[1]:
+            if 'atrix:' in linetuple[1]:
                 grep_bytes['Z-mat'] = int(linetuple[0])
                 break
             
@@ -482,7 +482,7 @@ class GaussianLog(GaussianFile):
                     break
                 else:
                     atoms_lines.append(line)
-            if "Symbolic Z-matrix:" in line:
+            if "atrix:" in line:
                 reading = True
         return self.read_gaussian_input_structure(atoms_lines)
     
