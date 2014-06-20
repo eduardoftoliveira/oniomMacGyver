@@ -219,6 +219,9 @@ class EmptyGaussianCom(GaussianFile):
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
                     gaussian_com_file.write("\n")
+                    if section == 'first' and 'softfirst' in\
+                       self.route_section:
+                        gaussian_com_file.write("\n")
                     for line in self.additional_input_dict[section]:
                         gaussian_com_file.write(line)
             gaussian_com_file.write("\n\n\n\n\n")
@@ -300,7 +303,11 @@ class GaussianCom(EmptyGaussianCom):
         b_lines = self.blank_lines
         for key in additional_input_dict:
             if key in self.route_section.lower():
-                i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                if "softfirst" in self.route_section.lower():
+                    shift += 1
+                    i_start, i_finish = b_lines[2+shift]+1,b_lines[-1]
+                else:
+                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
                 additional_input_dict[key]= self.lines[i_start: i_finish]
                 shift += 1
         return additional_input_dict
