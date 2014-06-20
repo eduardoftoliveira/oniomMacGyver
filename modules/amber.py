@@ -158,7 +158,8 @@ def read_crd_file(name):
         coordinates_list = []
         amber_crd_lines = crd_file.readlines()
         for line in amber_crd_lines[2:]:
-            extended_coordinates_list.extend(line.split())
+            for block in range(int(len(line)/12)):
+                extended_coordinates_list.append(line[block*12:(block+1)*12])
         extended_coordinates_list = [float(no) for no in extended_coordinates_list]
         for no in range(0,len(extended_coordinates_list),3):
             coordinates_list.append(extended_coordinates_list[no:no+3])
@@ -291,7 +292,13 @@ def extract_from_mdcrd(mdcrd_name, no_atoms, snapshot):
     bytes_to_jump = 81+bytes_per_structure*snapshot+ (snapshot*26)
     mdcrd_file.seek(bytes_to_jump)
     crd_text = mdcrd_file.read(bytes_per_structure)
-    crd_numbers = crd_text.split()
+    crd_text = crd_text.replace('\n','')
+    
+    crd_numbers = []
+    for byte in range(0,len(crd_text),8):
+        value = crd_text[byte:byte+8]
+        crd_numbers.append(value)
+    
     coordinates = []
     for n in range(0,len(crd_numbers),3):
         xyz = tuple([float(no) for no in crd_numbers[n:n+3]])

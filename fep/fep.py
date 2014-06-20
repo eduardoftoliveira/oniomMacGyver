@@ -1,326 +1,498 @@
 #!/usr/bin/env python3
+""" This scripts allows the user to make FEP calculations along a 
+reaction coordinate with the AMBER and GAUSSIAN software packages"""
 
-# my modules
-from atoms import Atom
-from gaussian import GaussianLog, EmptyGaussianCom, GaussianCom
-from amber import *
+# qt modules
+import gaussian
+import amber
+
 # other modules
+import argparse
+import textwrap
 import os
-import math
-import shutil
+import numpy as np
+import decimal
+import sys
 
-# input - do this in a outside file
-# file start end step
-user_input_lines = ["glu_scan.log 1 21 1"]
-RESP_ROUTE_SECTION = """#hf/6-31G* Pop(mk) density=current
-iop(6/33=2) scf=tight gfinput gfprint test\n"""
-CHARGE_AND_MULTIPLICITY = "0 1\n"
-HIGH_LAYER_CHARGE = 0
+
+### Parser
+PARSER = argparse.ArgumentParser(
+    description='Prepare inputs for FEP calculations',
+    formatter_class=argparse.RawTextHelpFormatter)
+
+PARSER.add_argument('function',
+                    choices=["1","2","3","4"],
+                    help=textwrap.dedent("""\
+                Choose a step of the FEP calculation:
+                    1 - Extract steps from gaussian log(s)
+                    2 - Create input for the MD simulations
+                    3 - Create SP calculations from the MD
+                    4 - Calculate FEP energies""")
+                   )
+
+PARSER.add_argument('--log_points',
+                    help =textwrap.dedent("""\
+                    file begining end step (...)
+                    frames to be extracted from gaussian log(s)"""),
+                    metavar='n',
+                    default=["irc.log", 1,1,1],
+                    nargs='+')
+
+PARSER.add_argument('--inputs_folder',
+                    help = "folder with all input required files",
+                   default = "required_files"
+                   )
+
+PARSER.add_argument('--com_charge_example',
+                    help = "gaussian com example file to charge calculation ",
+                   default = "gaussian_charge_example.com"
+                   )
+
+PARSER.add_argument('--com_amber_example',
+                    help = "gaussian example file with amber system",
+                   default = "gaussian_amber_example.com"
+                   )
+
+PARSER.add_argument('--sp_charge_folder',
+                    help = "folder to put gaussian charge sp files",
+                    default = "gaussian_sp_charges",
+                   )
+
+PARSER.add_argument('--overwrite',
+                    help = "dangerous! delete folders before write them again",
+                    action = "store_const",
+                    const = True,
+                    default = False
+                   )
+
+PARSER.add_argument('--md_folder',
+                    help = "folder to put and read the md files",
+                    default = "md_amber",
+                   )
+
+PARSER.add_argument('--inpcrd',
+                    help = "amber coordinates file of the solvated model",
+                    default = "model.inpcrd"
+                   )
+
+PARSER.add_argument('--prmtop',
+                    help = "amber topologies file of the solvated model",
+                    default = "model.prmtop"
+                   )
+
+PARSER.add_argument('--amber_in_files',
+                    help = "amber input files for the dynamics",
+                    nargs='+',
+                    default = ["min.in", "mdp.in"],
+                    metavar='in_file',
+                   )
+
+PARSER.add_argument('--sp_oniom_folder',
+                    help = "folder to put the single point input files",
+                    default = "oniom_sp"
+                   )
+
+#### PARSINGTHE OPTIONS
+ARGS = PARSER.parse_args()
+INPUT_FOLDER = ARGS.inputs_folder
+
+LOG_POINTS_WORDS = ARGS.log_points
+LOG_POINTS = []
+for i in range(0, len(LOG_POINTS_WORDS), 4):
+    LOG_FILE = "{0}/{1}".format(INPUT_FOLDER, LOG_POINTS_WORDS[i])
+    POINTS = [int(n) for n in LOG_POINTS_WORDS[i+1:i+4]]
+    LOG_POINTS.append([LOG_FILE]+POINTS)
+
+AMBER_INPUT_FILES = []
+for amber_file in ARGS.amber_in_files:
+    AMBER_INPUT_FILES.append("{0}/{1}".format(INPUT_FOLDER, amber_file))
+
+
+OVERWRITE = ARGS.overwrite
+GAUSSIAN_CHARGE_EXAMPLE = "{0}/{1}".format(INPUT_FOLDER, 
+                                           ARGS.com_charge_example)
+GAUSSIAN_CHARGE_FOLDER = ARGS.sp_charge_folder
+RUN_SP_SCRIPT_NAME = "{}/charge_run.sh".format(GAUSSIAN_CHARGE_FOLDER)
+MODEL_INPCRD = "{0}/{1}".format(INPUT_FOLDER, ARGS.inpcrd)
+MODEL_PRMTOP = "{0}/{1}".format(INPUT_FOLDER, ARGS.prmtop)
+GAUSSIAN_AMBER_EXAMPLE = "{0}/{1}".format(INPUT_FOLDER, ARGS.com_amber_example)
+AMBER_FOLDER  = ARGS.md_folder
+SP_ONIOM_FOLDER = ARGS.sp_oniom_folder
 
 
 # names
-GAUSSIAN_SP_FOLDER = "./gaussian_sp"
-RUN_SP_SCRIPT_NAME = "{}/sp_run.sh".format(GAUSSIAN_SP_FOLDER)
-RESP_FOLDER = "./resp"
-RUN_RESP_SCRIPT_NAME = "{}/resp_run.sh".format(RESP_FOLDER)
-AMBER_INPUT_FOLDER = "./amber_in"
-AMBER_INPUT_FILES = ["mdp.in"]
-PDB_MODEL = "{}/model.pdb".format(AMBER_INPUT_FOLDER)# model PDB, tleap must read this without errors
-MODEL_INPCRD = "{}/model.inpcrd".format(AMBER_INPUT_FOLDER)
-MODEL_PRMTOP = "{}/model.prmtop".format(AMBER_INPUT_FOLDER)
-AMBER_FOLDER = "./amber"
-SP_ONIOM_INPUT_FOLDER = "./amber_in/oniom_sp"
-SP_ONIOM_FILE = "example.com"
-SP_ONIOM_FOLDER = "./oniom_sp"
+MD_NO_ATOMS = 28336  ##!!!!! HACK
+SP_ONIOM_RUN_SCRIPT = "run.sh" 
+RESULTS_FILE = "results.log"
 
-def parse_and_read_log(user_input_lines):
+#CONSTANTS
+T = decimal.Decimal(310.15)
+KB = decimal.Decimal(1.3806488E-23)
+R = decimal.Decimal(8.31446211)
+HKCAL = decimal.Decimal(627.5095)
+HJOULE = decimal.Decimal(4.3597482E-18)
+JKCAL = decimal.Decimal(0.000239005736)
+NA = decimal.Decimal(6.0221413e+23)
+
+
+###### FUNCTIONS ######
+
+def parse_and_read_log(log_points):
+    """ Returns a list of geometries from a gaussian irc log file
+    
+    It uses  a string like 'filename start end step'
+    
+    """
     geometries_list = []
-    #parsing input
-    for line in user_input_lines:
-        scan_file_name, start, end, period = list(line.split())
-        start, end, period = [int(x) for x in [start, end, period]]
+    for file_and_points in log_points:
+        scan_file_name, start, end, period = file_and_points
         # reading file
-        scan_file = GaussianLog(scan_file_name)
-        #print(scan_file.summary)
-        for scan_step in range(start - 1, end, period):
+        scan_file = gaussian.GaussianLog(scan_file_name)
+        for scan_step in range(start-1, end, period):
             print("Reading step {} of {}".format(scan_step + 1, scan_file_name))
             geometries_list.append(scan_file.read_geometry(-1, scan_step))
     print("Total of {} geometries".format(len(geometries_list)))
     return geometries_list
 
-def read_no_link_atoms_list(name):
-    gaussian_log = GaussianLog(name)
-    input_atoms_list = gaussian_log.symbolic_zmatrix
-    no_link_atoms_list = []
-    for input_no, input_atom in enumerate(input_atoms_list):
-        if "H" in input_atom.layer and "L" in input_atom.layer:
-            no_link_atoms_list.append(input_no)
-    return no_link_atoms_list
 
-def read_no_high_atoms_list(name):
-    gaussian_log = GaussianLog(name)
-    input_atoms_list = gaussian_log.symbolic_zmatrix
-    no_high_atoms_list = []
-    for input_no, input_atom in enumerate(input_atoms_list):
-        if "H" in input_atom.layer and "L" not in input_atom.layer:
-            no_high_atoms_list.append(input_no)
-    return no_high_atoms_list
-
-def read_no_high_link_atoms_list(name):
-    gaussian_log = GaussianLog(name)
-    input_atoms_list = gaussian_log.symbolic_zmatrix
-    no_high_link_atoms_list = []
-    for input_no, input_atom in enumerate(input_atoms_list):
-        if "H" in input_atom.layer:
-            no_high_link_atoms_list.append(input_no)
-    return no_high_link_atoms_list
-
-def create_gaussian_sp():
-    # reading scan log info
-    gaussian_log_name = user_input_lines[0].split()[0]
-    no_high_link_atoms_list = read_no_high_link_atoms_list(gaussian_log_name)
-    no_link_atoms_list = read_no_link_atoms_list(gaussian_log_name)
-    # reading geometries
-    geometries_list = parse_and_read_log(user_input_lines)
+def log_to_sp():
+    """ Creates single points for charges calculations """ 
+    
     # create folder to put sp inputs
-    os.makedirs(GAUSSIAN_SP_FOLDER)
-    sp_jobs_list=[]
-    # criar inputs de gaussian sp para o resp apenas com a camada alta
+    try:
+        os.makedirs(GAUSSIAN_CHARGE_FOLDER)
+    except OSError:
+        print("\n{0} folder already exists".format(GAUSSIAN_CHARGE_FOLDER))
+        if OVERWRITE:
+            print("--overwrite is on. I will write over the old files\n")
+        else:
+            print("Exiting without writing anything.")
+            print("Delete the folder or use --overwrite to write "\
+                  "over the old files\n")
+            sys.exit(0)
+    
+    # reading scan log info
+    geometries_list = parse_and_read_log(LOG_POINTS)
+
+    sp_jobs_list = []
+    # criar inputs de gaussian sp para o resp 
     for no, atoms_list in enumerate(geometries_list): 
-        gaussian_sp_input_name = "gaussian_sp_{:02d}.com".format(no+1)
+        gaussian_sp_input_name = "charge_sp_{:03d}.com".format(no)
         sp_jobs_list.append(gaussian_sp_input_name)
-        gaussian_sp_file = EmptyGaussianCom(gaussian_sp_input_name)
-        gaussian_sp_file.route_section = RESP_ROUTE_SECTION
-        gaussian_sp_file.multiplicity_line = CHARGE_AND_MULTIPLICITY
-        # choose high layer atoms and substitute link atoms for hydrogens
-        high_link_atoms_list = []
-        for no in no_high_link_atoms_list:
-            high_link_atoms_list.append(atoms_list[no])
-        link_atoms_list = []
-        for no in no_link_atoms_list:
-            link_atoms_list.append(atoms_list[no])
-        for no, atom_a in enumerate(high_link_atoms_list):
-            if atom_a in link_atoms_list:
-                for atom_b in high_link_atoms_list:
-                    if atom_a.is_bonded_to(atom_b):
-                        atom_a.x = (atom_a.x - atom_b.x) * 0.723886 + atom_b.x
-                        atom_a.y = (atom_a.y - atom_b.y) * 0.723886 + atom_b.y
-                        atom_a.z = (atom_a.z - atom_b.z) * 0.723886 + atom_b.z
-                        atom_a.element = "H"
-                        high_link_atoms_list[no] = atom_a
-                        break
-        gaussian_sp_file.atoms_list = high_link_atoms_list  
-        # write
+        gaussian_sp_file = gaussian.GaussianCom(GAUSSIAN_CHARGE_EXAMPLE)
+        gaussian_sp_file.atoms_list = atoms_list  
         gaussian_sp_file.write_to_file("{}/{}"
-                            .format(GAUSSIAN_SP_FOLDER,gaussian_sp_input_name))
+                .format(GAUSSIAN_CHARGE_FOLDER, gaussian_sp_input_name))
+    
     #write bash script to run everything
     with open(RUN_SP_SCRIPT_NAME, 'w') as script_file:
         for job in sp_jobs_list:
             script_file.write("g09 {}\n".format(job))
     return None
 
-def create_resp_input():
-    #### Read sp_log and make a RESP calculation ######
-    gaussian_scan_log_name = user_input_lines[0].split()[0]
-    gaussian_scan_log = GaussianLog(gaussian_scan_log_name)
-    qmmm_atoms_list = gaussian_scan_log.symbolic_zmatrix
-    sp_names_list = os.listdir(GAUSSIAN_SP_FOLDER)
-    sp_log_names_list = sorted([log for log in sp_names_list if "log" in log])
-    # Create RESP Folder
-    os.makedirs(RESP_FOLDER)
-    #Create Resp files
-    resp_jobs_list = []
-    for no, sp_log_name in enumerate(sp_log_names_list):
-        complete_sp_log_name = "{}/{}".format(GAUSSIAN_SP_FOLDER, sp_log_name)
-        # Set filenames
-        #input
-        resp_dat = 'resp_{0:02d}.dat'.format(no)
-        complete_resp_dat = '{}/{}'.format(RESP_FOLDER, resp_dat)
-        resp_qin = 'resp_{0:02d}.qin'.format(no)
-        complete_resp_qin = '{}/{}'.format(RESP_FOLDER, resp_qin)
-        resp_in = 'resp_{0:02d}.in'.format(no)
-        complete_resp_in = '{}/{}'.format(RESP_FOLDER, resp_in)
-        #output
-        resp_out = 'resp_{0:02d}.out'.format(no)
-        resp_pch = 'resp_{0:02d}.pch'.format(no)
-        resp_stdout = 'resp_{0:02d}.log'.format(no)
-        # Creat RESP instructions and qmmmm atoms list with high and link atoms
-        resp_instructions = []
-        qmmm_high_atoms_list = []
-        for atom in qmmm_atoms_list:
-            if 'H' in atom.layer:
-                qmmm_high_atoms_list.append(atom)
-                if atom.layer[0] == 'H':
-                    instruction = '0'
-                    if atom.element == 'Mg':
-                        instruction = '-99'        #hack    
-                else:
-                    instruction = '-99'
-                resp_instructions.append(instruction)
-        produce_resp_dat_from_gaussian_log(complete_resp_dat, complete_sp_log_name)
-        produce_resp_qin(complete_resp_qin, qmmm_high_atoms_list)
-        produce_resp_in(complete_resp_in, qmmm_high_atoms_list, resp_instructions, HIGH_LAYER_CHARGE)
-        command = 'resp -O -i {} -o {} -e {} -p {} -q {} > {}\n'.format(\
-        resp_in, resp_out, resp_dat, resp_pch, resp_qin, resp_stdout)
-        resp_jobs_list.append(command)
-    #write bash script to run everything
-    with open(RUN_RESP_SCRIPT_NAME, 'w') as script_file:
-        for job in resp_jobs_list:
-            script_file.write(job)
-    return None
-
-def create_amber_input():
+def sp_to_md():
+    """ Reads gaussian charge single points and writes the md inputs with"""
     #read model files
-    model_coordinates = read_crd_file(MODEL_INPCRD)
-    geometries_list = parse_and_read_log(user_input_lines)
-    #read model prmtop
-    with open(MODEL_PRMTOP, 'r', encoding='UTF-8') as model_prmtop_file:
-        model_prmtop_lines = model_prmtop_file.readlines()
-        for no, line in enumerate(model_prmtop_lines):
-            if 'FLAG CHARGE' in line:
-                start_charges = no + 2
-                break
-    model_charges = read_prmtop_charges(MODEL_PRMTOP)
+    model_coordinates = amber.read_crd_file(MODEL_INPCRD)
+    model_charges = amber.read_prmtop_charges(MODEL_PRMTOP)
+    
+    # read single point charge inputs to know the geometries to create 
+    charge_com_files = []
+    for charge_com_file in os.listdir(GAUSSIAN_CHARGE_FOLDER):
+        if charge_com_file.endswith(".com"):
+            charge_com_files.append(charge_com_file)
+    charge_com_files.sort()
+    
+    geometries_list = []
+    for charge_com_file in charge_com_files:
+        charge_com_file = "{}/{}".format(GAUSSIAN_CHARGE_FOLDER,
+                                         charge_com_file)
+        gaussian_charge_com = gaussian.GaussianCom(charge_com_file)
+        geometries_list.append(gaussian_charge_com.atoms_list)
+            
     # read numbers of important atoms 
-    gaussian_log_name = user_input_lines[0].split()[0]
-    no_high_link_atoms_list = read_no_high_link_atoms_list(gaussian_log_name)
-    no_high_atoms_list = read_no_high_atoms_list(gaussian_log_name)
-    no_link_atoms_list = read_no_link_atoms_list(gaussian_log_name)
-    # create restraint mask
-    restraint_mask = "@"
-    jump_this = []
-    for index, atom_no in enumerate(no_high_link_atoms_list):
-        if atom_no in jump_this:
-            pass
-        else:
-            restraint_mask += str(atom_no+1)
-            sequence = False
-            last_sub_atom = atom_no
-            for sub_atom_no in no_high_link_atoms_list[index+1:]:
-                if sub_atom_no != last_sub_atom + 1:
-                    if not sequence:
-                        restraint_mask += ','
-                        break
-                    elif sequence:
-                        restraint_mask += '-{},'.format(last_sub_atom+1)
-                        break
-                else:
-                    if sub_atom_no == no_high_link_atoms_list[-1]:
-                        restraint_mask += '-{}'.format(sub_atom_no+1)
-                        jump_this.append(sub_atom_no)
-                    else:
-                        jump_this.append(sub_atom_no)
-                        last_sub_atom = sub_atom_no
-                        sequence = True
+    gaussian_amber_file = gaussian.GaussianCom(GAUSSIAN_AMBER_EXAMPLE)
+    gaussian_sp_file = gaussian.GaussianCom(GAUSSIAN_CHARGE_EXAMPLE)
+    
+    amber_atoms_list = gaussian_amber_file.atoms_list
+    gaussian_atoms_list = gaussian_sp_file.atoms_list
+    
+    amber_h_no_atoms_list = []
+    amber_l_no_atoms_list = []
+    amber_hl_no_atoms_list = []
+    gaussian_h_no_atoms_list = []
+    gaussian_l_no_atoms_list = []
+    gaussian_hl_no_atoms_list = []
+    amber_hl_atoms_list = []
+    for no, atom in enumerate(amber_atoms_list):
+        if atom.link_mm_type:
+            amber_l_no_atoms_list.append(no)
+            amber_hl_no_atoms_list.append(no)
+            amber_hl_atoms_list.append(atom)
+        if 'H' in atom.layer:
+            amber_h_no_atoms_list.append(no)
+            amber_hl_no_atoms_list.append(no)
+            amber_hl_atoms_list.append(atom)
+    for no, atom in enumerate(gaussian_atoms_list):
+        if atom.link_mm_type:
+            gaussian_l_no_atoms_list.append(no)
+            gaussian_hl_no_atoms_list.append(no)
+        if 'H' in atom.layer:
+            gaussian_h_no_atoms_list.append(no)
+            gaussian_hl_no_atoms_list.append(no)
+    
+    restraint_mask = amber.create_restraint_mask(amber_hl_no_atoms_list)
+   
+    ### write coordinates
     for step, atoms_list in enumerate(geometries_list):
         folder_name = "{}/{:02d}".format(AMBER_FOLDER, step)
-        os.makedirs(folder_name)
+        try:
+            os.makedirs(folder_name)
+        except OSError:
+            print("\n{0} folder already exists".format(folder_name))
+            if OVERWRITE:
+                print("--overwrite is on. I will write over the old files\n")
+            else:
+                print("Exiting without writing anything.")
+                print("Delete the folder or use --overwrite to"\
+                      "write over the old files\n")
+                sys.exit(0)
+        
         # write coordinate file
         coordinates_list = [(atom.x, atom.y, atom.z) for atom in atoms_list]
         all_coordinates_list = model_coordinates[:]
-        for no in no_high_link_atoms_list:
-            all_coordinates_list[no] = coordinates_list[no]
-        crd_name = "{}/coordinates.inpcrd".format(folder_name, step)
-        write_crd_file(crd_name, all_coordinates_list)
-        #read resp new charges model prmtop
-        resp_output = "{0}/resp_{1:02d}.out".format(RESP_FOLDER, step)
-        new_charges_list = read_resp_out(resp_output) 
-        all_new_charges_list = model_charges[:]
-        charge_sum_new = charge_sum_old = 0
-        for index, no in enumerate(no_high_link_atoms_list):
-            charge_sum_old += all_new_charges_list[no]
-            charge_sum_new += new_charges_list[index]
-            all_new_charges_list[no] = new_charges_list[index]
-        charge_diff =  charge_sum_old - charge_sum_new
-        #print("Charge difference:", charge_diff)
-        #distribute the charge diference to the atoms connected to the link atoms 
-        high_link_atoms_list = []
-        for no in no_high_link_atoms_list:
-            high_link_atoms_list.append(atoms_list[no])
-            #print(no,atoms_list[no], model_charges[no], all_new_charges_list[no])
-        link_atoms_list = []
-        for no in no_link_atoms_list:
-            link_atoms_list.append(atoms_list[no])
-        charge_diff_per_link = charge_diff / len(link_atoms_list)
-        for no, atom_a in enumerate(high_link_atoms_list):
-            if atom_a in link_atoms_list:
-                for no_b, atom_b in enumerate(high_link_atoms_list):
-                    if atom_a.is_bonded_to(atom_b):
-                        new_b_charge = all_new_charges_list[no_high_link_atoms_list[no_b]] + charge_diff_per_link
-                        #print(no_high_link_atoms_list[no_b], model_charges[no_high_link_atoms_list[no_b]],all_new_charges_list[no_high_link_atoms_list[no_b]], new_b_charge)
-                        all_new_charges_list[no_high_link_atoms_list[no_b]] = new_b_charge
-                        break
-        charge_sum_alter = 0
-        #some charge
-        old_charges_sum = new_charges_sum = 0
-        for no, charge in enumerate(model_charges):
-            old_charges_sum += charge
-            new_charges_sum += all_new_charges_list[no]
-        #print(old_charges_sum, new_charges_sum)
+        for index, no in enumerate(gaussian_hl_no_atoms_list):
+            gaussian_no = no
+            amber_no    = amber_hl_no_atoms_list[index]
+            all_coordinates_list[amber_no] = coordinates_list[gaussian_no]
+        
+        crd_name = "{0}/inpcrd.inpcrd".format(folder_name)
+        amber.write_crd_file(crd_name, all_coordinates_list, box_info=True,
+                       velocities=False)
+
+        #read resp new charges and write them to model prmtop
+        charge_log_name = charge_com_files[step].replace(".com", ".log") 
+        charge_log_name = "{0}/{1}".format(GAUSSIAN_CHARGE_FOLDER,
+                                           charge_log_name)
+        mulliken_charges_list = gaussian.read_mulliken_charges(charge_log_name)
+        
+        hl_charges_list = []
+        for charge in mulliken_charges_list:
+            if charge != 0:
+                hl_charges_list.append(charge)
+
+       
+        new_charges_list = []
+        for atom in amber_hl_atoms_list:
+            if 'H' in atom.layer:
+                new_charges_list.append(hl_charges_list.pop(0))
+            else:
+                new_charges_list.append(atom.charge)
+
+        new_charge_amber_hl_atoms_list = amber.give_resp_charges(\
+            amber_hl_atoms_list, new_charges_list)
+        all_charges_list = model_charges[:]
+        for index, no in enumerate(amber_hl_no_atoms_list):
+            all_charges_list[no] = new_charge_amber_hl_atoms_list[index].charge
+        
         # write these charges to a new prmtop
-        charges_for_prmtop = [charge * 18.2223 for charge in all_new_charges_list]
-        lines_for_prmtop = []
-        for no,charge in enumerate(charges_for_prmtop):
-            if no % 5 == 0:
-                lines_for_prmtop.append("")
-            charge_str = "{0:>16.8E}".format(charge)
-            lines_for_prmtop[-1] += charge_str
-        lines_for_prmtop = [ "".join((line,"\n")) for line in lines_for_prmtop]
-        end_charges = start_charges + len(lines_for_prmtop)
-        prmtop_lines = model_prmtop_lines[:start_charges] + lines_for_prmtop +\
-        model_prmtop_lines[end_charges:]  
-        prmtop_name = "{}/prmtop.prmtop".format(folder_name, step)
-        with open(prmtop_name,'w') as prmtop_file:
-            for line in prmtop_lines:
-                prmtop_file.write(line)
+        new_prmtop_name = "{0}/prmtop.prmtop".format(folder_name)
+        amber.write_prmtop_charges(MODEL_PRMTOP, new_prmtop_name, 
+                                   all_charges_list) 
+        
         # read and write amber in files
         for amber_in_name in AMBER_INPUT_FILES:
-            complete_amber_in_name = "{}/{}".format(AMBER_INPUT_FOLDER,amber_in_name)
-            with open(complete_amber_in_name, 'r', encoding='UTF-8') as model_in_file:
+            with open(amber_in_name, 'r', encoding='UTF-8') as model_in_file:
                 model_file_str = model_in_file.read()
             new_file_str = model_file_str.replace("XXXX", restraint_mask)
-            new_file_name = "{}/{}".format(folder_name, amber_in_name) 
+            new_file_name = "{}/{}".format(folder_name, 
+                                           amber_in_name.split("/")[-1]) 
             with open(new_file_name, 'w', encoding='UTF-8') as new_in_file:
                 new_in_file.write(new_file_str)
 
-def md_dynamics_to_oniom():
-    oniom_gaussian_example_name = "{}/{}".format(SP_ONIOM_INPUT_FOLDER,SP_ONIOM_FILE)
-    oniom_gaussian_example = GaussianCom(oniom_gaussian_example_name)
-    atoms_list = oniom_gaussian_example.atoms_list
+def md_to_sp():
+    """ Creates gaussian sp inputs from the molecular dynamics"""
+    oniom_gaussian_example = gaussian.GaussianCom(GAUSSIAN_AMBER_EXAMPLE)
+    example_atoms_list = oniom_gaussian_example.atoms_list
     os.makedirs(SP_ONIOM_FOLDER)
-    for md_no in os.listdir(AMBER_FOLDER):
-        folder_name = "{}/{}".format(SP_ONIOM_FOLDER, md_no)
-        os.makedirs(folder_name)
-        for cluster_file in os.listdir('./{}/{}'.format(AMBER_FOLDER,md_no)):
-            if cluster_file.startswith("cluster.rep."):
-                cluster_path_file = './{}/{}/{}'.format(AMBER_FOLDER,md_no,cluster_file)
-                cluster_coordinates = read_mdcrd_file(cluster_path_file)
-                cluster_atoms_list = []
-                for no, atom in enumerate(atoms_list):
-                    atom.x,atom.y,atom.z = cluster_coordinates[no]
-                    cluster_atoms_list.append(atom)
-                oniom_gaussian_example.atoms_list = cluster_atoms_list
-                gaussian_path_file_name = "{}/{}".format(folder_name, cluster_file)
-                gaussian_name = "{}.com".format(gaussian_path_file_name)
-                oniom_gaussian_example.write_to_file(gaussian_name)
-                print(md_no,cluster_file)
-            
-            
-            
-    pass
 
+    ## read single point charge inputs to know the geometries to create 
+    charge_com_files = []
+    for charge_com_file in os.listdir(GAUSSIAN_CHARGE_FOLDER):
+        if charge_com_file.endswith(".com"):
+            charge_com_files.append(charge_com_file)
+    charge_com_files.sort()
+    
+    ## read geometries list and correct charges from log files 
+    geometries_list = []
+    for charge_com_file in charge_com_files:
+        charge_com_file = "{}/{}".format(GAUSSIAN_CHARGE_FOLDER, 
+                                         charge_com_file)
+        gaussian_charge_com = gaussian.GaussianCom(charge_com_file)
+        charge_com_atoms_list = gaussian_charge_com.atoms_list
+ 
+        ############  read resp new charges 
+        charge_log_name = charge_com_file.replace(".com", ".log") 
+        
+        mulliken_charges_list = gaussian.read_mulliken_charges(charge_log_name)
+        
+        for no, charge in enumerate(mulliken_charges_list):
+            if charge != 0:
+                charge_com_atoms_list[no].charge = float(charge)
+        
+        #############  end of charges reading ######### 
+
+        geometries_list.append(charge_com_atoms_list)
+
+    # read numbers of important atoms 
+    gaussian_amber_file = gaussian.GaussianCom(GAUSSIAN_AMBER_EXAMPLE)
+    gaussian_sp_file = gaussian.GaussianCom(GAUSSIAN_CHARGE_EXAMPLE)
+    
+    amber_atoms_list = gaussian_amber_file.atoms_list
+    gaussian_atoms_list = gaussian_sp_file.atoms_list
+    
+    amber_hl_no_atoms_list = []
+    gaussian_hl_no_atoms_list = []
+    for no, atom in enumerate(amber_atoms_list):
+        #if atom.link_mm_type or 'H' in atom.layer:
+        if 'H' in atom.layer:
+            amber_hl_no_atoms_list.append(no)
+    for no, atom in enumerate(gaussian_atoms_list):
+        #if atom.link_mm_type or 'H' in atom.layer:
+        if 'H' in atom.layer:
+            gaussian_hl_no_atoms_list.append(no)
+    
+    
+    for md_no in sorted(os.listdir(AMBER_FOLDER)):
+        folder_name = "{}/{}".format(SP_ONIOM_FOLDER, md_no)
+        amber_folder_name = "{}/{}".format(AMBER_FOLDER, md_no) 
+        os.makedirs(folder_name)
+        mdcrd_name = "{}/{}".format(amber_folder_name, "mdp.mdcrd") 
+       
+        sp_jobs_list = []
+        for sp_no in range(0, 1000, 1):  ####### TODO!!!!!!
+            
+            mdcrd_coordinates = amber.extract_from_mdcrd(mdcrd_name, 
+                                                   MD_NO_ATOMS, sp_no)
+            gaussian_atoms_list = []
+            # an example file is used to read the pdb info
+
+            for no, atom in enumerate(example_atoms_list):
+                atom.x, atom.y, atom.z = mdcrd_coordinates[no]
+                gaussian_atoms_list.append(atom)
+            
+            #### high layer geometry and charges come from the 
+            ####charge single points
+            
+            for position in [-1, 0, 1]:
+                hl_geometry_no = int(md_no)+position
+                gaussian_path_file_name = "{}/{}_on_{}_{}"\
+                        .format(folder_name, hl_geometry_no, int(md_no), sp_no)
+                gaussian_name = "{}.com".format(gaussian_path_file_name)
+                try:
+                
+                    for index, no in enumerate(gaussian_hl_no_atoms_list):
+                        gaussian_no = no
+                        amber_no    = amber_hl_no_atoms_list[index]
+                                               
+                        #gaussian_atoms_list[amber_no].charge =\
+                        gaussian_atoms_list[amber_no].x,\
+                        gaussian_atoms_list[amber_no].y,\
+                        gaussian_atoms_list[amber_no].z =\
+                            geometries_list[hl_geometry_no][gaussian_no].x,\
+                            geometries_list[hl_geometry_no][gaussian_no].y,\
+                            geometries_list[hl_geometry_no][gaussian_no].z
+                            #geometries_list[hl_geometry_no][gaussian_no].charge
+
+                    sp_jobs_list.append("{}_on_{}_{}.com"\
+                            .format(hl_geometry_no, int(md_no), sp_no))
+                    oniom_gaussian_example.atoms_list = gaussian_atoms_list
+                    oniom_gaussian_example.write_to_file(gaussian_name)
+                    print("Using {} and md:{}".format(charge_com_files[int(md_no)+position],md_no ))
+                    print("Saved {}".format(gaussian_name))
+              
+                except IndexError:
+                    print("Cannot save {}".format(gaussian_name))
+    
+        sp_script = "{}/{}".format(folder_name, SP_ONIOM_RUN_SCRIPT)  
+        with open(sp_script, 'w') as script_file:
+            for job in sp_jobs_list:
+                script_file.write("g09 {}\n".format(job))
+
+
+
+def sp_to_energies():
+    """ Extract energies from the gaussian sp files"""
+    with open(RESULTS_FILE, 'r') as result_file:
+        results = {}
+        for line in result_file:
+            words = line.split()
+            cut_from, this_one, _, frame = \
+                    words[0].rstrip(".log").split("/")[1].split("_")
+           
+            energy = decimal.Decimal(words[5])
+           
+            if this_one not in results:
+                results[this_one] = {}
+            if frame not  in results[this_one]:
+                results[this_one][frame] = [0, 0, 0]
+
+            if int(cut_from) < int(this_one):
+                results[this_one][frame][0] = energy # before
+            elif int(cut_from) == int(this_one):
+                results[this_one][frame][1] = energy # this
+            else:
+                results[this_one][frame][2] = energy # after
+
+    for md_no in results:
+        forward_energies = []
+        backward_energies = []
+        for frame in results[md_no]:
+            previous_energy, this_energy, next_energy = results[md_no][frame]
+            #print(previous_energy, this_energy, next_energy)
+            if this_energy and next_energy:
+                diff = (next_energy-this_energy)*HJOULE
+                forward_energies.append(diff)
+        
+            if this_energy and previous_energy: 
+                diff = (this_energy-previous_energy)*HJOULE
+                backward_energies.append(diff)
+                #print(md_no, frame, diff)
+
+
+        if forward_energies:
+            log_sum = 0
+            for log_v in forward_energies:
+                log_v = decimal.Decimal(log_v)
+                log_v = np.exp(-log_v/(T*KB))
+                log_sum += log_v
+
+            exp_average = log_sum/len(forward_energies)
+            delta_g = exp_average.ln() * -KB*T*NA*JKCAL
+            print("f", md_no, delta_g)
+
+        if backward_energies:
+            log_sum = 0
+            for log_v in backward_energies:
+                log_v = decimal.Decimal(log_v)
+                log_v = np.exp(-log_v/(T*KB))
+                log_sum += log_v
+
+            exp_average = log_sum/len(backward_energies)
+            delta_g = exp_average.ln() * -KB*T*NA*JKCAL
+            print("b", md_no, delta_g)
 
 def main():
-#    create_gaussian_sp()
-#user: run gaussian
-#    create_resp_input()
-#user: run resp
-#    create_amber_input()
-#user: run amber
-#usar: run ptraj
-    md_dynamics_to_oniom()
+    """ Just a wrapper to call the functions"""
+    functions = {'1':log_to_sp,
+                 '2':sp_to_md,
+                 '3':md_to_sp,
+                 '4':sp_to_energies}
 
-    pass
+    function_to_run = ARGS.function
+    functions[function_to_run]()
+
+
 
 if __name__ == "__main__":
     main()
