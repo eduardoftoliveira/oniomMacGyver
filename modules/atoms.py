@@ -151,10 +151,6 @@ def read_pdb_lines(lines_list):
     
     atoms_list = []
     for line in lines_list:
-        element = line[76:78].strip()
-        x = line[30:38].strip()
-        y = line[38:46].strip()
-        z = line[46:54].strip()
         
         # if it contains residue info it saves a QmmmAtomPdb
         if line[0:6] == "ATOM  " or line[0:6] == "HETATM"\
@@ -183,7 +179,11 @@ def read_pdb_lines(lines_list):
                                     link_scale1)
                                     
             atoms_list.append(this_atom)
-        else:
+        elif line[0:6] == "ATOM  " or line[0:6] == "HETATM":
+            element = line[76:78].strip()
+            x = line[30:38].strip()
+            y = line[38:46].strip()
+            z = line[46:54].strip()
             atoms_list.append(Atom(element, x, y, z))
             
     return atoms_list

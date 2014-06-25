@@ -58,8 +58,8 @@ class GaussianFile():
                 # expecting something like "H-HC"
                 link_element, link_mm_type = link_atom_stuff[0].split('-')  
             link_bound_to = link_atom_stuff[1]
-            link_scale1  = link_atom_stuff[2]
-            if link_scale1:  
+            link_scale1  = link_atom_stuff[2].strip()
+            if link_scale1: 
                 link_scale1 = float(link_scale1)
             try:
                 element, mm_type, mm_charge = mm_type_charge.split('-', 2)
@@ -171,7 +171,7 @@ class GaussianFile():
             
             if atom.link_mm_type:
                 link_info = ("{0.link_element}-{0.link_mm_type} "
-                    "{0.link_bound_to} {0.link_scale1:.3f} ".format(atom))
+                        "{0.link_bound_to} {0.link_scale1:.3f} ".format(atom)) # to do : read properly scalling factor
             else:
                 link_info = ''
         
@@ -202,7 +202,7 @@ class EmptyGaussianCom(GaussianFile):
         self.title_line = "title line required\n"
         self.multiplicity_line = ""
         self.atoms_list = []
-        self.additional_input_dict = {"connect":None, "modred":None, "gen":None,
+        self.additional_input_dict = {"connect":None, "readopt":None, "modred":None, "gen":None,
                                       "pseudo=read":None}
     def write_to_file(self,name):
         with open(name, 'w', encoding='UTF-8') as gaussian_com_file:
@@ -298,12 +298,12 @@ class GaussianCom(EmptyGaussianCom):
     def _read_additional_input2(self):
         """Reads additional input and stores it in a ordered dict"""
         additional_input_dict = collections.OrderedDict(\
-        [("connect",None),("modred",None),("gen",None),("pseudo=read",None),("first",None)])
+        [("connect",None),("readopt",None),("modred",None),("gen",None),("pseudo=read",None),("first",None)])
         shift=0
         b_lines = self.blank_lines
         for key in additional_input_dict:
             if key in self.route_section.lower():
-                if "softfirst" in self.route_section.lower():
+                if key == "softfirst" and "softfirst" in self.route_section.lower():
                     shift += 1
                     i_start, i_finish = b_lines[2+shift]+1,b_lines[-1]
                 else:
