@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
-""" Definition of the Atom Class and its subclasses"""
 
 # python modules
-import math
 import numpy as np
 import geom
 
@@ -35,11 +33,17 @@ class Atom(object):
 
     # existance of attributes to be checked with hasattr(x, 'oniom')
 
-    def set_qmmm(self, qmmm_obj):
+    def set_mm(self, mm_obj):
+        self.mm = mm_obj
+
+    def set_oniom(self, oniom_obj):
         self.oniom = oniom_obj
 
-    def set_pdb(self, pdb_obj):
-        self.pdb = pdb_obj
+    def set_resinfo(self, resinfo_obj):
+        self.resinfo = resinfo_obj
+
+    def set_pdbinfo(self, pdbinfo_obj):
+        self.pdbinfo = pdbinfo_obj
 
     def get_coordinates(self):
         """Returs Atom coordinates as a numpy array"""
