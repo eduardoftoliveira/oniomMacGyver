@@ -16,12 +16,6 @@ class GaussianFile():
     def __init__(self):
         pass
         
-    nope =""""
-    def read_gaussian_qm_structure(self, lines):
-        \"""Reads lines of a gaussian qm input and returns a list of atoms\"""
-        return [atom.Atom(line.split()) for atom in lines]
-    """
-    
     def read_gaussian_qmmm_structure(self,lines):
         """ Read a list of lines and return a list of atoms"""
         atoms_list = []
@@ -131,6 +125,8 @@ class GaussianFile():
                 link_scale1  = link_atom_stuff[2]
                 if link_scale1:  
                     link_scale1 = float(link_scale1)
+                else: 
+                    link_scale1 = 0.0
                 try:
                     element, mm_type, mm_charge = mm_type_charge.split('-', 2)
                 except ValueError:
@@ -219,8 +215,7 @@ class EmptyGaussianCom(GaussianFile):
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
                     gaussian_com_file.write("\n")
-                    if section == 'first' and 'softfirst' in\
-                       self.route_section:
+                    if section == 'first' and 'soft' in self.route_section:
                         gaussian_com_file.write("\n")
                     for line in self.additional_input_dict[section]:
                         gaussian_com_file.write(line)
@@ -243,6 +238,7 @@ class GaussianCom(EmptyGaussianCom):
             self.gen_list = self.additional_input_dict["gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
             self.MM_external_params = self.additional_input_dict["first"]
+            self.read_optimize = self.additional_input_dict["readopt"]
 
     def _read_lines(self):
         """Reads lines to a list and strips the \\n"""
@@ -298,12 +294,12 @@ class GaussianCom(EmptyGaussianCom):
     def _read_additional_input2(self):
         """Reads additional input and stores it in a ordered dict"""
         additional_input_dict = collections.OrderedDict(\
-        [("connect",None),("modred",None),("gen",None),("pseudo=read",None),("first",None)])
+        [("connect",None),("readopt",None),("modred",None),("gen",None),("pseudo=read",None),("first",None)])
         shift=0
         b_lines = self.blank_lines
         for key in additional_input_dict:
-            if key in self.route_section.lower():
-                if "softfirst" in self.route_section.lower():
+            if key in self.route_section.lower().replace("only","first"):
+                if key == "first" and "soft" in self.route_section.lower():
                     shift += 1
                     i_start, i_finish = b_lines[2+shift]+1,b_lines[-1]
                 else:
@@ -341,23 +337,24 @@ class GaussianCom(EmptyGaussianCom):
         bonds_list = self.bonds_list[:]
         connectivity_list = []
         for index, atom in enumerate(self.atoms_list):
-            this_atom_bonds = []
-            bonds_to_remove = []
-            for no_b, bond in enumerate(bonds_list):
-                if atom is bond.atom_a or atom is bond.atom_b:
-                    this_atom_bonds.append(bond)
-            line = " {0}".format(index+1)
-            for bond in this_atom_bonds:
-                bonds_list.remove(bond)
-                if bond.atom_a is atom:
-                    atom_to_put = bond.atom_b
+            connectivity_list.append([str(index+1)])
+         
+        for bond in bonds_list:
+            try:
+                atom_a_index = self.atoms_list.index(bond.atom_a) + 1 
+                atom_b_index = self.atoms_list.index(bond.atom_b) + 1
+                if atom_a_index < atom_b_index:
+                    connectivity_list[atom_a_index-1].extend(\
+                                            [str(atom_b_index),str(bond.order)])
                 else:
-                    atom_to_put = bond.atom_a
-                if atom_to_put in self.atoms_list:
-                    line += " {0} {1}".format(self.atoms_list.index(atom_to_put)+1,bond.order)
-            line += "\n"
-            connectivity_list.append(line)
-        
+                    connectivity_list[atom_b_index-1].extend(\
+                                           [str(atom_a_index),str(bond.order)])
+            except ValueError:
+                pass # atom was removed from atoms_list probably
+
+        for no,bond_info in enumerate(connectivity_list):
+            connectivity_list[no] = " ".join(bond_info) + "\n"
+
         self.connectivity_list = connectivity_list
         self.additional_input_dict["connect"] = connectivity_list
         return None
@@ -368,7 +365,7 @@ class GaussianLog(GaussianFile):
         self.file = open(self.name, 'r')
         self.route_section  = self._read_route_section()
         self.grep_bytes, self._OptimizedParameters     = self._grep_bytes()
-        self._sanity_check  = self._sanity_check(self._OptimizedParameters)
+        self._sanity_check  = self._sanity_check()
         self.energies       = self._read_energies()
         #self.convergency   = self._read_convergency()  # RMS Force, etc...
         self.atoms_list     = self._Zmat_to_atoms_list()
@@ -415,13 +412,15 @@ class GaussianLog(GaussianFile):
         grep_bytes['SCF Done:']                     = [[]]
         grep_bytes['Step number']                   = [[]]
         grep_bytes['Converged?']                    = [[]]
-        _OptimizedParameters                        = [] #stores the bytes of "Optimized Parameters" to parse it to _sanity_check
-        
-        grep_string=""
-        for keywords in self.grep_keywords:
-            grep_string += '-e "'+keywords+'" '
-            
-        grep_output = subprocess.Popen('grep -b ' +  grep_string + self.name , shell=True , stdout=subprocess.PIPE)
+        grep_bytes['microiterations']               = [[[]]]
+        _OptimizedParameters                        = []    # _sanity_check
+
+        grep_string = "grep -b "
+        for keyword in self.grep_keywords:
+            grep_string += " -e '{}' ".format(keyword)
+        grep_string += self.name 
+
+        grep_output = subprocess.Popen(grep_string, shell=True , stdout=subprocess.PIPE)
         grep_output = grep_output.communicate()[0]
         grep_output = str( grep_output, encoding='utf8' ).splitlines()
         raw_grepped_bytes = []
@@ -430,6 +429,7 @@ class GaussianLog(GaussianFile):
             
         for linetuple in raw_grepped_bytes:
             if 'orientation:' in linetuple[1]:
+                grep_bytes['microiterations'][-1][-1].append(linetuple[0])
                 buffer_orientation = linetuple[0]
 
             elif 'SCF Done:' in linetuple[1]:
@@ -446,6 +446,7 @@ class GaussianLog(GaussianFile):
                 grep_bytes['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
                 grep_bytes['orientation:'][-1].append(buffer_orientation)   # buffered
                 grep_bytes['Step number'][-1].append(buffer_Step_number)    # buffered
+                grep_bytes['microiterations'][-1].append([])
                 
                 if 'buffer_ONIOM_calculating_energy' in locals(): #only appends when it is an oniom calculation
                     grep_bytes['ONIOM: calculating energy.'][-1].append(buffer_ONIOM_calculating_energy) #buffered
@@ -458,8 +459,13 @@ class GaussianLog(GaussianFile):
                 grep_bytes['Step number'].append([])
                 grep_bytes['Converged?'].append([])
                 grep_bytes['orientation:'].append([])
+                grep_bytes['microiterations'].append([[]])
 
         # Last list may be a ghost
+        if len(grep_bytes['microiterations'][-1]) == 1:
+            grep_bytes['microiterations'].pop(-1)
+            grep_bytes['microiterations'][-1].pop(-1)
+        
         if grep_bytes['orientation:'][-1] == []:
             for data in grep_bytes:
                 grep_bytes[data].pop(-1)
@@ -577,7 +583,27 @@ class GaussianLog(GaussianFile):
         Last Energy: {5}
         """.format(self, self.initial_geometry[:100], len(self.initial_geometry), no_opts, no_scans, energy)
         return summary
-    
+
+    def read_last_microiterations(self):
+        with open(self.name, 'r') as f:
+            geometries_list = []
+            for step in self.grep_bytes['microiterations'][-1][-1]:
+                f.seek(step)
+                atoms_list = []
+                for _ in range(5):
+                    f.readline()
+                for model_atom in self.atoms_list:
+                    line = f.readline()
+                    atom = deepcopy(model_atom)
+                    atomic_number = line.split()[1]
+                    x, y, z = line.split()[3:6]
+                    element = [key for key in iter(atoms.ATOMIC_NUMBER_DICT) \
+                                    if atoms.ATOMIC_NUMBER_DICT[key] == int(atomic_number)][0] #hack
+                    atom.x, atom.y, atom.z = float(x),float(y),float(z)
+                    atoms_list.append(atom)  
+                geometries_list.append(atoms_list)
+        return geometries_list
+
 
     def read_geometry(self, opt_step, scan_step):
         with open(self.name, 'r') as f:
@@ -596,7 +622,7 @@ class GaussianLog(GaussianFile):
                 atoms_list.append(atom)    
         return atoms_list
 
-    def _sanity_check(self, _OptimizedParameters):
+    def _sanity_check(self):
         """"
         #ve se os passos opt e scanpoint estao consecutivos ou se ficheiro foi danificado entre isso #nos scan ve se optimizaram
         #checks if it is a singlepoint_job or opt_job or scan_job; checks if it is oniom_job
@@ -613,10 +639,10 @@ class GaussianLog(GaussianFile):
                 if 'scan point' in stepnr_line: scan_job = True; opt_job = False
                 else: #it is an opt_job
                     scan_job = False; opt_job = True
-                    if len(_OptimizedParameters) == 0: print('#WARNING : Unfinished opt job after', stepnr_line.strip('\n'))
-                    elif len(_OptimizedParameters) > 1: print('#WARNING : Very odd error. It is supposed to be an opt job but has more than one "Optimized Parameters" keyword')
+                    if len(self._OptimizedParameters) == 0: print('#WARNING : Unfinished opt job after', stepnr_line.strip('\n'))
+                    elif len(self._OptimizedParameters) > 1: print('#WARNING : Very odd error. It is supposed to be an opt job but has more than one "Optimized Parameters" keyword')
                     else:
-                        f.seek(_OptimizedParameters[0])
+                        f.seek(self._OptimizedParameters[0])
                         if "Non-Optimized Parameters" in f.readline(): print('#WARNING : Not fully optimized opt job')
                 
                 for scanstep, i in enumerate(self.grep_bytes['Step number']):
@@ -643,7 +669,7 @@ class GaussianLog(GaussianFile):
                         
                         #checks if scan step was fully optimized and if scan_job finished prematurely
                         try:
-                            f.seek(_OptimizedParameters[scanstep])
+                            f.seek(self._OptimizedParameters[scanstep])
                             if "Non-Optimized Parameters" in f.readline():
                                 print('#WARNING :', stepnr_line.strip('\n'), ' - NOT Fully Optimized'),
                         except IndexError:

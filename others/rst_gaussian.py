@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-"""It reads a gaussian output file, detects 180º angles, 
-and writes a com file where these angles are deactivated"""
+"""It reads a gaussian output file, writes a com file 
+with the last geometry"""
 
 # python modules
 import sys
