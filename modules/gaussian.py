@@ -215,7 +215,7 @@ class EmptyGaussianCom(GaussianFile):
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
                     gaussian_com_file.write("\n")
-                    if section == 'first' and 'soft' self.route_section:
+                    if section == 'first' and 'soft' in self.route_section:
                         gaussian_com_file.write("\n")
                     for line in self.additional_input_dict[section]:
                         gaussian_com_file.write(line)
