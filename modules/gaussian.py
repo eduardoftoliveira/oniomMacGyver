@@ -52,8 +52,8 @@ class GaussianFile():
                 # expecting something like "H-HC"
                 link_element, link_mm_type = link_atom_stuff[0].split('-')  
             link_bound_to = link_atom_stuff[1]
-            link_scale1  = link_atom_stuff[2]
-            if link_scale1:  
+            link_scale1  = link_atom_stuff[2].strip()
+            if link_scale1: 
                 link_scale1 = float(link_scale1)
             try:
                 element, mm_type, mm_charge = mm_type_charge.split('-', 2)
@@ -167,7 +167,7 @@ class GaussianFile():
             
             if atom.link_mm_type:
                 link_info = ("{0.link_element}-{0.link_mm_type} "
-                    "{0.link_bound_to} {0.link_scale1:.3f} ".format(atom))
+                             "{0.link_bound_to} {0.link_scale1:.3f} ".format(atom)) # to do : read properly scalling factor
             else:
                 link_info = ''
         
@@ -198,7 +198,7 @@ class EmptyGaussianCom(GaussianFile):
         self.title_line = "title line required\n"
         self.multiplicity_line = ""
         self.atoms_list = []
-        self.additional_input_dict = {"connect":None, "modred":None, "gen":None,
+        self.additional_input_dict = {"connect":None, "readopt":None, "modred":None, "gen":None,
                                       "pseudo=read":None}
     def write_to_file(self,name):
         with open(name, 'w', encoding='UTF-8') as gaussian_com_file:
@@ -215,7 +215,7 @@ class EmptyGaussianCom(GaussianFile):
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
                     gaussian_com_file.write("\n")
-                    if section == 'first' and 'soft' in self.route_section:
+                    if section == 'first' and 'soft' self.route_section:
                         gaussian_com_file.write("\n")
                     for line in self.additional_input_dict[section]:
                         gaussian_com_file.write(line)
@@ -395,7 +395,7 @@ class GaussianLog(GaussianFile):
         NOTE: Doesnt work for singlepoints yet. No 'Converged?' string in the output
         """
         self.grep_keywords = [
-            'Z-matrix',
+            'atrix:',
             'orientation:',                 # works for both g03 and g09
             'ONIOM: calculating energy.',   # ONIOM energy
             'SCF Done:',
@@ -472,7 +472,7 @@ class GaussianLog(GaussianFile):
 
         # Less apearing keywords 
         for linetuple in raw_grepped_bytes:
-            if 'Z-matrix' in linetuple[1]:
+            if 'atrix:' in linetuple[1]:
                 grep_bytes['Z-mat'] = int(linetuple[0])
                 break
             
@@ -560,7 +560,7 @@ class GaussianLog(GaussianFile):
                     break
                 else:
                     atoms_lines.append(line)
-            if "Symbolic Z-matrix:" in line:
+            if "atrix:" in line:
                 reading = True
         return self.read_gaussian_input_structure(atoms_lines)
     
