@@ -10,6 +10,7 @@ from copy import deepcopy
 # our python modules
 import atoms
 import molecules
+import iolines
 
 class EmptyGaussianCom():
     def __init__(self, name):
@@ -180,7 +181,7 @@ class GaussianCom(EmptyGaussianCom):
         self.additional_input_dict["connect"] = connectivity_list
         return None
 
-class GaussianLog(GaussianFile):
+class GaussianLog():
     def __init__(self, name):
         self.name = name
         self.file = open(self.name, 'r')
@@ -209,7 +210,10 @@ class GaussianLog(GaussianFile):
             else:
                 break
         f.close()
-        return self.read_gaussian_input_structure(Zmat_text)
+        atoms_list = []
+        for line in Zmat_text:
+            atoms_list.append(iolines.zmat2atom(line))
+        return atoms_list
 
     def _grep_bytes(self): 
         """       
