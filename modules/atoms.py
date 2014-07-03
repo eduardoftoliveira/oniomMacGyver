@@ -20,16 +20,20 @@ class Atom(object):
 
     def set_element(self, element):
         if type(element) == str:
-            self.element = element
-            self.atomic_nr = ATOMIC_NUMBER_DICT[element]
-        elif type(element) == int:
+            if element.isdigit():
+                element = int(element)
+            else:
+                self.element = element
+                self.atomic_nr = ATOMIC_NUMBER_DICT[element]
+        if type(element) == int:
             self.element = ATOMIC_NUMBER_DICT_REVERSE[element]
             self.atomic_nr = element
-        else:
+        elif type(element) != str:
             raise RuntimeError('Bad element type: must be str/int/None')
 
-    def set_coordinates(self, (x, y, z)):
-        self.x, self.y, self.z = x, y, z
+    def set_coordinates(self, xyz):
+        """xyz = (x, y, z)"""
+        self.x, self.y, self.z = xyz
 
     # existance of attributes to be checked with hasattr(x, 'oniom')
 
@@ -95,9 +99,9 @@ class Oniom(object):
         self.has_link = False
 
     def set_link(self, atom, bound_to, scale1):
-        self.link_atom = link_atom
-        self.link_bound_to = link_bound_to
-        self.link_scale1 = link_scale1
+        self.link_atom = atom
+        self.link_bound_to = bound_to
+        self.link_scale1 = scale1
         self.has_link = True
 
 class RESinfo(object):
@@ -136,5 +140,5 @@ class PDBinfo(object):
 
 class PDBQT(object):
     """ atom with pdb and mm !!!"""
-    pass
+
 
