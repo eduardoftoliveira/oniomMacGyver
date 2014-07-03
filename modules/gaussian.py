@@ -11,19 +11,7 @@ from copy import deepcopy
 import atoms
 import molecules
 
-
-class GaussianFile():
-    def __init__(self):
-        pass
-        
-    def read_gaussian_qmmm_structure(self,lines):
-        pass # use iolines.zmat2atom
-
-    def write_zmat(self, atom, include_pdb_info=True):
-        pass
-        # now iolines.atom2zmat(atom)
-
-class EmptyGaussianCom(GaussianFile):
+class EmptyGaussianCom():
     def __init__(self, name):
         self.name = name
         self.link_0_commands = ["%nproc=8\n", "%mem=6GB\n", "%chk=default.chk\n"]
@@ -43,7 +31,7 @@ class EmptyGaussianCom(GaussianFile):
             gaussian_com_file.write("\n")
             gaussian_com_file.write(self.multiplicity_line)
             for atom in self.atoms_list:
-                    line = self.write_zmat(atom)
+                    line = iolines.atom2zmat(atom)
                     gaussian_com_file.write(line)                
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
@@ -122,7 +110,10 @@ class GaussianCom(EmptyGaussianCom):
 
     def _read_structure(self):
         """ Return a list of atoms"""
-        return self.read_gaussian_input_structure(self.lines[self.blank_lines[1]+2:self.blank_lines[2]])
+        atoms_list = []
+        for line in self.lines[self.blank_lines[1]+2:self.blank_lines[2]]:
+            atoms_list.append(iolines.zmat2atom(line))
+        return atoms_list
 
     def _read_additional_input2(self):
         """Reads additional input and stores it in a ordered dict"""
@@ -141,8 +132,6 @@ class GaussianCom(EmptyGaussianCom):
                 shift += 1
         return additional_input_dict
         
-    
-
     def _read_bonds_list(self):
         """ Create bonds list from the connectivity info on the file"""
         bonds_list = []
