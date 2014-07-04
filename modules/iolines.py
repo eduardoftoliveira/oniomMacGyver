@@ -72,10 +72,10 @@ def _parse_oniom_line(line_splits):
     if len(link_splits) == 1:
         raise RuntimeError('missing bound_to in link atom: %s' % (
             ' '.join(link_splits)))
-    if len(link_splits) == 2:
+    elif len(link_splits) == 2:
         link_splits.append('0.0')
-    if len(link_splits) == 3:
-        link_mm_info, bound_to, scale1 = link_splits
+    elif len(link_splits) >2:
+        link_mm_info, bound_to, scale1 = link_splits[:3]
         link_el, link_mm_obj = _parse_mm_info(link_mm_info)
         link_atom = atoms.Atom(link_el, (None, None, None)) # empty coords
         if link_mm_obj:
@@ -163,6 +163,9 @@ def atom2zmat(atom, print_resinfo = True):
     # add (x, y, z)
     else:
         line += '{0.x:>11.6f} {0.y:>11.6f} {0.z:>11.6f}'.format(atom)
+    
+    line = "{}\n".format(line)
+
     return line
 
 
