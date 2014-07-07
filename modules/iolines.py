@@ -72,9 +72,8 @@ def _parse_oniom_line(line_splits):
     if len(link_splits) == 1:
         raise RuntimeError('missing bound_to in link atom: %s' % (
             ' '.join(link_splits)))
-    elif len(link_splits) == 2:
-        link_splits.append('0.0')
-    if len(link_splits) >2:
+    elif len(link_splits) > 1:
+        link_splits.append('0.0')  # HAMMERATION
         link_mm_info, bound_to, scale1 = link_splits[:3]
         link_el, link_mm_obj = _parse_mm_info(link_mm_info)
         link_atom = atoms.Atom(link_el, (0, 0, 0)) # empty coords
@@ -110,33 +109,18 @@ def atom2zmat(atom, print_resinfo = True):
     res = atom.resinfo and print_resinfo
 
     # el + mm + resinfo
-    if atom.mm and res:
-        line = (
-        ' {0.element}-{0.mm.atype}-{0.mm.charge:.9f}'
-        '(PDBName={0.resinfo.name},'
-        'ResName={0.resinfo.resname},'
-        'ResNum={0.resinfo.resnum}_{0.resinfo.chain})'
-        .format(atom))
-        line = '{0:44s}'.format(line) # fill with spaces
-
-    # el
-    elif (not atom.mm) and (not res):
-        line = ' {0.element:15s}'.format(atom)
-
-    # el + mm
-    elif atom.mm and (not res):
+    if atom.mm:
         line = '{0.element}-{0.mm.atype}-{0.mm.charge:.9f}'.format(atom)
         line = '{0:.15s}'.format(line) # fill with spaces (max 15 char)
+    else:
+        line = ' {0.element:15s}'.format(atom)
 
-    # el + resinfo
-    elif (not atom.mm) and res:
-        line = (
-        ' {0.element}'
-        '(PDBName={0.resinfo.name},'
-        'ResName={0.resinfo.resname},'
-        'ResNum={0.resinfo.resnum}_{0.resinfo.chain})'
-        .format(atom))
-        line = '{0:44s}'.format(line) # fill with spaces
+    if res:
+        line = ('{0}(PDBName={1.resinfo.name},'
+        'ResName={1.resinfo.resname},'
+        'ResNum={1.resinfo.resnum}_{1.resinfo.chain})'
+        .format(line, atom))
+        line = '{0:60s}'.format(line) # fill with spaces
 
     # add:  mask + (x, y, z) + layer
     if atom.oniom:
