@@ -145,12 +145,12 @@ def QMMM_to_QM(atoms_list, make_new='True'):
     SCALING = {"C":0.723886, "N":0.786011}
     qm_atoms_list = []
     for atom in atoms_list:
-        if atom.layer[0] == 'H':
+        if atom.oniom.layer == 'H':
             if make_new:
                 ## Warning: At this point we are changing the original atoms"
-                atom = Atom(atom.element, atom.x, atom.y, atom.z)
-        elif atom.link_element:
-            linked_atom = atoms_list[int(atom.link_bound_to)-1]
+                atom = Atom(atom.element, atom.get_coordinates())
+        elif atom.oniom.link_atom.element:
+            linked_atom = atoms_list[atom.oniom.link_atom.bound_to-1]
             new_x = (atom.x-linked_atom.x) *SCALING[linked_atom.element] + linked_atom.x
             new_y = (atom.y-linked_atom.y) *SCALING[linked_atom.element] + linked_atom.y
             new_z = (atom.z-linked_atom.z) *SCALING[linked_atom.element] + linked_atom.z

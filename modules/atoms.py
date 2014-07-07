@@ -14,6 +14,10 @@ class Atom(object):
         """x = Atom('H', (1.0, 2.0, 3.0))"""
         self.set_element(element)
         self.set_coordinates(xyz)
+        self.mm = None
+        self.oniom = None
+        self.resinfo = None
+        self.pdbinfo = None
         
     def __repr__(self):
         return self.element
@@ -33,7 +37,7 @@ class Atom(object):
 
     def set_coordinates(self, xyz):
         """xyz = (x, y, z)"""
-        self.x, self.y, self.z = xyz
+        self.x, self.y, self.z = [float(coord) for coord in xyz]
 
     # existance of attributes to be checked with hasattr(x, 'oniom')
 
@@ -100,8 +104,8 @@ class Oniom(object):
 
     def set_link(self, atom, bound_to, scale1):
         self.link_atom = atom
-        self.link_bound_to = bound_to
-        self.link_scale1 = scale1
+        self.link_bound_to = int(bound_to)
+        self.link_scale1 = float(scale1)
         self.has_link = True
 
 class RESinfo(object):
@@ -109,7 +113,7 @@ class RESinfo(object):
     def __init__(self, name, resname, resnum, chain):
         self.name = name
         self.resname = resname
-        self.resnum = resnum
+        self.resnum = int(resnum)
         self.chain = chain
 
 class PDBinfo(object):

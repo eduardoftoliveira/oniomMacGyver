@@ -77,7 +77,7 @@ def _parse_oniom_line(line_splits):
     if len(link_splits) == 3:
         link_mm_info, bound_to, scale1 = link_splits
         link_el, link_mm_obj = _parse_mm_info(link_mm_info)
-        link_atom = atoms.Atom(link_el, (None, None, None)) # empty coords
+        link_atom = atoms.Atom(link_el, (0, 0, 0)) # empty coords
         if link_mm_obj:
             link_atom.set_mm(link_mm_obj)
         oniom_obj.set_link(link_atom, int(bound_to), float(scale1))
@@ -107,11 +107,10 @@ def zmat2atom(line):
 def atom2zmat(atom, print_resinfo = True):
 
     # check attributes
-    mm  = hasattr(atom, 'mm')
-    res = hasattr(atom, 'resinfo') and print_resinfo
+    res = atom.resinfo and print_resinfo
 
     # el + mm + resinfo
-    if mm and res:
+    if atom.mm and res:
         line = (
         ' {0.element}-{0.mm.atype}-{0.mm.charge:.9f}'
         '(PDBName={0.resinfo.name},'
@@ -121,16 +120,16 @@ def atom2zmat(atom, print_resinfo = True):
         line = '{0:44s}'.format(line) # fill with spaces
 
     # el
-    elif (not mm) and (not res):
+    elif (not atom.mm) and (not res):
         line = ' {0.element:15s}'.format(atom)
 
     # el + mm
-    elif mm and (not res):
+    elif atom.mm and (not res):
         line = '{0.element}-{0.mm.atype}-{0.mm.charge:.9f}'.format(atom)
         line = '{0:.15s}'.format(line) # fill with spaces (max 15 char)
 
     # el + resinfo
-    elif (not mm) and res:
+    elif (not atom.mm) and res:
         line = (
         ' {0.element}'
         '(PDBName={0.resinfo.name},'
@@ -140,7 +139,7 @@ def atom2zmat(atom, print_resinfo = True):
         line = '{0:44s}'.format(line) # fill with spaces
 
     # add:  mask + (x, y, z) + layer
-    if hasattr(atom, 'oniom'):
+    if atom.oniom:
         line += (
         '{0.oniom.mask:>4d} {0.x:>11.6f} {0.y:>11.6f} '
         '{0.z:>11.6f} {0.oniom.layer:s}'
@@ -149,7 +148,7 @@ def atom2zmat(atom, print_resinfo = True):
         # add link
         if atom.oniom.has_link:
             link_atom = atom.oniom.link_atom
-            if hasattr(link_atom, 'mm'):
+            if link_atom.mm:
                 line += (
                 ' {0.element}-{0.mm.atype}-{0.mm.charge}'
                 ' {1.oniom.link_bound_to} {1.oniom.link_scale1}'
