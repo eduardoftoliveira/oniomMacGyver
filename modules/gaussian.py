@@ -32,8 +32,8 @@ class EmptyGaussianCom():
             gaussian_com_file.write("\n")
             gaussian_com_file.write(self.multiplicity_line)
             for atom in self.atoms_list:
-                    line = iolines.atom2zmat(atom)
-                    gaussian_com_file.write(line)                
+                line = iolines.atom2zmat(atom)
+                gaussian_com_file.write(line)                
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
                     gaussian_com_file.write("\n")

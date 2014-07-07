@@ -355,11 +355,11 @@ def md_to_sp():
     gaussian_hl_no_atoms_list = []
     for no, atom in enumerate(amber_atoms_list):
         #if atom.link_mm_type or 'H' in atom.layer:
-        if 'H' in atom.layer:
+        if 'H' in atom.oniom.layer:
             amber_hl_no_atoms_list.append(no)
     for no, atom in enumerate(gaussian_atoms_list):
         #if atom.link_mm_type or 'H' in atom.layer:
-        if 'H' in atom.layer:
+        if 'H' in atom.oniom.layer:
             gaussian_hl_no_atoms_list.append(no)
     
     
