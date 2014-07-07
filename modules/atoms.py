@@ -58,14 +58,14 @@ class Atom(object):
         return np.array((self.x, self.y, self.z))
 
     def distance(self, atom_b):
-        return np.sqrt(   (self.x+atom_b.x)**2 +
-                          (self.y+atom_b.y)**2 +
-                          (self.z+atom_b.z)**2)
-
-
-        #return geom.distance(
-        #    self.get_coordinates(),
-        #    atom_b.get_coordinates())
+        return np.sqrt(
+            (self.x - atom_b.x)**2 + 
+            (self.y - atom_b.y)**2 + 
+            (self.z - atom_b.z)**2) 
+            
+        # return geom.distance(
+        #     self.get_coordinates(),
+        #     atom_b.get_coordinates())
 
     def angle(self, atom_b, atom_c):
         """self in center: b-self-c"""

@@ -74,7 +74,7 @@ def _parse_oniom_line(line_splits):
             ' '.join(link_splits)))
     elif len(link_splits) == 2:
         link_splits.append('0.0')
-    elif len(link_splits) >2:
+    if len(link_splits) >2:
         link_mm_info, bound_to, scale1 = link_splits[:3]
         link_el, link_mm_obj = _parse_mm_info(link_mm_info)
         link_atom = atoms.Atom(link_el, (0, 0, 0)) # empty coords
