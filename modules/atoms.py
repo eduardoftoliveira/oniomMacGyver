@@ -103,7 +103,7 @@ class MM(object):
 
 class Oniom(object):
     def __init__(self, mask, layer):
-        self.mask = mask
+        self.mask = int(mask)
         self.layer = layer
         self.has_link = False
         self.link_atom = None
