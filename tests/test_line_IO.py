@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import iolines
+import atoms
 import sys
 
 xyz_line = ' C                 -1.204835   -0.318662    0.000000'
@@ -363,3 +364,10 @@ check_mm(mm_line, 'read')
 atom_mm = iolines.zmat2atom(mm_line)
 new_line_mm = iolines.atom2zmat(atom_mm)
 check_mm(new_line_mm, 'write')
+
+# print pdb oniom8
+atom8 = iolines.zmat2atom(oniom_line8)
+p = atoms.PDBinfo('HETATM', 27)
+atom8.set_pdbinfo(p)
+print(iolines.atom2pdb(atom8))
+

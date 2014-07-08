@@ -28,7 +28,7 @@ def _parse_resinfo(resinfo):
             resnum = info.split("=")[1].strip()
             if '_' in resnum : # looks like "123_A"
                 resnum, chain = resnum.split("_")
-            resnum = int(resnum)
+            resnum = int(resnum) # TODO Will crash if ""
     return atoms.RESinfo(name, resname, resnum, chain)
 
 def _parse_xyz_line(line_splited):
@@ -168,3 +168,12 @@ def atom2zmat(atom, print_resinfo = True):
     return line
 
 
+def atom2pdb(atom):
+    line =(
+        '{2.keyword:<6s}{2.serial:>5d} {1.name:4s}{2.altloc}' 
+        '{1.resname:3s}{1.chain:1s}{1.resnum:4d}{2.icode:1s}'
+        '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
+        '{2.occupancy:6.2f}{2.bfact:6.2f}'
+        '          {0.element:2s}{2.formalcharge:2s}\n'
+        .format(atom, atom.resinfo, atom.pdbinfo))
+    return line

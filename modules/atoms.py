@@ -128,14 +128,11 @@ class PDBinfo(object):
     def __init__(self, keyword, serial):
         self.keyword = keyword
         self.serial = serial
-        self._set_empty_attr()
-
-    def _set_empty_attr(self):
-        self.occupancy      = None
-        self.bfact          = None
-        self.altloc         = None
-        self.icode          = None
-        self.formalcharge   = None
+        self.occupancy      = .0
+        self.bfact          = .0
+        self.altloc         = ""
+        self.icode          = ""
+        self.formalcharge   = ""
 
     ### def set_altloc(altloc):
     ###     self.altloc = altloc
