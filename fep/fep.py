@@ -427,7 +427,7 @@ def sp_to_energies():
         results = {}
         for line in result_file:
             words = line.split()
-            cut_from, this_one, _, frame = \
+            cut_from, _, this_one, frame = \
                     words[0].rstrip(".log").split("/")[1].split("_")
            
             energy = decimal.Decimal(words[5])
@@ -452,6 +452,7 @@ def sp_to_energies():
             #print(previous_energy, this_energy, next_energy)
             if this_energy and next_energy:
                 diff = (next_energy-this_energy)*HJOULE
+                #print(diff)
                 forward_energies.append(diff)
         
             if this_energy and previous_energy: 
