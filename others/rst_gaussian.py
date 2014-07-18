@@ -19,10 +19,15 @@ def main():
     gaussian_name = gaussian_log_name[:-4]
     gaussian_com_name = gaussian_name + '.com'
     new_gaussian_com_name = gaussian_name + '_rst.com'
-    
+   
+    print("Reading {}".format(gaussian_log_name))
     log_atoms_list = gaussian.GaussianLog(gaussian_log_name).final_geometry
+    
+    print("Reading {}".format(gaussian_com_name))
     gaussian_com_file = gaussian.GaussianCom(gaussian_com_name)
     gaussian_com_file.atoms_list = log_atoms_list
+    
+    print("Writing {}".format(new_gaussian_com_name))
     gaussian_com_file.write_to_file(new_gaussian_com_name)
 
 
