@@ -155,9 +155,9 @@ def atom2zmat(atom, print_resinfo = True):
 def atom2pdb(atom):
     line =(
         '{2.keyword:<6s}{2.serial:>5d} {1.name:4s}{2.altloc:1s}' 
-        '{1.resname:3s} {1.chain:1s}{1.resnum:4d}{2.icode:1s}'
+        '{1.resname:3s} {1.chain:1s}{3:4d}{2.icode:1s}'
         '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
         '{2.occupancy:6.2f}{2.bfact:6.2f}'
         '          {0.element:2s}{2.formalcharge:2s}\n'
-        .format(atom, atom.resinfo, atom.pdbinfo))
+        .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000))
     return line
