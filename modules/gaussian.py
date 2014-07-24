@@ -6,6 +6,9 @@ import collections
 import linecache
 import subprocess
 from copy import deepcopy
+from hashlib import md5
+from os.path import exists as hazfile
+from os.path import getsize 
 
 # our python modules
 import atoms
@@ -186,39 +189,147 @@ class GaussianLog():
         self.name = name
         self.file = open(self.name, 'r')
         self.route_section  = self._read_route_section()
-        self.grep_bytes, self._OptimizedParameters     = self._grep_bytes()
-        self._sanity_check  = self._sanity_check(self._OptimizedParameters)
+        self._set_grep_keywords()
+
+        gb,done,sz = self._check_bytemarks()
+        if done < sz:
+            self.grep_bytes  = self._grep_bytes(gb, done)
+        else:
+            self.grep_bytes = gb
+
+
+        self._sanity_check  = self._sanity_check(self.grep_bytes['Optimized Parameters'][0])
         self.energies       = self._read_energies()
         #self.convergency   = self._read_convergency()  # RMS Force, etc...
         self.atoms_list     = self._Zmat_to_atoms_list()
+        self._write_bytemarks(gb)
         #self.summary = self._generate_summary()
         self.final_geometry = self.read_geometry(-1, -1)
+        self.close_file()
 
-    def _Zmat_to_atoms_list(self):
-        f = open(self.name)
-        f.seek(self.grep_bytes['Z-mat'])
-        f.readline()                             # skip line 
+    def _read_zmat(self, locbyte):
+        self.file.seek(locbyte)
+        self.file.readline()                             # skip line 
         while True:                              # skip multiplicity linee{4:4s}
-            line = f.readline()
+            line = self.file.readline()
             if 'Charge' not in line:
                 break
         Zmat_text = [line]
         while True:
-            line = f.readline()
+            line = self.file.readline()
             if line.strip() != '':
                 Zmat_text.append(line.strip())
             else:
                 break
-        f.close()
+        return Zmat_text
+
+    def _Zmat_to_atoms_list(self):
+        Zmat_text = self._read_zmat(self.grep_bytes['Z-mat'][0][0])
+
+        # generate md5sum
+        self.zmat_md5sum = md5() 
+        self.zmat_md5sum.update(''.join(Zmat_text).encode())
+        self.zmat_md5sum = self.zmat_md5sum.hexdigest()
+
         atoms_list = []
         for line in Zmat_text:
             atoms_list.append(iolines.zmat2atom(line))
         return atoms_list
 
-    def _grep_bytes(self): 
-        """       
-        NOTE: Doesnt work for singlepoints yet. No 'Converged?' string in the output
-        """
+    def _check_bytemarks(self):
+
+        # empty bytemarks
+        empty_bytemarks = {}
+        empty_bytemarks['orientation:']                  = [[]]
+        empty_bytemarks['ONIOM: calculating energy.']    = [[]]
+        empty_bytemarks['SCF Done:']                     = [[]]
+        empty_bytemarks['Step number']                   = [[]]
+        empty_bytemarks['Converged?']                    = [[]]
+        empty_bytemarks['Optimized Parameters']          = [[]]
+
+        # bytemarks_filename
+        bytemarks_filename = '%s.bytemarks' % self.name
+
+        if not hazfile(bytemarks_filename):
+            return (empty_bytemarks, 0, getsize(self.name))
+
+        # check keywords
+        (bytemarks, md5r, md5z, bmsize) = self._read_bytemarks()
+        for grep_key in bytemarks:
+            for scan_point in bytemarks[grep_key]:
+                for opt_point in scan_point:
+                    self.file.seek(opt_point)
+                    if not grep_key in self.file.readline():
+                        print('Bytemarks: NO match (%s)' % grep_key)
+                        return (empty_bytemarks, 0, getsize(self.name))
+
+        # generate md5sum
+        tentative_zmat = self._read_zmat(bytemarks['Z-mat'][0][0])
+        zmd5 = md5() 
+        zmd5.update(''.join(tentative_zmat).encode())
+        zmd5 = zmd5.hexdigest()
+        if zmd5 != md5z:
+            print('Bytemarks: NO match (z-matrix md5sum)')
+            return (empty_bytemarks, 0, getsize(self.name))
+        rmd5 = md5() 
+        rmd5.update(''.join(self.route_section).encode())
+        rmd5 = rmd5.hexdigest()
+        if rmd5 != md5r:
+            print('Bytemarks: NO match (route_section md5sum)')
+            return (empty_bytemarks, 0, getsize(self.name))
+
+        # if everything is OK
+        print('Bytemarks: %5.1f%% complete' % (100.0*bmsize/getsize(self.name)))
+        return (bytemarks, bmsize, getsize(self.name))
+
+    def _read_bytemarks(self):
+        bytemarks_filename = '%s.bytemarks' % self.name
+        bytemarks = {}
+        with open(bytemarks_filename, 'r', encoding = 'UTF-8') as f:
+            md5_route_section = f.readline().split()[1].strip()
+            md5_zmat = f.readline().split()[1].strip()
+            size_of_file = int(f.readline().split()[1].strip())
+            while True:
+                
+                try:
+                    key = f.readline().split(':',1)[1].strip()
+                    n_steps = int(f.readline().split(':',2)[1])
+                    f.readline() # opt by opt
+                    bytemarks[key] = []
+                    for j in range(n_steps):
+                        line = f.readline().strip()
+                        bytemarks[key].append(
+                            [int(s) for s in line.split(',') if s.isdigit()]
+                            )
+                except:
+                    break
+                    'we are fine, reached end of file'
+        return bytemarks, md5_route_section, md5_zmat, size_of_file
+
+    def _write_bytemarks(self, bytemarks):
+        bytemarks_filename = '%s.bytemarks' % self.name
+
+        # md5sum: z-matrix + route_section
+        md5sum = md5()
+        md5sum.update(self.route_section.encode()) # TODO Z-Matrix
+        md5sum = md5sum.hexdigest()
+
+        with open(bytemarks_filename, 'w', encoding = 'UTF-8') as bm:
+            bm.write('md5_route_section: %s\n' % md5sum)
+            bm.write('md5_zmat: %s\n' % self.zmat_md5sum)
+            bm.write('size_of_file: %d\n' % getsize(self.name)) #TODO error if g09 is writing?
+
+            for grep_key in bytemarks:
+                bm.write('grep_key: %s\n' % grep_key)
+                bm.write('n_steps: %d\n' % len(bytemarks[grep_key]))
+                bm.write('opt_by_opt: %s\n' % ','.join([
+                    '%d' % len(opt) for opt in bytemarks[grep_key]]))
+                data_txt = ''
+                for opt in bytemarks[grep_key]:
+                    data_txt += ','.join(['%d' % b for b in opt]) + '\n'
+                bm.write(data_txt)
+
+    def _set_grep_keywords(self):
         self.grep_keywords = [
             'atrix:',
             'orientation:',                 # works for both g03 and g09
@@ -230,15 +341,13 @@ class GaussianLog():
             'Delta-x Convergence Met',     # For IRC
             'CORRECTOR',                   # For IRC
         ]
+
+    def _grep_bytes(self, grep_bytes, done_bytemarks = 0): 
+        """       
+        NOTE: Doesnt work for singlepoints yet. No 'Converged?' string in the output
         
-        grep_bytes = {}
-        grep_bytes['orientation:']                  = [[]]
-        grep_bytes['ONIOM: calculating energy.']    = [[]]
-        grep_bytes['SCF Done:']                     = [[]]
-        grep_bytes['Step number']                   = [[]]
-        grep_bytes['Converged?']                    = [[]]
-        _OptimizedParameters                        = [] #stores the bytes of "Optimized Parameters" to parse it to _sanity_check
-        
+        """
+                
         grep_string=""
         for keywords in self.grep_keywords:
             grep_string += '-e "'+keywords+'" '
@@ -248,7 +357,10 @@ class GaussianLog():
         grep_output = str( grep_output, encoding='utf8' ).splitlines()
         raw_grepped_bytes = []
         for i, line in enumerate(grep_output):
-            raw_grepped_bytes.append( (int(line.split(':', 1)[0]), line.split(':', 1)[1]) ) #transforms output into list of tuples
+            raw_grepped_bytes.append(
+                (int(line.split(':', 1)[0]) + done_bytemarks, # byte
+                line.split(':', 1)[1])  # line
+                )
             
         for linetuple in raw_grepped_bytes:
             if 'orientation:' in linetuple[1]:
@@ -274,7 +386,7 @@ class GaussianLog():
                     del buffer_ONIOM_calculating_energy
 
             elif 'Optimized Parameters' in linetuple[1] or "Delta-x Convergence Met"in linetuple[1]:
-                _OptimizedParameters.append(linetuple[0])
+                grep_bytes['Optimized Parameters'][0].append(linetuple[0])
                 grep_bytes['ONIOM: calculating energy.'].append([])
                 grep_bytes['SCF Done:'].append([])
                 grep_bytes['Step number'].append([])
@@ -289,10 +401,10 @@ class GaussianLog():
         # Less apearing keywords 
         for linetuple in raw_grepped_bytes:
             if 'atrix:' in linetuple[1]:
-                grep_bytes['Z-mat'] = int(linetuple[0])
+                grep_bytes['Z-mat'] = [[int(linetuple[0])]]
                 break
             
-        return grep_bytes, _OptimizedParameters
+        return grep_bytes
 
     
     
