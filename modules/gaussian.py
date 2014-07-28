@@ -403,7 +403,6 @@ class GaussianLog():
             if 'atrix:' in linetuple[1]:
                 grep_bytes['Z-mat'] = [[int(linetuple[0])]]
                 break
-            
         return grep_bytes
 
     
