@@ -183,7 +183,7 @@ def pdb2atom(line):
     atom = atoms.Atom(el, (x,y,z))
 
     # residue info
-    name        = line      [12:16]     # atom name
+    name        = line      [12:16].strip()     # atom name
     resName     = line      [17:20]     # Residue name
     resNum      = spaceint(line[22:26])    # Residue number
     chain       = line      [21:22]     # chain
