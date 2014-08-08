@@ -28,7 +28,7 @@ def _parse_resinfo(resinfo):
             resnum = info.split("=")[1].strip()
             if '_' in resnum : # looks like "123_A"
                 resnum, chain = resnum.split("_")
-            resnum = int(resnum)
+            resnum = int(resnum) # TODO Will crash if ""
     return atoms.RESinfo(name, resname, resnum, chain)
 
 def _parse_xyz_line(line_splited):
@@ -151,4 +151,56 @@ def atom2zmat(atom, print_resinfo = True):
 
     return line
 
+
+def atom2pdb(atom):
+    line =(
+        '{2.keyword:<6s}{2.serial:>5d} {1.name:4s}{2.altloc:1s}' 
+        '{1.resname:3s} {1.chain:1s}{3:4d}{2.icode:1s}'
+        '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
+        '{2.occupancy:6.2f}{2.bfact:6.2f}'
+        '          {0.element:2s}{2.formalcharge:2s}\n'
+        .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000))
+    return line
+
+def spaceint(a_string):
+    if a_string.strip() == '':
+        return 0
+    else:
+        return int(a_string)
+
+def spacefloat(a_string):
+    if a_string.strip() == '':
+        return 0.0
+    else:
+        return float(a_string)
+
+def pdb2atom(line):
+    # start atom
+    el = line      [76:78].strip()
+    x  = float(line[30:38])
+    y  = float(line[38:46])
+    z  = float(line[46:54])
+    atom = atoms.Atom(el, (x,y,z))
+
+    # residue info
+    name        = line      [12:16].strip()     # atom name
+    resName     = line      [17:20]     # Residue name
+    resNum      = spaceint(line[22:26])    # Residue number
+    chain       = line      [21:22]     # chain
+    resinfo = atoms.RESinfo(name, resName, resNum, chain)
+
+    # pdb info
+    keyword   = line[ 0: 6]     
+    serial    = spaceint(line[ 6:11]) 
+    pdbinfo = atoms.PDBinfo(keyword, serial, 
+        occupancy   = spacefloat(line[54:60]),
+        bfact       = spacefloat(line[60:66]),
+        altloc      = line[16:17],
+        icode       = line[26:27],
+        formalcharge = line[78:80])
+
+    # return
+    atom.set_resinfo(resinfo)
+    atom.set_pdbinfo(pdbinfo)
+    return atom
 
