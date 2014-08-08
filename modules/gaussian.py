@@ -20,8 +20,8 @@ class EmptyGaussianCom():
         self.title_line = "title line required\n"
         self.multiplicity_line = ""
         self.atoms_list = []
-        self.additional_input_dict = {"connect":None, "readopt":None, "modred":None, "gen":None,
-                                      "pseudo=read":None}
+        self.additional_input_dict = {"connect":None, "readopt":None, "modred":[], "gen":None,
+                                      "pseudo=read":None} #TODO put all empty lists?
     def write_to_file(self,name):
         with open(name, 'w', encoding='UTF-8') as gaussian_com_file:
             for line in self.link_0_commands:
@@ -119,7 +119,7 @@ class GaussianCom(EmptyGaussianCom):
     def _read_additional_input2(self):
         """Reads additional input and stores it in a ordered dict"""
         additional_input_dict = collections.OrderedDict(\
-        [("connect",None),("readopt",None),("modred",None),("gen",None),("pseudo=read",None),("first",None)])
+        [("connect",None),("readopt",None),("modred", []),("gen",None),("pseudo=read",None),("first",None)]) #TODO put all empty lists? usefull for extend
         shift=0
         b_lines = self.blank_lines
         for key in additional_input_dict:

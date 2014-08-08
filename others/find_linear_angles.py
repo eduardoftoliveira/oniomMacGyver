@@ -26,8 +26,9 @@ def main():
     gaussian_com_name = gaussian_name + '.com'
     new_gaussian_com_name = gaussian_name + '_rst.com'
     
-    log_atoms_list = gaussian.GaussianLog(gaussian_log_name).final_geometry
-    
+    #log_atoms_list = gaussian.GaussianLog(gaussian_log_name).final_geometry
+    log_atoms_list = gaussian.GaussianCom(gaussian_com_name).atoms_list
+
     ## find linear angles
     linear_angles_list = molecules.find_linear_angles(log_atoms_list, 
           max_angle = MAX_ANGLE, max_distance = MAX_DISTANCE,
