@@ -58,7 +58,7 @@ class GaussianCom(EmptyGaussianCom):
             self.connectivity_list = self.additional_input_dict["connect"]
             self.bonds_list = self._read_bonds_list()                          #Nao sei para que serve o bonds list, eh diferente de connectivity
             self.modredundant_list = self.additional_input_dict["modred"]
-            self.gen_list = self.additional_input_dict["gen"]
+            self.gen_list = self.additional_input_dict[" gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
             self.MM_external_params = self.additional_input_dict["first"]
 
@@ -119,16 +119,15 @@ class GaussianCom(EmptyGaussianCom):
     def _read_additional_input2(self):
         """Reads additional input and stores it in a ordered dict"""
         additional_input_dict = collections.OrderedDict(\
-        [("connect",None),("readopt",None),("modred", []),("gen",None),("pseudo=read",None),("first",None)]) #TODO put all empty lists? usefull for extend
+        [("connect",None),("readopt",None),("modred", []),(" gen",None),("pseudo=read",None),("first",None)]) #TODO put all empty lists? usefull for extend
         shift=0
         b_lines = self.blank_lines
         for key in additional_input_dict:
             if key in self.route_section.lower().replace("only","first"):
                 if key == "first" and "soft" in self.route_section.lower():
                     shift += 1
-                    i_start, i_finish = b_lines[2+shift]+1,b_lines[-1]
-                else:
-                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                print(key, i_start, i_finish)
                 additional_input_dict[key]= self.lines[i_start: i_finish]
                 shift += 1
         return additional_input_dict
