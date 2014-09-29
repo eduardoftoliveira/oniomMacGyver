@@ -10,6 +10,7 @@ from copy import deepcopy
 from hashlib import md5
 from os.path import exists as hazfile
 from os.path import getsize
+from sys import stderr
 
 
 # our python modules
@@ -201,7 +202,6 @@ class GaussianLog():
 
         # make a function for this
         (donebytes, bytelist) = self._check_bytelist()
-        print('In __init__, donebytes = %d' % donebytes)
         bytelist = self._grep_bytelist(bytelist, donebytes)
         self.bytedict = self.bytelist2dict(bytelist)
         self.grep_bytes = self.bytedict # stupid thing to do
@@ -267,6 +267,7 @@ class GaussianLog():
         # haz file?
         bytelist_filename = '%s.bytelist' % self.name
         if not hazfile(bytelist_filename): 
+            stderr.write('Bytelist: no file\n')
             return (0, [])
 
         # load bytelist
@@ -280,21 +281,21 @@ class GaussianLog():
                 break
         self.file.seek(zmat_byte)
         if 'atrix:' not in self.file.readline(): # no match 
-            print('Bytelist: NO match (z-matrix byte seek)')
+            stderr.write('Bytelist: NO match (z-matrix byte seek)\n')
             return (0, []) 
         else:
             tentative_zmat = self._read_zmat(zmat_byte)
             if self.zmat_md5sum != signature[1]:
-                print('Bytelist: NO match (z-matrix md5sum)')
+                stderr.write('Bytelist: NO match (z-matrix md5sum)\n')
                 return (0, [])
 
         # check route_section md5sum
         if self.routesection_md5sum != signature[0]:
-            print('Bytelist: NO match (route_section md5sum)')
+            stderr.write('Bytelist: NO match (route_section md5sum)\n')
             return (0, [])
 
         if signature[3] > getsize(self.name):
-            print('Bytelist: NO match (log is smaller then expected)')
+            stderr.write('Bytelist: NO match (log is smaller then expected)\n')
             return (0, [])
 
         # bytelist total match if md5sum for lastxyz and sizeof match signature 
@@ -309,18 +310,18 @@ class GaussianLog():
 
         # Full Match?
         if gen_md5sum(txt) == signature[2] and getsize(self.name) == signature[3]:
-            print('Bytelist: full signature match')
+            stderr.write('Bytelist: full signature match\n')
             return (signature[3], bytelist)
         
         # Partial match
         for (byte, key) in bytelist:
             self.file.seek(byte)
             if not key in self.file.readline():
-                print('Bytelist: NO match (%s)' % grep_key)
+                stderr.write('Bytelist: NO match (%s)\n' % grep_key)
                 return (0, [])
 
         # if everything is OK
-        print('Bytelist: %5.1f%% complete' % (100.0*signature[3]/getsize(self.name)))
+        stderr.write('Bytelist: %5.1f%% complete\n' % (100.0*signature[3]/getsize(self.name)))
         return (signature[3], bytelist)
 
 
