@@ -48,7 +48,7 @@ class EmptyGaussianCom():
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
                     gaussian_com_file.write("\n")
-                    if section == 'first' and 'softfirst' in\
+                    if section == 'first' and 'soft' in\
                        self.route_section:
                         gaussian_com_file.write("\n")
                     for line in self.additional_input_dict[section]:
@@ -134,8 +134,8 @@ class GaussianCom(EmptyGaussianCom):
         shift=0
         b_lines = self.blank_lines
         for key in additional_input_dict:
-            if key in self.route_section.lower():
-                if key == "softfirst" and "softfirst" in self.route_section.lower():
+            if key in self.route_section.lower().replace("only","first"):
+                if key == "first" and "soft" in self.route_section.lower():
                     shift += 1
                     i_start, i_finish = b_lines[2+shift]+1,b_lines[-1]
                 else:
@@ -362,9 +362,12 @@ class GaussianLog():
 
         # process grep
         grep_output = grep_output.communicate()[0]
-        grep_output = str( grep_output, encoding='utf8' ).splitlines()
+        #grep_output = str( grep_output, encoding='utf8' ).splitlines()
+        grep_output = grep_output.decode("utf8").splitlines() 
         raw_grepped_bytes = []
-        for i, line in enumerate(grep_output):
+        for _,line in enumerate(grep_output):
+                print(len(line))
+                print( line.split(':',1)[0])
                 byte = int(line.split(':', 1)[0]) + done_bytelist_offset
                 line = line.split(':', 1)[1] 
                 for key in self.grep_keywords:
@@ -408,7 +411,7 @@ class GaussianLog():
                 bytedict['ard orientation:'].append([])
 
         # Last list may be a ghost
-        if bytedict['ard orientation:'][-1] == []:
+        if bytedict['ard orientation:'][-1] == []: # lost if buffered?
             for data in bytedict:
                 bytedict[data].pop(-1)
 
