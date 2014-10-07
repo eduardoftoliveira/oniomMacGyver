@@ -125,14 +125,16 @@ class RESinfo(object):
         self.chain = chain
 
 class PDBinfo(object):
-    def __init__(self, keyword, serial):
+    def __init__(self, keyword, serial, 
+        occupancy = .0, bfact = .0, altloc = "", icode = "",
+        formalcharge = ""):
         self.keyword = keyword
         self.serial = serial
-        self.occupancy      = .0
-        self.bfact          = .0
-        self.altloc         = ""
-        self.icode          = ""
-        self.formalcharge   = ""
+        self.occupancy      = occupancy
+        self.bfact          = bfact
+        self.altloc         = altloc
+        self.icode          = icode
+        self.formalcharge   = formalcharge
 
     ### def set_altloc(altloc):
     ###     self.altloc = altloc

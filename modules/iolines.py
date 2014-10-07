@@ -169,4 +169,47 @@ def atom2pdb(atom):
         '{2.occupancy:6.2f}{2.bfact:6.2f}'
         '          {0.element:2s}{2.formalcharge:2s}\n'
         .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000))
-        return line
+    return line
+
+def spaceint(a_string):
+    if a_string.strip() == '':
+        return 0
+    else:
+        return int(a_string)
+
+def spacefloat(a_string):
+    if a_string.strip() == '':
+        return 0.0
+    else:
+        return float(a_string)
+
+def pdb2atom(line):
+    # start atom
+    el = line      [76:78].strip()
+    x  = float(line[30:38])
+    y  = float(line[38:46])
+    z  = float(line[46:54])
+    atom = atoms.Atom(el, (x,y,z))
+
+    # residue info
+    name        = line      [12:16].strip()     # atom name
+    resName     = line      [17:20].strip()     # Residue name
+    resNum      = spaceint(line[22:26])    # Residue number
+    chain       = line      [21:22].strip()     # chain
+    resinfo = atoms.RESinfo(name, resName, resNum, chain)
+
+    # pdb info
+    keyword   = line[ 0: 6]     
+    serial    = spaceint(line[ 6:11]) 
+    pdbinfo = atoms.PDBinfo(keyword, serial, 
+        occupancy   = spacefloat(line[54:60]),
+        bfact       = spacefloat(line[60:66]),
+        altloc      = line[16:17],
+        icode       = line[26:27],
+        formalcharge = line[78:80])
+
+    # return
+    atom.set_resinfo(resinfo)
+    atom.set_pdbinfo(pdbinfo)
+    return atom
+
