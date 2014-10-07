@@ -336,7 +336,7 @@ class GaussianLog():
         bytelist_filename = '%s.bytelist' % self.name
         bytelist.append(signature)
         with open(bytelist_filename, 'wb') as bl:
-            pickle.dump(bytelist, bl)
+            pickle.dump(bytelist, bl, protocol=2) # protocol=3 : python >= 3.0
 
     def _grep_bytelist(self, bytelist, done_bytelist_offset): 
         """       
@@ -366,8 +366,6 @@ class GaussianLog():
         grep_output = grep_output.decode("utf8").splitlines() 
         raw_grepped_bytes = []
         for _,line in enumerate(grep_output):
-                print(len(line))
-                print( line.split(':',1)[0])
                 byte = int(line.split(':', 1)[0]) + done_bytelist_offset
                 line = line.split(':', 1)[1] 
                 for key in self.grep_keywords:
@@ -567,6 +565,11 @@ class GaussianLog():
 
         coords = []
         with open(self.name, 'r') as f:
+            f.seek(byte-1)
+            if f.read(1) != '\n':
+                byte = byte - 1
+                stderr.write('WARTING: grep -b 1 byte ahead\n')
+
             for i in idx:
                 f.seek(offset + i*71)
                 x = float(f.read(12))
@@ -574,6 +577,55 @@ class GaussianLog():
                 z = float(f.read(12))
                 coords.append((x,y,z))
         return coords
+
+    def read_converged(self, byte):
+
+        OFF = 60
+        LINE_OFF = 56 
+        LABEL_START = 1
+        VALUE_START = 26 
+        THRESH_START = 39 
+        NCHARS_LABEL = 20
+        NCHARS_FLOAT = 8
+        stop_label = 'Predicted change in '
+        short_labels = {
+            'Maximum Force       ': 'Max F',
+            'RMS     Force       ': 'rms F',
+            'Maximum Displacement': 'Max D',
+            'RMS     Displacement': 'rms D',
+            'Maximum MM Force    ': 'MaxMM',
+            'RMS     MM Force    ': 'rmsMM'
+        }
+
+        labels = []
+        values = []
+        thresholds = []
+
+        # correct byte
+        f = open(self.name)
+        f.seek(byte-1)
+        if f.read(1) != '\n':
+            byte = byte - 1
+            stderr.write('WARTING: grep -b 1 byte ahead\n')
+
+        for i in range(7):
+            off = byte + OFF + i*LINE_OFF
+            f.seek(off + LABEL_START)
+            label = f.read(NCHARS_LABEL)
+            if label == stop_label:
+                f.close()
+                return (labels, values, thresholds)
+            labels.append(label)
+            f.seek(off + VALUE_START)
+            values.append(float(f.read(NCHARS_FLOAT)))
+            f.seek(off + THRESH_START)
+            thresholds.append(float(f.read(NCHARS_FLOAT)))
+
+        # if here, stop_label not found
+        f.close()
+        error_msg = 'Expected %s after Converged section' % stop_label
+        print(labels, values, thresholds)
+        raise RuntimeError(error_msg)
 
     def read_geometry(self, opt_step, scan_step):
 
