@@ -221,7 +221,7 @@ class GaussianLog():
     def _set_grep_keywords(self):
         grep_keywords = [
             'atrix:',
-            'ard orientation:',                 # works for both g03 and g09
+            'orientation:',                 # works for both g03 and g09
             'ONIOM: calculating energy.',   # ONIOM energy
             'SCF Done:',
             'Converged?',
@@ -302,7 +302,7 @@ class GaussianLog():
         """get coords"""
         atomidx = [i for i in range(len(tentative_zmat))] # num atoms
         for (byte, key) in bytelist[::-1]:
-            if key == 'ard orientation:':
+            if key == 'orientation:':
                 last_xyz_byte = byte
                 break
         last_xyz =  self.read_coordinates(atomidx, last_xyz_byte)
@@ -381,7 +381,7 @@ class GaussianLog():
             bytedict[key] = [[]] 
         buffer_ONIOM_calculating_energy = False
         for (byte, key) in bytelist:
-            if key == 'ard orientation:':
+            if key == 'orientation:':
                 buffer_orientation = byte
             elif key == 'SCF Done:':
                 buffer_SCF_Done = byte
@@ -392,7 +392,7 @@ class GaussianLog():
             elif key == 'Converged?' or key == "CORRECTOR":
                 bytedict['Converged?'][-1].append(byte)
                 bytedict['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
-                bytedict['ard orientation:'][-1].append(buffer_orientation)   # buffered
+                bytedict['orientation:'][-1].append(buffer_orientation)   # buffered
                 bytedict['Step number'][-1].append(buffer_Step_number)    # buffered
                 # now, append if oniom only
                 if buffer_ONIOM_calculating_energy: 
@@ -405,10 +405,10 @@ class GaussianLog():
                 bytedict['SCF Done:'].append([])
                 bytedict['Step number'].append([])
                 bytedict['Converged?'].append([])
-                bytedict['ard orientation:'].append([])
+                bytedict['orientation:'].append([])
 
         # Last list may be a ghost
-        if bytedict['ard orientation:'][-1] == []:
+        if bytedict['orientation:'][-1] == []:
             for data in bytedict:
                 bytedict[data].pop(-1)
 
@@ -419,14 +419,14 @@ class GaussianLog():
                 break
 
         # Exchange "ard orientation:" for "orientation:" backwards compatible
-        bytedict['orientation:'] = bytedict['ard orientation:'] 
+        #bytedict['orientation:'] = bytedict['orientation:'] 
 
         return bytedict
 
         # add signature: route_section + zmat + last_xyz + filesize
     def _gen_signature(self):
         atomidx = [i for i in range(len(self.atoms_list))]
-        last_xyz_byte = self.bytedict['ard orientation:'][-1][-1]
+        last_xyz_byte = self.bytedict['orientation:'][-1][-1]
         lastxyz = self.read_coordinates(atomidx, last_xyz_byte)
         lastxyz = ''.join(['%12.6f%12.6f%12.6f\n' % xyz for xyz in lastxyz])
         return (
@@ -575,7 +575,7 @@ class GaussianLog():
     def read_geometry(self, opt_step, scan_step):
 
         with open(self.name, 'r') as f:
-            f.seek(self.bytedict['ard orientation:'][scan_step][opt_step])
+            f.seek(self.bytedict['orientation:'][scan_step][opt_step])
             atoms_list = []
             for _ in range(5):
                 f.readline()
