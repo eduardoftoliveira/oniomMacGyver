@@ -16,3 +16,15 @@ def transpose_list_of_lists(mat):
             newrow.append(mat[i][j])
         outmat.append(newrow)
     return outmat
+
+def starfloat(text):
+    try:
+        out = float(text)
+        return out
+    except:
+        if text.strip().startswith('*'):
+            return float('+inf')
+        else:
+            raise RuntimeError('needed float or *, got %s' % text)
+
+

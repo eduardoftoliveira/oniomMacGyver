@@ -17,6 +17,7 @@ from sys import stderr
 import atoms
 import molecules
 import iolines
+import misc
 
 def gen_md5sum(input_text_string):
     md5sum = md5() 
@@ -668,9 +669,9 @@ class GaussianLog():
                 return (labels, values, thresholds)
             labels.append(short_labels[label])
             f.seek(off + VALUE_START)
-            values.append(float(f.read(NCHARS_FLOAT)))
+            values.append(misc.starfloat(f.read(NCHARS_FLOAT)))
             f.seek(off + THRESH_START)
-            thresholds.append(float(f.read(NCHARS_FLOAT)))
+            thresholds.append(misc.starfloat(f.read(NCHARS_FLOAT)))
 
         # if here, stop_label not found
         f.close()
