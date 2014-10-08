@@ -498,7 +498,7 @@ class GaussianLog():
         for line in self.file:
             k += 1
             if read:
-                if line == '\n':
+                if len(line.strip()) == 0:
                     return modreds
                 else:
                     modreds.append(ModRed(line))

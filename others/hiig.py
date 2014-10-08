@@ -213,6 +213,12 @@ def main():
                         gl.atoms_list[atomid-1].resinfo.resnum,
                         gl.atoms_list[atomid-1].resinfo.resname,
                         gl.atoms_list[atomid-1].resinfo.name)
+                scan_info[1] += '%s %s %s %d %f\n' % (
+                    modred.coordtype,
+                    ' '.join([str(at) for at in modred.atomids]),
+                    modred.action,
+                    modred.scan_num_pts,
+                    modred.scan_step_sz)
                 
     print ('Opt #: %3d out of %3d\n' % (
         now_scan_point, total_scan_num_pts))
