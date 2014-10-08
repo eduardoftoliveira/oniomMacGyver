@@ -23,6 +23,34 @@ def gen_md5sum(input_text_string):
     md5sum.update(input_text_string.encode()) # encode is coz of python3 stuff
     return md5sum.hexdigest()
 
+class ModRed():
+
+    def __init__(self, line = None):
+        self.coordtype = None # B, A or D
+        self.atomids = [] # list of ints
+        self.action = None # (F)reeze, (S)can, (K)ill, (B)uild, (A)ctivate
+        # for (S)can only
+        self.scan_num_pts = None 
+        self.scan_step_sz = None 
+        if line:
+            self.add_line(line)
+
+    def add_line(self, line):
+        coord_numat = {'B':2, 'A':3, 'D':4} # num atomids for bond, angle...
+        #action_numpar = {'S':2, 'F':0, 'B':0, 'A':0, 'K':0, 'D':0, 'H':1}
+        fields = line.split()
+        self.coordtype = fields[0]
+        k = 1
+        for i in range(coord_numat[self.coordtype]):
+            self.atomids.append(int(fields[k]))
+            k += 1
+        self.action = fields[k]
+        k += 1
+        if self.action == 'S': # implement H somtime
+            self.scan_num_pts = int(fields[k]) #num_steps
+            k += 1
+            self.scan_step_sz = float(fields[k]) #size_step 
+
 class EmptyGaussianCom():
     def __init__(self, name):
         self.name = name
@@ -196,6 +224,7 @@ class GaussianLog():
         self.name = name
         self.file = open(self.name, 'r')
         self.route_section  = self._read_route_section()
+        self.modreds = self._read_modred()
 
         self.grep_keywords = self._set_grep_keywords()
 
@@ -458,6 +487,29 @@ class GaussianLog():
 
         return route_section
 
+    def _read_modred(self):
+        if 'modred' not in self.route_section.lower():
+            return None
+        MAXLINES = 200*1000
+        self.file.seek(0)
+        read = False
+        modreds = []
+        k = 0
+        for line in self.file:
+            k += 1
+            if read:
+                if line == '\n':
+                    return modreds
+                else:
+                    modreds.append(ModRed(line))
+            if line.startswith(' The following ModRedundant'):
+                read = True
+            if k > MAXLINES: # to prevent long waits
+                stderr.write('WARNING: missed ModRed in _read_modred()')
+                return 'Failed'
+        # EOF...
+        stderr.write('WARNING: missed ModRed in _read_modred()')
+        return 'Failed'
 
     def _read_energies(self):
         oniom_loc_bytes = self.bytedict['ONIOM: calculating energy.']
