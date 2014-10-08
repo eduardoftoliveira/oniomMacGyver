@@ -24,7 +24,10 @@ TODO:
 """
 import math as _math
 import numpy as np
+from sys import version_info
 
+if version_info < (3,0):
+    range = xrange
 
 __version__ = 0.9
 __author__ = 'M. Fouesneau'
@@ -583,7 +586,13 @@ class AFigure(object):
         xy.sort(key=lambda c: c[0])
         prev_p = xy[0]
         e_xy = enumerate(xy)
-        e_xy.__next__()
+
+        # invoke version specific commands
+        if version_info > (3,0):
+            e_xy.__next__()
+        else:
+            e_xy.next()
+
         for i, (xi, yi) in e_xy:
             line = self._plot_line(prev_p, (xi, yi), data)
             prev_p = (xi, yi)

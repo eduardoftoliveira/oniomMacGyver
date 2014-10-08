@@ -59,4 +59,3 @@ rad = rotate by "rad" radians
     p2=(w*(ux+vy+wz)+(z*(u*u+v*v)-w*(ux+vy))*ca+(-vx+uy)*sa)
     #b = [pt, m, ax]
     return (p0, p1, p2)
-

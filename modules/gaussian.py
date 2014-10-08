@@ -614,7 +614,7 @@ class GaussianLog():
             if label == stop_label:
                 f.close()
                 return (labels, values, thresholds)
-            labels.append(label)
+            labels.append(short_labels[label])
             f.seek(off + VALUE_START)
             values.append(float(f.read(NCHARS_FLOAT)))
             f.seek(off + THRESH_START)
