@@ -489,7 +489,7 @@ class GaussianLog():
         return route_section
 
     def _read_modred(self):
-        if 'modred' not in self.route_section.lower():
+        if 'modr' not in self.route_section.lower():
             return None
         MAXLINES = 200*1000
         self.file.seek(0)
