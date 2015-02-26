@@ -104,7 +104,7 @@ class GaussianCom(EmptyGaussianCom):
 
     def _read_lines(self):
         """Reads lines to a list and strips the \\n"""
-        with open(self.name, 'r', encoding='UTF-8') as file:
+        with open(self.name, 'r' ) as file:
             lines = file.readlines()
             #lines = [line.strip() for line in lines]
         return lines
