@@ -22,9 +22,9 @@ def angle(A,B,C):
 def dihedral(A,B,C,D):
     """Calculate dihedral considering A in the beggining"""
     A, B, C, D = [np.array(x) for x in (A,B,C,D)]
-    b1 = coord2 - coord1
-    b2 = coord3 - coord2
-    b3 = coord4 - coord3
+    b1 = B - A
+    b2 = C - B
+    b3 = D - C
     temp = np.linalg.norm(b2) * b1
     y = np.dot(temp, np.cross(b2, b3))
     x = np.dot(np.cross(b1, b2), np.cross(b2, b3))

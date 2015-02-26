@@ -3,8 +3,8 @@
 # python modules
 import re
 import collections
-import linecache
 import subprocess
+import linecache
 import pickle
 from copy import deepcopy
 from hashlib import md5
@@ -17,6 +17,7 @@ from sys import stderr
 import atoms
 import molecules
 import iolines
+import misc
 
 def gen_md5sum(input_text_string):
     md5sum = md5() 
@@ -166,7 +167,7 @@ class GaussianCom(EmptyGaussianCom):
                 if key == "first" and "soft" in self.route_section.lower():
                     shift += 1
                 i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
-                print(key, i_start, i_finish)
+                #print(key, i_start, i_finish)
                 additional_input_dict[key]= self.lines[i_start: i_finish]
                 shift += 1
         return additional_input_dict
@@ -383,7 +384,7 @@ class GaussianLog():
         if done_bytelist_offset:
             grep_output = subprocess.Popen(
                 'tail -c +%d %s| grep -b %s' % (
-                    done_bytelist_offset, self.name, grep_string),
+                    done_bytelist_offset + 1, self.name, grep_string),
                 shell=True, stdout=subprocess.PIPE)
         else:
             grep_output = subprocess.Popen('grep -b ' +  grep_string + self.name , shell=True , stdout=subprocess.PIPE)
@@ -488,7 +489,7 @@ class GaussianLog():
         return route_section
 
     def _read_modred(self):
-        if 'modred' not in self.route_section.lower():
+        if 'modr' not in self.route_section.lower():
             return None
         MAXLINES = 200*1000
         self.file.seek(0)
@@ -498,7 +499,7 @@ class GaussianLog():
         for line in self.file:
             k += 1
             if read:
-                if len(line.strip()) == 0:
+                if len(line.strip()) == 0 or line.startswith(' I='):
                     return modreds
                 else:
                     modreds.append(ModRed(line))
@@ -532,16 +533,16 @@ class GaussianLog():
             for location_byte in complete_opt:
                 f.seek(location_byte)
                 f.readline() # discard this line
-                model_low  = float(f.readline().split('low   system:  model energy:')[1])
+                model_low  = misc.starfloat(f.readline().split('low   system:  model energy:')[1])
                 ONIOM_model_low[-1].append(model_low)
 
-                model_high = float(f.readline().split('high  system:  model energy:')[1])
+                model_high = misc.starfloat(f.readline().split('high  system:  model energy:')[1])
                 ONIOM_model_high[-1].append(model_high)
 
-                real_low   = float(f.readline().split('low   system:  real  energy:')[1])
+                real_low   = misc.starfloat(f.readline().split('low   system:  real  energy:')[1])
                 ONIOM_real_low[-1].append(real_low)
 
-                extrapol   = float(f.readline().split('extrapolated energy =')[1])
+                extrapol   = misc.starfloat(f.readline().split('extrapolated energy =')[1])
                 ONIOM_extrapol[-1].append(extrapol)
                 
                 ONIOM_lowlayer_low[-1].append(real_low-model_low)
@@ -619,7 +620,7 @@ class GaussianLog():
             f.seek(byte-1)
             if f.read(1) != '\n':
                 byte = byte - 1
-                stderr.write('WARTING: grep -b 1 byte ahead\n')
+                stderr.write('WARNING: grep -b 1 byte ahead\n')
 
             for i in idx:
                 f.seek(offset + i*71)
@@ -668,9 +669,9 @@ class GaussianLog():
                 return (labels, values, thresholds)
             labels.append(short_labels[label])
             f.seek(off + VALUE_START)
-            values.append(float(f.read(NCHARS_FLOAT)))
+            values.append(misc.starfloat(f.read(NCHARS_FLOAT)))
             f.seek(off + THRESH_START)
-            thresholds.append(float(f.read(NCHARS_FLOAT)))
+            thresholds.append(misc.starfloat(f.read(NCHARS_FLOAT)))
 
         # if here, stop_label not found
         f.close()

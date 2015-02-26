@@ -1,3 +1,4 @@
+from math import sqrt
 
 def transpose_list_of_lists(mat):
     """
@@ -16,3 +17,20 @@ def transpose_list_of_lists(mat):
             newrow.append(mat[i][j])
         outmat.append(newrow)
     return outmat
+
+def starfloat(text):
+    try:
+        out = float(text)
+        return out
+    except:
+        if text.strip().startswith('*'):
+            return float('+inf')
+        else:
+            raise RuntimeError('needed float or *, got %s' % text)
+
+def avg(vec):
+    return float(sum(vec))/len(vec)
+
+def std(vec):
+    a = avg(vec)
+    return sqrt(sum([(x-a)**2 for x in vec])/len(vec))
