@@ -93,7 +93,7 @@ def zmat2atom(line):
     elif len(line_splits)==4:
         atom = _parse_xyz_line(line_splits)
     # unknown
-    elif len(line_list) not in [4,6]:  
+    elif len(line_splits) not in [4,6]:  
         raise RuntimeError('Expected 4 or 6 fields in zmat line')
     # add resinfo if present
     if resinfo:
