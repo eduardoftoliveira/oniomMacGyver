@@ -61,7 +61,7 @@ class EmptyGaussianCom():
         self.multiplicity_line = ""
         self.atoms_list = []
         self.additional_input_dict = {"connect":None, "readopt":None, "modred":[], "gen":None,
-                                      "pseudo=read":None} #TODO put all empty lists?
+                "pseudo=read":None, "dftb=read":None } #TODO put all empty lists?
     def write_to_file(self,name):
         with open(name, 'w') as gaussian_com_file:
             for line in self.link_0_commands:
@@ -101,6 +101,7 @@ class GaussianCom(EmptyGaussianCom):
             self.modredundant_list = self.additional_input_dict["modred"]
             self.gen_list = self.additional_input_dict[" gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
+            #self.dftb=read = self.additional_input_dict["dftb=read"]      #adicionar isto
             self.MM_external_params = self.additional_input_dict["first"]
 
     def _read_lines(self):
@@ -170,6 +171,7 @@ class GaussianCom(EmptyGaussianCom):
                 if key == "modred" and "modred" in self.route_section.lower():
                     i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
                     additional_input_dict[key]= self.lines[i_start: i_finish]
+                    #NOTA: ao ler isto, adicionar tb ah lista modredundant_list
                 if key == "first" and "soft" in self.route_section.lower():
                     shift += 1
                     i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
