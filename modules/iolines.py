@@ -112,7 +112,7 @@ def atom2zmat(atom, print_resinfo = True):
         line = '{0.element}-{0.mm.atype}-{0.mm.charge:.9f}'.format(atom)
         line = '{0:.15s}'.format(line) # fill with spaces (max 15 char)
     else:
-        line = ' {0.element:15s}'.format(atom)
+        line = ' {0.element:1s}'.format(atom) #NOTA:provavelment vai ser preciso adicionar 14s apos a resinfo 
 
     if res:
         line = ('{0}(PDBName={1.resinfo.name},'

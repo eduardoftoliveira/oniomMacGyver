@@ -13,7 +13,7 @@ oniom_line5 = ' C-C3--.1    0   -1.6365  0.0005  0.9031 L H-HC    123'
 oniom_line6 = ' C-C3--.1    0   -1.6365  0.0005  0.9031 L H-HC    123 0.9'
 oniom_line7 = ' C-C3--.1    0   -1.6365  0.0005  0.9031 L H-HC-.4 123 0.9'
 oniom_line8 = ' C-C2-0.0569770(PDBName=C7,ResName=FPP,ResNum=336_)          -1     -2.489649      1.976316     -0.712795  L H-HX 5455'
-xyzpdb_line = ' H(PDBName=CA,ResName=HIS,ResNum=235_A)          0    0.110000    0.896000    7.313000 L'
+xyzpdb_line = ' C(PDBName=C7,ResName=FPP,ResNum=336_A)          0   -1.636500    0.000500    0.903100 L'
 mm_line = ' O-O2  -1.23 2.34 -3.45'
 
 # oniom values
@@ -53,6 +53,25 @@ def zmat2atom_xyz_read(line):
         return (True, atom)
     else:
         return (False, None)
+
+#xyzpdb_line
+def check_xyzpdb(line, rw):
+    failed = []
+    x=iolines.zmat2atom(line)
+    if not (x.element == element):
+        failed.append('element')
+    if not (x.oniom.mask == 0):
+        failed.append('mask')
+    if not (x.get_coordinates() == expected_xyz).all():
+        failed.append('coordinates')
+        print (x.get_coordinates())
+    if not (x.oniom.layer == 'L'):
+        failed.append('layer')
+    if len(failed):
+        sys.stderr.write('FAIL: xyzpdb_line (%s: %s)\n' % (rw, ','.join(failed)))
+    else:
+        print('OK: xyzpdb_line (%s)' % rw)
+    
 
 # read xyz
 (ok, xyz_1) = zmat2atom_xyz_read(xyz_line)
@@ -294,9 +313,6 @@ def check_oniom8(line, rw):
     else:
         print('OK: oniom_line8 (%s)' % rw)
 
-#read xyzpdb_line
-
-
 
 # mm_line
 def check_mm(line, rw):
@@ -351,21 +367,32 @@ check_oniom6(oniom_line6, 'read')
 atom6 = iolines.zmat2atom(oniom_line6)
 new_line6 = iolines.atom2zmat(atom6)
 check_oniom6(new_line6, 'write')
+print 'Read:oniom_line6-', oniom_line6 
+print 'Writ:oniom_line6-', new_line6
 
 # 7
 check_oniom7(oniom_line7, 'read')
 atom7 = iolines.zmat2atom(oniom_line7)
 new_line7 = iolines.atom2zmat(atom7)
 check_oniom7(new_line7, 'write')
+print 'Read:oniom_line7-', oniom_line7 
+print 'Writ:oniom_line7-', new_line7
 
 # 8
 check_oniom8(oniom_line8, 'read')
 atom8 = iolines.zmat2atom(oniom_line8)
 new_line8 = iolines.atom2zmat(atom8)
 check_oniom8(new_line8, 'write')
+print 'Read:oniom_line8-', oniom_line8 
+print 'Writ:oniom_line8-', new_line8
 
 #xyzpdb_line
-
+check_xyzpdb(xyzpdb_line, 'read')
+atom_xyzpdb = iolines.zmat2atom(xyzpdb_line)
+new_linexyzpdb = iolines.atom2zmat(atom_xyzpdb)
+check_xyzpdb(xyzpdb_line, 'write')
+print 'Read:xyzpdb_line-', xyzpdb_line
+print 'Writ:xyzpdb_line-', new_linexyzpdb 
 
 # mm
 check_mm(mm_line, 'read')
