@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2.7
 
 import iolines
 import atoms
@@ -13,6 +13,7 @@ oniom_line5 = ' C-C3--.1    0   -1.6365  0.0005  0.9031 L H-HC    123'
 oniom_line6 = ' C-C3--.1    0   -1.6365  0.0005  0.9031 L H-HC    123 0.9'
 oniom_line7 = ' C-C3--.1    0   -1.6365  0.0005  0.9031 L H-HC-.4 123 0.9'
 oniom_line8 = ' C-C2-0.0569770(PDBName=C7,ResName=FPP,ResNum=336_)          -1     -2.489649      1.976316     -0.712795  L H-HX 5455'
+xyzpdb_line = ' H(PDBName=CA,ResName=HIS,ResNum=235_A)          0    0.110000    0.896000    7.313000 L'
 mm_line = ' O-O2  -1.23 2.34 -3.45'
 
 # oniom values
@@ -293,6 +294,10 @@ def check_oniom8(line, rw):
     else:
         print('OK: oniom_line8 (%s)' % rw)
 
+#read xyzpdb_line
+
+
+
 # mm_line
 def check_mm(line, rw):
     x = iolines.zmat2atom(line)
@@ -358,6 +363,9 @@ check_oniom8(oniom_line8, 'read')
 atom8 = iolines.zmat2atom(oniom_line8)
 new_line8 = iolines.atom2zmat(atom8)
 check_oniom8(new_line8, 'write')
+
+#xyzpdb_line
+
 
 # mm
 check_mm(mm_line, 'read')
