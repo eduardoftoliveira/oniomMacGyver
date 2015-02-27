@@ -77,8 +77,11 @@ class EmptyGaussianCom():
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
                     gaussian_com_file.write("\n")
-                    if section == 'first' and 'soft' in\
-                       self.route_section:
+                    print 'section in write_com', section, self.route_section
+                    if section == 'first' and 'soft' in self.route_section:
+                        gaussian_com_file.write("\n")
+                    elif section == 'dftb=read' and 'dftb=read' in self.route_section.lower():
+                        print 'dftb=read during wite_com'
                         gaussian_com_file.write("\n")
                     for line in self.additional_input_dict[section]:
                         gaussian_com_file.write(line)
