@@ -164,7 +164,6 @@ class GaussianCom(EmptyGaussianCom):
         [("connect",None),("readopt",None),("modred", []),(" gen",None),("pseudo=read",None),("first",None), ("dftb=read",None) ]) #TODO put all empty lists? usefull for extend
         shift=0
         b_lines = self.blank_lines
-        print 'route_section:',self.route_section
 
         for key in additional_input_dict:
             if key in self.route_section.lower().replace("only","first"):
