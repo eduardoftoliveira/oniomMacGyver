@@ -146,7 +146,7 @@ def atom2zmat(atom, print_resinfo = True):
     else:
         line += '{0.x:>11.6f} {0.y:>11.6f} {0.z:>11.6f}'.format(atom)
     
-    line = "{}\n".format(line)
+    line = "{0}\n".format(line)
 
     return line
 
