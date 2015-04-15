@@ -30,6 +30,20 @@ def dihedral(A,B,C,D):
     x = np.dot(np.cross(b1, b2), np.cross(b2, b3))
     return np.degrees(math.atan2(y, x))
 
+def anymetric(TUPLIST):
+    """TUPLIST can have 2,3 or 4 tuples of x,y,z values"""
+    if len(TUPLIST) == 2:
+        A,B = TUPLIST
+        return distance(A,B)
+    elif len(TUPLIST) == 3:
+        A,B,C = TUPLIST
+        return angle(B,A,C) # NOTE CONSISTENT WITH GAUSSIAN MODREDUNDANT
+    elif len(TUPLIST) == 4:
+        A,B,C,D = TUPLIST
+        return dihedral(A,B,C,D)
+    else:
+        raise RuntimeError('len(TUPLIST) must be 2,3 or 4')
+
 def difang(a, b):
     """min RADIANs difference either clock or counter-clock-wise"""
     alldifs = [abs(a-b+(i*math.pi)) for i in [-4, -2, 0, 2, 4]]
