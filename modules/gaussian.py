@@ -106,7 +106,7 @@ class GaussianCom(EmptyGaussianCom):
 
     def _read_lines(self):
         """Reads lines to a list and strips the \\n"""
-        with open(self.name, 'r' ) as file:
+        with open(self.name, 'r') as file:
             lines = file.readlines()
             #lines = [line.strip() for line in lines]
         return lines
@@ -346,6 +346,8 @@ class GaussianLog():
         """get coords"""
         atomidx = [i for i in range(len(tentative_zmat))] # num atoms
         for (byte, key) in bytelist[::-1]:
+            if key == 'Converged?':
+                finalized_step = True
             if key == 'orientation:':
                 last_xyz_byte = byte
                 break
@@ -354,18 +356,22 @@ class GaussianLog():
 
         # Full Match?
         if gen_md5sum(txt) == signature[2] and getsize(self.name) == signature[3]:
-            stderr.write('Bytelist: full signature match\n')
+            stderr.write('%s: full signature match\n' % self.name)
             return (signature[3], bytelist)
+        elif gen_md5sum(txt) != signature[2]:
+            stderr.write('%s: last xyz no match\n' % (self.name))
+        elif getsize(self.name) != signature[3]:
+            stderr.write('%s: file size no match\n' % (self.name))
         
         # Partial match
         for (byte, key) in bytelist:
             self.file.seek(byte)
             if not key in self.file.readline():
-                stderr.write('Bytelist: NO match (%s)\n' % grep_key)
+                stderr.write('%s: NO match (%s)\n' % (self.name,grep_key))
                 return (0, [])
 
         # if everything is OK
-        stderr.write('Bytelist: %5.1f%% complete\n' % (100.0*signature[3]/getsize(self.name)))
+        stderr.write('%s: %5.1f%% complete\n' % (self.name, 100.0*signature[3]/getsize(self.name)))
         return (signature[3], bytelist)
 
 
@@ -625,7 +631,7 @@ class GaussianLog():
             idx = [i for i in range(len(self.atoms_list))] # must have been initialized
         elif type(atom_nr) == int:
             idx = [atom_nr]
-        elif type(atom_nr) == list:
+        elif type(atom_nr) == list or type(atom_nr) == tuple:
             idx = atom_nr
         else:
             raise RuntimeError('atom_nr must be */all, int, or list of ints')
