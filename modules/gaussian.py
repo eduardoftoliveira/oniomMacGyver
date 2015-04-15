@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # python modules
 import re
@@ -61,7 +61,7 @@ class EmptyGaussianCom():
         self.multiplicity_line = ""
         self.atoms_list = []
         self.additional_input_dict = {"connect":None, "readopt":None, "modred":[], "gen":None,
-                                      "pseudo=read":None} #TODO put all empty lists?
+                "pseudo=read":None, "dftb=read":None } #TODO put all empty lists?
     def write_to_file(self,name):
         with open(name, 'w') as gaussian_com_file:
             for line in self.link_0_commands:
@@ -77,8 +77,9 @@ class EmptyGaussianCom():
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
                     gaussian_com_file.write("\n")
-                    if section == 'first' and 'soft' in\
-                       self.route_section:
+                    if section == 'first' and 'soft' in self.route_section:
+                        gaussian_com_file.write("\n")
+                    elif section == 'dftb=read' and 'dftb=read' in self.route_section.lower():
                         gaussian_com_file.write("\n")
                     for line in self.additional_input_dict[section]:
                         gaussian_com_file.write(line)
@@ -100,6 +101,7 @@ class GaussianCom(EmptyGaussianCom):
             self.modredundant_list = self.additional_input_dict["modred"]
             self.gen_list = self.additional_input_dict[" gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
+            #self.dftb=read = self.additional_input_dict["dftb=read"]      #adicionar isto
             self.MM_external_params = self.additional_input_dict["first"]
 
     def _read_lines(self):
@@ -159,19 +161,32 @@ class GaussianCom(EmptyGaussianCom):
     def _read_additional_input2(self):
         """Reads additional input and stores it in a ordered dict"""
         additional_input_dict = collections.OrderedDict(\
-        [("connect",None),("readopt",None),("modred", []),(" gen",None),("pseudo=read",None),("first",None)]) #TODO put all empty lists? usefull for extend
+        [("connect",None),("readopt",None),("modred", []),(" gen",None),("pseudo=read",None),("first",None), ("dftb=read",None) ]) #TODO put all empty lists? usefull for extend
         shift=0
         b_lines = self.blank_lines
+
         for key in additional_input_dict:
             if key in self.route_section.lower().replace("only","first"):
+                if key == "modred" and "modred" in self.route_section.lower():
+                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                    additional_input_dict[key]= self.lines[i_start: i_finish]
+                    #NOTA: ao ler isto, adicionar tb ah lista modredundant_list
                 if key == "first" and "soft" in self.route_section.lower():
                     shift += 1
-                i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                    additional_input_dict[key]= self.lines[i_start: i_finish]
                 #print(key, i_start, i_finish)
-                additional_input_dict[key]= self.lines[i_start: i_finish]
+                #dftb=read
+                elif key == "dftb=read" and "dftb=read" in self.route_section.lower():
+                #fiz elif para ver se os estragos que causo sao mais contidos... mas devia ser if pk pode haver as 2 keys em simultaneo
+                    shift += 1
+                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                    additional_input_dict[key]= self.lines[i_start: i_finish]
+                
                 shift += 1
         return additional_input_dict
-        
+
+
     def _read_bonds_list(self):
         """ Create bonds list from the connectivity info on the file"""
         bonds_list = []
@@ -397,7 +412,7 @@ class GaussianLog():
 
         # process grep
         grep_output = grep_output.communicate()[0]
-        #grep_output = str( grep_output, encoding='utf8' ).splitlines()
+        #grep_output = str( grep_output).splitlines()
         grep_output = grep_output.decode("utf8").splitlines() 
         raw_grepped_bytes = []
         for line in grep_output:

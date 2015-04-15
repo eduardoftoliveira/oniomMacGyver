@@ -93,7 +93,7 @@ def zmat2atom(line):
     elif len(line_splits)==4:
         atom = _parse_xyz_line(line_splits)
     # unknown
-    elif len(line_list) not in [4,6]:  
+    elif len(line_splits) not in [4,6]:  
         raise RuntimeError('Expected 4 or 6 fields in zmat line')
     # add resinfo if present
     if resinfo:
@@ -112,7 +112,7 @@ def atom2zmat(atom, print_resinfo = True):
         line = '{0.element}-{0.mm.atype}-{0.mm.charge:.9f}'.format(atom)
         line = '{0:.15s}'.format(line) # fill with spaces (max 15 char)
     else:
-        line = ' {0.element:15s}'.format(atom)
+        line = ' {0.element:1s}'.format(atom) #NOTA:provavelment vai ser preciso adicionar 14s apos a resinfo 
 
     if res:
         line = ('{0}(PDBName={1.resinfo.name},'
@@ -146,7 +146,7 @@ def atom2zmat(atom, print_resinfo = True):
     else:
         line += '{0.x:>11.6f} {0.y:>11.6f} {0.z:>11.6f}'.format(atom)
     
-    line = "{}\n".format(line)
+    line = "{0}\n".format(line)
 
     return line
 
