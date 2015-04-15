@@ -25,7 +25,7 @@ def produce_resp_in(esp_in_name, atoms_list, instructions_list, total_charge = F
 {1:>5.0f}{2:>5d}\n""".format(comment, total_charge, no_atoms))
         for no, atom in enumerate(atoms_list):
             line = '{0:>5d}{1:>5s}\n'.format(\
-                                    atom.atomic_number, instructions_list[no])
+                                    atom.atomic_nr, instructions_list[no])
             esp_in_file.write(line)
         esp_in_file.write('\n\n')    
     return None
