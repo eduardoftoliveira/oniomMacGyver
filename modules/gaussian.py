@@ -215,22 +215,15 @@ class GaussianCom(EmptyGaussianCom):
         bonds_list = self.bonds_list[:]
         connectivity_list = []
         for index, atom in enumerate(self.atoms_list):
-            this_atom_bonds = []
-            bonds_to_remove = []
-            for no_b, bond in enumerate(bonds_list):
-                if atom is bond.atom_a or atom is bond.atom_b:
-                    this_atom_bonds.append(bond)
-            line = " {0}".format(index+1)
-            for bond in this_atom_bonds:
-                bonds_list.remove(bond)
-                if bond.atom_a is atom:
-                    atom_to_put = bond.atom_b
-                else:
-                    atom_to_put = bond.atom_a
-                if atom_to_put in self.atoms_list:
-                    line += " {0} {1}".format(self.atoms_list.index(atom_to_put)+1,bond.order)
-            line += "\n"
-            connectivity_list.append(line)
+            connectivity_list.append([str(index+1)])
+         
+        for bond in bonds_list:
+            try:
+                atom_a_index = self.atoms_list.index(bond.atom_a) + 1 
+                atom_b_index = self.atoms_list.index(bond.atom_b) + 1
+                if atom_a_index < atom_b_index:
+                    connectivity_list[atom_a_index-1].extend(\
+                                            [str(atom_b_index),str(bond.order)])
                 else:
                     connectivity_list[atom_b_index-1].extend(\
                                            [str(atom_a_index),str(bond.order)])
