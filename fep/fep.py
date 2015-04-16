@@ -355,11 +355,11 @@ def md_to_sp():
     gaussian_hl_no_atoms_list = []
     for no, atom in enumerate(amber_atoms_list):
         #if atom.link_mm_type or 'H' in atom.layer:
-        if 'H' in atom.layer:
+        if 'H' in atom.oniom.layer:
             amber_hl_no_atoms_list.append(no)
     for no, atom in enumerate(gaussian_atoms_list):
         #if atom.link_mm_type or 'H' in atom.layer:
-        if 'H' in atom.layer:
+        if 'H' in atom.oniom.layer:
             gaussian_hl_no_atoms_list.append(no)
     
     
@@ -448,16 +448,18 @@ def sp_to_energies():
         forward_energies = []
         backward_energies = []
         for frame in results[md_no]:
-            previous_energy, this_energy, next_energy = results[md_no][frame]
-            #print(previous_energy, this_energy, next_energy)
-            if this_energy and next_energy:
-                diff = (next_energy-this_energy)*HJOULE
-                forward_energies.append(diff)
-        
-            if this_energy and previous_energy: 
-                diff = (this_energy-previous_energy)*HJOULE
-                backward_energies.append(diff)
-                #print(md_no, frame, diff)
+            if True: #int(frame.split(".")[0]):
+                previous_energy, this_energy, next_energy = results[md_no][frame]
+                #print(previous_energy, this_energy, next_energy)
+                if this_energy and next_energy:
+                    diff = (next_energy-this_energy)*HJOULE
+                    #print(diff)
+                    forward_energies.append(diff)
+            
+                if this_energy and previous_energy: 
+                    diff = (this_energy-previous_energy)*HJOULE
+                    backward_energies.append(diff)
+                    #print(md_no, frame, diff)
 
 
         if forward_energies:
