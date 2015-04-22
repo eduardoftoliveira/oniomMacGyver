@@ -33,6 +33,7 @@ class ModRed():
         # for (S)can only
         self.scan_num_pts = None 
         self.scan_step_sz = None 
+        self.line = line
         if line:
             self.add_line(line)
 
@@ -66,7 +67,7 @@ class EmptyGaussianCom():
         with open(name, 'w') as gaussian_com_file:
             for line in self.link_0_commands:
                 gaussian_com_file.write(line)
-            gaussian_com_file.write(self.route_section)
+            gaussian_com_file.write(self.route_section.write())
             gaussian_com_file.write("\n")   
             gaussian_com_file.write(self.title_line)
             gaussian_com_file.write("\n")
@@ -77,9 +78,9 @@ class EmptyGaussianCom():
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
                     gaussian_com_file.write("\n")
-                    if section == 'first' and 'soft' in self.route_section:
+                    if section == 'first' and 'soft' in self.route_section.text:
                         gaussian_com_file.write("\n")
-                    elif section == 'dftb=read' and 'dftb=read' in self.route_section.lower():
+                    elif section == 'dftb=read' and 'dftb=read' in self.route_section.text:
                         gaussian_com_file.write("\n")
                     for line in self.additional_input_dict[section]:
                         gaussian_com_file.write(line)
@@ -95,10 +96,12 @@ class GaussianCom(EmptyGaussianCom):
             self.title_line = self._read_title_line()
             self.multiplicity_line = self._read_multiplicity_line()
             self.atoms_list = self._read_structure()
+            #self.modreds = []# class ModRed, filled in _read_additional_input2
             self.additional_input_dict = self._read_additional_input2()            
             self.connectivity_list = self.additional_input_dict["connect"]
-            self.bonds_list = self._read_bonds_list()                          #Nao sei para que serve o bonds list, eh diferente de connectivity
-            self.modredundant_list = self.additional_input_dict["modred"]
+            #Nao sei para que serve o bonds list, eh diferente de connectivity
+            self.bonds_list = self._read_bonds_list()
+            self.modred_lines = self.additional_input_dict["modred"]
             self.gen_list = self.additional_input_dict[" gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
             #self.dftb=read = self.additional_input_dict["dftb=read"]      #adicionar isto
@@ -139,7 +142,7 @@ class GaussianCom(EmptyGaussianCom):
             if '#' in line:
                 read_route_section = True
                 route_section += line
-        route_section = route_section
+        route_section = RouteSection(route_section)
         return route_section
 
     def _read_title_line(self):
@@ -167,22 +170,25 @@ class GaussianCom(EmptyGaussianCom):
         b_lines = self.blank_lines
 
         for key in additional_input_dict:
-            if key in self.route_section.lower().replace("only","first"):
-                if key == "modred" and "modred" in self.route_section.lower():
+            if key in self.route_section.text.replace("only","first"):
+                if key == "modred" and "modred" in self.route_section.text:
                     i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
                     additional_input_dict[key]= self.lines[i_start: i_finish]
-                    #NOTA: ao ler isto, adicionar tb ah lista modredundant_list
-                if key == "first" and "soft" in self.route_section.lower():
+                    #for line in self.lines[i_start: i_finish]:
+                    #    self.modreds.append(ModRed(line))
+                elif key == "first" and "soft" in self.route_section.text:
                     shift += 1
                     i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
                     additional_input_dict[key]= self.lines[i_start: i_finish]
                 #print(key, i_start, i_finish)
                 #dftb=read
-                elif key == "dftb=read" and "dftb=read" in self.route_section.lower():
-                #fiz elif para ver se os estragos que causo sao mais contidos... mas devia ser if pk pode haver as 2 keys em simultaneo
+                elif key == "dftb=read" and "dftb=read" in self.route_section.text:
                     shift += 1
                     i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
                     additional_input_dict[key]= self.lines[i_start: i_finish]
+                else:
+                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                additional_input_dict[key]= self.lines[i_start: i_finish]
                 
                 shift += 1
         return additional_input_dict
@@ -262,6 +268,7 @@ class GaussianLog():
         #self.summary = self._generate_summary()
         self.final_geometry = self.read_geometry(-1, -1)
         self._save_bytelist(bytelist, self._gen_signature())
+        self.termination    = self.get_termination()   # read error / normal
         self.close_file()
 
     def _set_grep_keywords(self):
@@ -720,6 +727,17 @@ class GaussianLog():
                 atoms_list.append(atom)    
         return atoms_list
 
+    def get_termination(self):
+        print 12
+        """read 10 tail lines and return Termination() class"""
+        logtail_lines = []
+        with open(self.name, 'r') as f:
+            f.seek(max(-800, -getsize(self.name)),2) # approx. 10 tail lines
+            for line in f:
+                logtail_lines.append(line)
+        return Termination(logtail_lines)       # goes to self.termination
+        
+
     def _sanity_check(self):
         """"
         #ve se os passos opt e scanpoint estao consecutivos ou se ficheiro foi danificado entre isso #nos scan ve se optimizaram
@@ -778,6 +796,318 @@ class GaussianLog():
             else:
                 singlepoint = True
                 #print('#WARNING : Not checking singlepoint sanity yet!') #for singlepoint_job
+
+class RouteSection():
+    def __init__(self, rstext):
+        """
+            not tested for multiple lines
+            #P and # P are equivalent
+        """
+        self.raw_text = rstext
+        self.text = self.cleanup(rstext.lower()) # not updated
+
+        ### process keywords 
+        KEYWORDS = [Opt]                # list all implemented classes
+        self.keywords = {}
+        for keyclass in KEYWORDS:
+            self.keywords[keyclass.name] = self.parse_keyword(keyclass)
+
+        # update text after keywords being parsed
+        "self.update_text()" # this goes in the write() function
+
+        # self.scf = ...
+        # self.geom = ... :)
+
+    def parse_keyword(self, keywordclass):
+        """
+            takes a class as input
+            self.text updated on-the-fly
+        """
+        found_keyword = False
+        arglist, text1, text2 = self.get_keyword(
+            self.text, keywordclass.name)
+        if arglist != None:
+            keyobj = keywordclass(arglist)
+            self.text = '%s %s %s' % (text1, keyobj.printme(), text2)
+            return keyobj       # self.opt = Opt(arglist)
+        return None
+
+    def write(self):
+        # UPDATE TEXT!!! VERY IMPORTANT
+        textout = self.text
+        for key in self.keywords:
+            _,a,b = self.get_keyword(textout, key)
+            textout = '%s %s %s' % (a, self.keywords[key].printme(), b)
+        return textout
+
+
+    def digest_spaces(self, rsline, sign):
+        """remove spaces around char specified in input
+            example:
+                opt = (maxmicro = 50) 
+            becomes...
+                 opt=(maxmicro=50), for sign="="
+        """
+        newstr = ''
+        fields = rsline.split(sign)
+        newfields = []
+        for i in range(1, len(fields)-1):
+            newfields.append(fields[i].strip())
+        if len(fields) > 1:
+            newfields.insert(0, fields[0].rstrip())
+            newfields.append(fields[-1].lstrip())
+        else:
+            return rsline
+        return sign.join(newfields)
+    
+    def digest_brackets(self, rsline):
+        """
+            remove spaces before brackets, using commas instead
+            spaces preceeding ( are removed
+            example:
+                opt ( nha, nhe)
+            becomes...
+                opt( nha, nhe)
+        """
+        k = 0
+        newline = ''
+        spaces_buffer = ''
+        for c in rsline:
+            if c == ')':
+                k -= 1
+                if k == 0: # bracketted ready to process and append to newline
+                    newline += bracketted
+            if k == 0:
+                if c == ' ':
+                    spaces_buffer += c
+                elif c != '(':
+                    newline += spaces_buffer + c
+                    spaces_buffer = ''
+                else:
+                    newline += c
+                    spaces_buffer = ''
+            else:   # k > 0
+                bracketted += c
+            if k < 0:
+                raise RuntimeError('Too many ) brackets in route section')
+            if c == '(':
+                if k == 0:
+                    bracketted = ''
+                spaces_buffer = ''
+                k += 1
+        if k != 0:
+            raise RuntimeError('Too many ( brackets in route section')
+        return newline
+            
+    
+    def cleanup(self, rsline):
+        """execute digest procedure calling digest functions
+            this is harmless to readability by gaussian"""
+        rsline = self.digest_spaces(rsline, "=")
+        rsline = self.digest_brackets(rsline)
+        rsline = rsline.replace('\n', '\n ')
+        return rsline
+    
+    def get_keyword(self, rsline, keyword):
+        """
+            Parse the text associated with a given keyword
+                returns None if the keyword is not found
+        """
+        if not rsline.startswith('# '):
+            rsline = rsline.replace('#', '# ') # avoids #opt not being found
+        Ns = rsline.count(' %s' % keyword)
+        Nc = rsline.count(',%s' % keyword)
+        if Ns + Nc > 1:
+            raise RuntimeError('Number of %s keywords in route section is %d' %
+                (keyword, Ns + Nc) )
+        elif Ns + Nc == 0:
+            return None, rsline, '' # test this
+    
+        # do the work
+        if Nc:  idx = rsline.index(',%s' % keyword)
+        if Ns:  idx = rsline.index(' %s' % keyword)
+        idx1 = idx # to print output lines (before and after keyword text)
+        idx = idx + len(keyword) + 1
+        if rsline[idx] == '=': 
+            idx += 1
+    
+        # MULTI OPTIONS: keyword(option1, option2)
+        if rsline[idx] == '(':      # sub-keywords!!!
+            bracketted = ''
+            for idx in range(idx+1, len(rsline)):
+                if rsline[idx] == ')':
+                    last_idx = idx+1
+                    break
+                bracketted += rsline[idx]
+            bracketted = self.digest_spaces(bracketted, '=')
+            options = self.digest_spaces(bracketted, ',')
+            options = options.replace(',', ' ').split()
+            options = [option.strip() for option in options]
+    
+        # SINGLE OPTION:    keyword=option
+        else:
+            option = ''
+            last_idx = len(rsline)
+            for idx in range(idx, len(rsline)):
+                if rsline[idx] in [' ', ',', '\n']:
+                    last_idx = idx
+                    break
+                option += rsline[idx]
+            options = [option]
+            if options[0] == '':
+                options.pop(0)
+    
+        # rsline without keyword text
+        line_before = rsline[:idx1]
+        line_after = rsline[last_idx:]
+        return options, line_before.rstrip(), line_after.lstrip()
+ 
+
+class Opt():
+
+    name = 'opt'
+
+    def __init__(self, arglist):
+        """
+            To be initialized with arglist from RouteSection.get_keyword(Opt)
+        """
+        self.known_args_dict = self._gen_known_args_dict()  # modifiable args
+        self.unknown_args = []   # Drop args from .com file (only .com file)
+        self.args = self.process_gaucom(arglist)
+
+    def set(self, user_arg):
+        self._set_rm(user_arg, 'add')
+
+    def rm(self, user_arg):
+        self._set_rm(user_arg, 'rm')
+
+    def process_gaucom(self, arglist):
+        """arglist is from gaussian.com file"""
+        args = {}
+        areknown = [False for _ in arglist]
+        for arg in self.known_args_dict:
+            args[arg] = self.known_args_dict[arg][0]    # default 
+            for i,gaucom_arg in enumerate(arglist):
+                subarg = ''
+                # take care of subargs like: maxcycles=30
+                if '=' in gaucom_arg:
+                    gaucom_arg, subarg = gaucom_arg.split('=')
+                    gaucom_arg += '='
+                gaucom_arg = self.canonical(gaucom_arg)
+                # update keywords
+                if gaucom_arg in self.known_args_dict[arg]:
+                    args[arg] = gaucom_arg + subarg
+                    areknown[i] = True
+
+        # append unknown args to self.unknown_args
+        for i,isknown in enumerate(areknown):
+            if not isknown:
+                self.unknown_args.append(arglist[i])
+
+        return args
+
+    def printme(self):
+        """
+            opt                 # all defaults
+            opt(args=subargs)
+        """
+        to_print = self.unknown_args[:]   # non default args + unknown
+        for arg in self.args:
+            argument = self.args[arg]
+            subarg = ''
+            if '=' in argument:
+                argument, subarg = argument.split('=')
+                argument += '='
+            if argument != self.known_args_dict[arg][0]:    # not default
+                to_print.append(argument + subarg)
+    
+        if len(to_print) == 0:
+            return 'opt' 
+        else:
+            return 'opt(' + ', '.join(to_print) + ')'
+             
+
+    def _set_rm(self, user_arg, do_what):
+
+        # take care of subargs like: maxcycles=30
+        subarg = ''
+        if '=' in user_arg:
+            user_arg, subarg = user_arg.split('=')
+            user_arg += '='
+        user_arg = self.canonical(user_arg)
+
+        # find 
+        for arg in self.args:
+            if user_arg in self.known_args_dict[arg]:
+                if do_what == 'add':
+                    self.args[arg] = user_arg + subarg
+                elif do_what == 'rm':
+                    self.args[arg] = self.known_args_dict[arg][0] # set default
+
+    def _gen_known_args_dict(self):
+        """ 0 index are default options"""
+        return {
+            'goal':     ['', 'ts'],
+            'modr':     ['', 'modred'],
+            'conv':     ['', 'tight', 'loose', 'verytight'],
+            'force':    ['', 'calcfc', 'calcall', 'readfc', 'rcfc'],
+            'eigen':    ['eigentest', 'noeigentest'],
+            'expert':   ['noexpert', 'expert'],
+            'quadmac':  ['noquadmacro', 'quadmacro'],
+            'micro':    ['micro', 'nomicro'],
+            'maxcyc=':  ['', 'maxcycles='],  #  "=" implies sub-argument
+            'maxstep=': ['', 'maxstep='],
+            'maxmicro=':['', 'maxmicro=']
+        }
+       
+    def canonical(self, argument):
+        """ uniformize keywords """
+        synonyms = {
+            'maxmicroiterations=':  'maxmicro=',
+            'maxmicroiter=':        'maxmicro=',
+            'maxcyc=':              'maxcycles=',
+            'rcfc':                 'readcartesianfc',
+            'vtight':               'verytight',
+            'addredundant':         'modredundant',
+            'modr':                 'modred',
+            'modredundant':         'modred',
+            'modredund':            'modred',
+            'modredun':             'modred',
+            'noeigen':              'noeigentest',
+            'nomicroiterations':    'nomicro',
+            'nomicroiter':          'nomicro',
+            'microiterations':      'micro',
+            'microiter':            'micro',
+            'quadmac':              'quadmacro'
+        }
+        if argument in synonyms:
+            return synonyms[argument]
+        else:
+            return argument
+ 
+class Termination():
+    def __init__(self, logtail_lines):
+        self.errorcodedict = self._gen_errorcode()
+        self.status = None
+        self.errorcode = None
+        self.process(logtail_lines)
+
+    def _gen_errorcode(self):
+        return { 
+            0: "Atoms too close",
+            1: "Maximum number of microiterations cycles exceeded",
+            2: "FormBX had a problem"
+        }
+    def process(self, logtail_lines):
+        for line in logtail_lines:
+            if 'Normal termination' in line:
+                self.status = "Normal"
+            if 'Error termination' in line:
+                self.status = "Error"
+            for code in self.errorcodedict:
+                if self.errorcodedict[code] in line:
+                    self.errorcode = code
+
 
 
 
