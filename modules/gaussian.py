@@ -269,6 +269,7 @@ class GaussianLog():
         self.final_geometry = self.read_geometry(-1, -1)
         self._save_bytelist(bytelist, self._gen_signature())
         self.termination    = self.get_termination()   # read error / normal
+        self.gaussian_version = self.get_gaussian_version()
         self.close_file()
 
     def _set_grep_keywords(self):
@@ -727,8 +728,18 @@ class GaussianLog():
                 atoms_list.append(atom)    
         return atoms_list
 
+    def get_gaussian_version(self):
+        """read 10 first lines and grep a_pgi or d_pgi"""
+        MAXLINES = 10
+        with open(self.name, 'r') as f:
+            for line in f:
+                MAXLINES -= 1
+                if line.startswith(" Entering Link 1 ="):
+                    return line
+                if MAXLINES < 0:
+                    return " Entering Link 1 = NOT FOUND IN FIRST %d LINES" % MAXLINES
+
     def get_termination(self):
-        print 12
         """read 10 tail lines and return Termination() class"""
         logtail_lines = []
         with open(self.name, 'r') as f:
