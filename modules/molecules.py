@@ -142,20 +142,20 @@ def QMMM_to_QM(atoms_list, make_new='True'):
     """Takes a QM/MM atoms list and returns the QM system only.
     It corrects the type and position of link atoms"""
 
-    SCALING = {"C":0.723886, "N":0.786011}
+    SCALING = {"C":0.723886, "N":0.786011, "O":0.686809}
     qm_atoms_list = []
     for atom in atoms_list:
-        if atom.layer[0] == 'H':
+        if atom.oniom.layer == 'H':
             if make_new:
                 ## Warning: At this point we are changing the original atoms"
-                atom = Atom(atom.element, atom.x, atom.y, atom.z)
-        elif atom.link_element:
-            linked_atom = atoms_list[int(atom.link_bound_to)-1]
+                atom = Atom(atom.element, atom.get_coordinates())
+        elif atom.oniom.link_atom:
+            linked_atom = atoms_list[atom.oniom.link_bound_to-1]
             new_x = (atom.x-linked_atom.x) *SCALING[linked_atom.element] + linked_atom.x
             new_y = (atom.y-linked_atom.y) *SCALING[linked_atom.element] + linked_atom.y
             new_z = (atom.z-linked_atom.z) *SCALING[linked_atom.element] + linked_atom.z
             if make_new:
-                atom = Atom(atom.link_element, 0, 0, 0)
+                atom = Atom(atom.oniom.link_atom.element, (0, 0, 0))
             atom.x, atom.y, atom.z = new_x, new_y, new_z
         else:
              continue
@@ -184,9 +184,9 @@ def find_linear_angles(atoms_list, max_angle=178, max_distance=3,
                 if atom1.distance(atom2) + atom1.distance(atom3)\
                         + atom2.distance(atom3) < (4 * max_distance):
                 
-                    angle1 = atom1.angle(atom2, atom3, units = 'deg')
-                    angle2 = atom2.angle(atom1, atom3, units = 'deg')
-                    angle3 = atom3.angle(atom1, atom2, units = 'deg')
+                    angle1 = atom1.angle(atom2, atom3) * 57.2957795
+                    angle2 = atom2.angle(atom1, atom3) * 57.2957795
+                    angle3 = atom3.angle(atom1, atom2) * 57.2957795
                     
                     if angle1 > max_angle:
                         output_tuples.append( (angle1, atom2, atom1, atom3) )

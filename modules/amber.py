@@ -97,23 +97,23 @@ def give_resp_charges(old_atoms_list, new_charges):
     scaling the charges of link atoms"""
     new_atoms_list = copy.deepcopy(old_atoms_list) 
     for index, atom in enumerate(new_atoms_list):
-        atom.charge = new_charges[index]
+        atom.mm.charge = new_charges[index]
      
     old_charges_sum = new_charges_sum = 0    
     for no, charge in enumerate(new_charges):
-        old_charges_sum += old_atoms_list[no].charge
-        new_charges_sum += new_atoms_list[no].charge
+        old_charges_sum += old_atoms_list[no].mm.charge
+        new_charges_sum += new_atoms_list[no].mm.charge
 
     diff = new_charges_sum - old_charges_sum
 
     no_link_atoms = 0.0
     for atom in old_atoms_list:
-        if atom.link_mm_type:
+        if atom.oniom.link_atom:
             no_link_atoms += 1.0
     
     for atom in new_atoms_list:
-        if atom.link_mm_type:
-            atom.charge = atom.charge - diff/no_link_atoms
+        if atom.oniom.link_atom:
+            atom.mm.charge = atom.mm.charge - diff/no_link_atoms
 
     return new_atoms_list
 

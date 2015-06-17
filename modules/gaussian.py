@@ -10,187 +10,9 @@ from copy import deepcopy
 # our python modules
 import atoms
 import molecules
+import iolines
 
-
-class GaussianFile():
-    def __init__(self):
-        pass
-        
-    def read_gaussian_qmmm_structure(self,lines):
-        """ Read a list of lines and return a list of atoms"""
-        atoms_list = []
-        for line in lines:
-            line = line.strip()
-            ### check for PDB information
-            if '(' in line and ')' in line:
-                has_pdb_info = True
-                pdb_info = line.split("(")[1].split(")")[0]
-                pdb_info_list = pdb_info.split(",")
-                line = line.replace("({})".format(pdb_info), "") 
-                for info in pdb_info_list:
-                    if 'PDBName' in info:
-                        pdb_atom_name = info.split("=")[1]
-                    if 'ResName' in info:
-                        pdb_res_name = info.split("=")[1]
-                    if 'ResNum' in info:
-                        pdb_res_number = info.split("=")[1]
-                        if '_' in pdb_res_number : # presence of chain information
-                            pdb_res_number, pdb_chain  = pdb_res_number.split("_")
-            else:
-                pdb_atom_name = pdb_res_name = pdb_res_number = pdb_chain = ''
-                has_pdb_info = False
-            line_list = line.split(None) # line has no pdb at this point
-
-            mm_type_charge, mask, x, y, z, layer = lines[0:6]
-            link_atom_stuff = line_list[6:]
-            
-
-            if link_atom_stuff[0] == "":
-                link_element = ""
-                link_mm_type = ""
-            else:
-                # expecting something like "H-HC"
-                link_element, link_mm_type = link_atom_stuff[0].split('-')  
-            link_bound_to = link_atom_stuff[1]
-            link_scale1  = link_atom_stuff[2].strip()
-            if link_scale1: 
-                link_scale1 = float(link_scale1)
-            try:
-                element, mm_type, mm_charge = mm_type_charge.split('-', 2)
-            except ValueError:
-                print("WARNING: Atom no {} does not have all amber info\n"\
-                .format(len(atoms_list)+1),
-                "        Setting mm_charge to 0 and mm_type to None")
-                element = mm_type_charge.split('-', 2)[0]
-                mm_type =  None
-                mm_charge = 0
-            if has_pdb_info:
-                if 'pdb_chain' not in locals():
-                    pdb_chain = 'Q'
-                this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, 
-                    mask, x, y, z, layer, pdb_atom_name, pdb_res_name, 
-                    pdb_res_number, pdb_chain, link_element, link_mm_type, 
-                    link_bound_to, link_scale1)
-            else:
-                this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, 
-                    mask, x, y, z, layer, link_element, link_mm_type, 
-                    link_bound_to, link_scale1)
-            if 'this_atom' in locals():
-                atoms_list.append(this_atom) 
-            this_atom = None
-        return atoms_list
-
-
-
-    def read_gaussian_input_structure(self, lines_list):
-        """ Read a list of lines and return a list of atoms"""
-        atoms_list = []
-        for line in lines_list:
-            line = line.strip()
-            ### check for PDB information
-            if '(' in line and ')' in line:
-                has_pdb_info = True
-                pdb_info = line.split("(")[1].split(")")[0]
-                pdb_info_list = pdb_info.split(",")
-                line = line.replace("({})".format(pdb_info), "") 
-                for info in pdb_info_list:
-                    if 'PDBName' in info:
-                        pdb_atom_name = info.split("=")[1]
-                    if 'ResName' in info:
-                        pdb_res_name = info.split("=")[1]
-                    if 'ResNum' in info:
-                        pdb_res_number = info.split("=")[1]
-                        if '_' in pdb_res_number : # presence of chain information
-                            pdb_res_number, pdb_chain  = pdb_res_number.split("_")
-            else:
-                pdb_atom_name = pdb_res_name = pdb_res_number = pdb_chain = ''
-                has_pdb_info = False
-            line_list = line.split(None) # line has no pdb at this point
-
-            if len(line_list) == 4:
-                element, x, y, z = line_list
-                this_atom = atoms.Atom(element, x, y, z)
-            elif len(line_list) >= 6:
-                mm_type_charge, mask, x, y, z, layer = line_list[0:6]
-                link_atom_stuff = line_list[6:]
-                for _ in range(3-len(link_atom_stuff)): 
-                    link_atom_stuff.append("")
-                if link_atom_stuff[0] == "":
-                    link_element = ""
-                    link_mm_type = ""
-                else:
-                    # expecting something like "H-HC"
-                    link_element, link_mm_type = link_atom_stuff[0].split('-')  
-                link_bound_to = link_atom_stuff[1]
-                link_scale1  = link_atom_stuff[2]
-                if link_scale1:  
-                    link_scale1 = float(link_scale1)
-                else: 
-                    link_scale1 = 0.0
-                try:
-                    element, mm_type, mm_charge = mm_type_charge.split('-', 2)
-                except ValueError:
-                    print("WARNING: Atom no {} does not have all amber info\n"\
-                    .format(len(atoms_list)+1),
-                    "        Setting mm_charge to 0 and mm_type to None")
-                    element = mm_type_charge.split('-', 2)[0]
-                    mm_type =  None
-                    mm_charge = 0
-                if has_pdb_info:
-                    if 'pdb_chain' not in locals():
-                        pdb_chain = 'Q'
-                    this_atom = atoms.QmmmAtomPdb(element, mm_type, mm_charge, 
-                        mask, x, y, z, layer, pdb_atom_name, pdb_res_name, 
-                        pdb_res_number, pdb_chain, link_element, link_mm_type, 
-                        link_bound_to, link_scale1)
-                else:
-                    this_atom = atoms.QmmmAtom(element, mm_type, mm_charge, 
-                        mask, x, y, z, layer, link_element, link_mm_type, 
-                        link_bound_to, link_scale1)
-            if 'this_atom' in locals():
-                atoms_list.append(this_atom) 
-            this_atom = None
-        return atoms_list
-
-    def write_zmat(self, atom, include_pdb_info=True):
-        """ Writes the Atom line for gaussian com files.
-        It works for the classes Atom, QmmmAtom, and QmmmAtomPdb"""
-        
-        if type(atom) == atoms.Atom:
-            line = (" {0.element:15s}{0.x:>12.6f}{0.y:>12.6f}"
-                    "{0.z:>12.6f}\n".format(atom))
-            return line
-        
-        elif type(atom) == atoms.QmmmAtom or type(atom) == atoms.QmmmAtomPdb:
-            atom_type_charge = " {0.element}-{0.mm_type}-{0.charge:.9f}"\
-                                .format(atom)
-            
-            if atom.link_mm_type:
-                link_info = ("{0.link_element}-{0.link_mm_type} "
-                             "{0.link_bound_to} {0.link_scale1:.3f} ".format(atom)) # to do : read properly scalling factor
-            else:
-                link_info = ''
-        
-            if type(atom) == atoms.QmmmAtom:
-                line = ("{1:.15s}{0.mask:>4s}"
-                        "{0.x:>12.6f}{0.y:>12.6f}{0.z:>12.6f} "
-                        "{0.layer:s} {2}\n".format(atom, 
-                        atom_type_charge, link_info))
-
-            elif type(atom) == atoms.QmmmAtomPdb and include_pdb_info:
-                pdb_info = ("(PDBName={0.pdb_name},ResName={0.residue_name},"
-                        "ResNum={0.residue_number}_{0.chain})               "
-                        "".format(atom))
-                
-                line = ("{1:.15s}{3:.40s}{0.mask:>4s}"
-                        "{0.x:>12.6f}{0.y:>12.6f}{0.z:>12.6f} "
-                        "{0.layer:s} {2}\n".format(atom, 
-                        atom_type_charge, link_info,pdb_info))
-            
-            return line
-
-
-class EmptyGaussianCom(GaussianFile):
+class EmptyGaussianCom():
     def __init__(self, name):
         self.name = name
         self.link_0_commands = ["%nproc=8\n", "%mem=6GB\n", "%chk=default.chk\n"]
@@ -198,8 +20,8 @@ class EmptyGaussianCom(GaussianFile):
         self.title_line = "title line required\n"
         self.multiplicity_line = ""
         self.atoms_list = []
-        self.additional_input_dict = {"connect":None, "readopt":None, "modred":None, "gen":None,
-                                      "pseudo=read":None}
+        self.additional_input_dict = {"connect":None, "readopt":None, "modred":[], "gen":None,
+                                      "pseudo=read":None} #TODO put all empty lists?
     def write_to_file(self,name):
         with open(name, 'w', encoding='UTF-8') as gaussian_com_file:
             for line in self.link_0_commands:
@@ -210,12 +32,13 @@ class EmptyGaussianCom(GaussianFile):
             gaussian_com_file.write("\n")
             gaussian_com_file.write(self.multiplicity_line)
             for atom in self.atoms_list:
-                    line = self.write_zmat(atom)
-                    gaussian_com_file.write(line)                
+                line = iolines.atom2zmat(atom)
+                gaussian_com_file.write(line)                
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
                     gaussian_com_file.write("\n")
-                    if section == 'first' and 'soft' in self.route_section:
+                    if section == 'first' and 'soft' in\
+                       self.route_section:
                         gaussian_com_file.write("\n")
                     for line in self.additional_input_dict[section]:
                         gaussian_com_file.write(line)
@@ -235,7 +58,7 @@ class GaussianCom(EmptyGaussianCom):
             self.connectivity_list = self.additional_input_dict["connect"]
             self.bonds_list = self._read_bonds_list()                          #Nao sei para que serve o bonds list, eh diferente de connectivity
             self.modredundant_list = self.additional_input_dict["modred"]
-            self.gen_list = self.additional_input_dict["gen"]
+            self.gen_list = self.additional_input_dict[" gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
             self.MM_external_params = self.additional_input_dict["first"]
             self.read_optimize = self.additional_input_dict["readopt"]
@@ -289,27 +112,27 @@ class GaussianCom(EmptyGaussianCom):
 
     def _read_structure(self):
         """ Return a list of atoms"""
-        return self.read_gaussian_input_structure(self.lines[self.blank_lines[1]+2:self.blank_lines[2]])
+        atoms_list = []
+        for line in self.lines[self.blank_lines[1]+2:self.blank_lines[2]]:
+            atoms_list.append(iolines.zmat2atom(line))
+        return atoms_list
 
     def _read_additional_input2(self):
         """Reads additional input and stores it in a ordered dict"""
         additional_input_dict = collections.OrderedDict(\
-        [("connect",None),("readopt",None),("modred",None),("gen",None),("pseudo=read",None),("first",None)])
+        [("connect",None),("readopt",None),("modred", []),(" gen",None),("pseudo=read",None),("first",None)]) #TODO put all empty lists? usefull for extend
         shift=0
         b_lines = self.blank_lines
         for key in additional_input_dict:
             if key in self.route_section.lower().replace("only","first"):
                 if key == "first" and "soft" in self.route_section.lower():
                     shift += 1
-                    i_start, i_finish = b_lines[2+shift]+1,b_lines[-1]
-                else:
-                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                print(key, i_start, i_finish)
                 additional_input_dict[key]= self.lines[i_start: i_finish]
                 shift += 1
         return additional_input_dict
         
-    
-
     def _read_bonds_list(self):
         """ Create bonds list from the connectivity info on the file"""
         bonds_list = []
@@ -337,35 +160,34 @@ class GaussianCom(EmptyGaussianCom):
         bonds_list = self.bonds_list[:]
         connectivity_list = []
         for index, atom in enumerate(self.atoms_list):
-            connectivity_list.append([str(index+1)])
-         
-        for bond in bonds_list:
-            try:
-                atom_a_index = self.atoms_list.index(bond.atom_a) + 1 
-                atom_b_index = self.atoms_list.index(bond.atom_b) + 1
-                if atom_a_index < atom_b_index:
-                    connectivity_list[atom_a_index-1].extend(\
-                                            [str(atom_b_index),str(bond.order)])
+            this_atom_bonds = []
+            bonds_to_remove = []
+            for no_b, bond in enumerate(bonds_list):
+                if atom is bond.atom_a or atom is bond.atom_b:
+                    this_atom_bonds.append(bond)
+            line = " {0}".format(index+1)
+            for bond in this_atom_bonds:
+                bonds_list.remove(bond)
+                if bond.atom_a is atom:
+                    atom_to_put = bond.atom_b
                 else:
-                    connectivity_list[atom_b_index-1].extend(\
-                                           [str(atom_a_index),str(bond.order)])
-            except ValueError:
-                pass # atom was removed from atoms_list probably
-
-        for no,bond_info in enumerate(connectivity_list):
-            connectivity_list[no] = " ".join(bond_info) + "\n"
-
+                    atom_to_put = bond.atom_a
+                if atom_to_put in self.atoms_list:
+                    line += " {0} {1}".format(self.atoms_list.index(atom_to_put)+1,bond.order)
+            line += "\n"
+            connectivity_list.append(line)
+        
         self.connectivity_list = connectivity_list
         self.additional_input_dict["connect"] = connectivity_list
         return None
 
-class GaussianLog(GaussianFile):
+class GaussianLog():
     def __init__(self, name):
         self.name = name
         self.file = open(self.name, 'r')
         self.route_section  = self._read_route_section()
         self.grep_bytes, self._OptimizedParameters     = self._grep_bytes()
-        self._sanity_check  = self._sanity_check()
+        self._sanity_check  = self._sanity_check(self._OptimizedParameters)
         self.energies       = self._read_energies()
         #self.convergency   = self._read_convergency()  # RMS Force, etc...
         self.atoms_list     = self._Zmat_to_atoms_list()
@@ -388,7 +210,10 @@ class GaussianLog(GaussianFile):
             else:
                 break
         f.close()
-        return self.read_gaussian_input_structure(Zmat_text)
+        atoms_list = []
+        for line in Zmat_text:
+            atoms_list.append(iolines.zmat2atom(line))
+        return atoms_list
 
     def _grep_bytes(self): 
         """       
@@ -622,7 +447,7 @@ class GaussianLog(GaussianFile):
                 atoms_list.append(atom)    
         return atoms_list
 
-    def _sanity_check(self):
+    def _sanity_check(self, _OptimizedParameters):
         """"
         #ve se os passos opt e scanpoint estao consecutivos ou se ficheiro foi danificado entre isso #nos scan ve se optimizaram
         #checks if it is a singlepoint_job or opt_job or scan_job; checks if it is oniom_job
@@ -639,10 +464,10 @@ class GaussianLog(GaussianFile):
                 if 'scan point' in stepnr_line: scan_job = True; opt_job = False
                 else: #it is an opt_job
                     scan_job = False; opt_job = True
-                    if len(self._OptimizedParameters) == 0: print('#WARNING : Unfinished opt job after', stepnr_line.strip('\n'))
-                    elif len(self._OptimizedParameters) > 1: print('#WARNING : Very odd error. It is supposed to be an opt job but has more than one "Optimized Parameters" keyword')
+                    if len(_OptimizedParameters) == 0: print('#WARNING : Unfinished opt job after', stepnr_line.strip('\n'))
+                    elif len(_OptimizedParameters) > 1: print('#WARNING : Very odd error. It is supposed to be an opt job but has more than one "Optimized Parameters" keyword')
                     else:
-                        f.seek(self._OptimizedParameters[0])
+                        f.seek(_OptimizedParameters[0])
                         if "Non-Optimized Parameters" in f.readline(): print('#WARNING : Not fully optimized opt job')
                 
                 for scanstep, i in enumerate(self.grep_bytes['Step number']):
@@ -669,7 +494,7 @@ class GaussianLog(GaussianFile):
                         
                         #checks if scan step was fully optimized and if scan_job finished prematurely
                         try:
-                            f.seek(self._OptimizedParameters[scanstep])
+                            f.seek(_OptimizedParameters[scanstep])
                             if "Non-Optimized Parameters" in f.readline():
                                 print('#WARNING :', stepnr_line.strip('\n'), ' - NOT Fully Optimized'),
                         except IndexError:
@@ -690,7 +515,7 @@ def read_mulliken_charges(filename):
     """Returns a list of the Mulliken charges that first appear in the file"""
     with open(filename,'r') as gaussian_file:
         for line in gaussian_file:
-            if "Mulliken atomic charges:" in line:
+            if "Mulliken atomic charges:" in line or "Mulliken charges:" in line:
                 gaussian_file.readline()
                 break
         charges = []
