@@ -485,7 +485,7 @@ def read_mulliken_charges(filename):
     """Returns a list of the Mulliken charges that first appear in the file"""
     with open(filename,'r') as gaussian_file:
         for line in gaussian_file:
-            if "Mulliken atomic charges:" in line:
+            if "Mulliken atomic charges:" in line or "Mulliken charges:" in line:
                 gaussian_file.readline()
                 break
         charges = []

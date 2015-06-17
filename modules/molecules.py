@@ -155,7 +155,7 @@ def QMMM_to_QM(atoms_list, make_new='True'):
             new_y = (atom.y-linked_atom.y) *SCALING[linked_atom.element] + linked_atom.y
             new_z = (atom.z-linked_atom.z) *SCALING[linked_atom.element] + linked_atom.z
             if make_new:
-                atom = Atom(atom.link_element, 0, 0, 0)
+                atom = Atom(atom.oniom.link_atom.element, (0, 0, 0))
             atom.x, atom.y, atom.z = new_x, new_y, new_z
         else:
              continue

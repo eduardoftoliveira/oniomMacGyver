@@ -121,7 +121,7 @@ SP_ONIOM_FOLDER = ARGS.sp_oniom_folder
 
 
 # names
-MD_NO_ATOMS = 28336  ##!!!!! HACK
+MD_NO_ATOMS = 28336  ##!!!!! HACK TODO
 SP_ONIOM_RUN_SCRIPT = "run.sh" 
 RESULTS_FILE = "results.log"
 
@@ -225,19 +225,19 @@ def sp_to_md():
     gaussian_hl_no_atoms_list = []
     amber_hl_atoms_list = []
     for no, atom in enumerate(amber_atoms_list):
-        if atom.link_mm_type:
+        if atom.oniom.link_atom:
             amber_l_no_atoms_list.append(no)
             amber_hl_no_atoms_list.append(no)
             amber_hl_atoms_list.append(atom)
-        if 'H' in atom.layer:
+        if 'H' in atom.oniom.layer:
             amber_h_no_atoms_list.append(no)
             amber_hl_no_atoms_list.append(no)
             amber_hl_atoms_list.append(atom)
     for no, atom in enumerate(gaussian_atoms_list):
-        if atom.link_mm_type:
+        if atom.oniom.link_atom:
             gaussian_l_no_atoms_list.append(no)
             gaussian_hl_no_atoms_list.append(no)
-        if 'H' in atom.layer:
+        if 'H' in atom.oniom.layer:
             gaussian_h_no_atoms_list.append(no)
             gaussian_hl_no_atoms_list.append(no)
     
@@ -270,12 +270,11 @@ def sp_to_md():
         amber.write_crd_file(crd_name, all_coordinates_list, box_info=True,
                        velocities=False)
 
-        #read resp new charges and write them to model prmtop
+        #read new charges and write them to model prmtop
         charge_log_name = charge_com_files[step].replace(".com", ".log") 
         charge_log_name = "{0}/{1}".format(GAUSSIAN_CHARGE_FOLDER,
                                            charge_log_name)
         mulliken_charges_list = gaussian.read_mulliken_charges(charge_log_name)
-        
         hl_charges_list = []
         for charge in mulliken_charges_list:
             if charge != 0:
@@ -284,16 +283,16 @@ def sp_to_md():
        
         new_charges_list = []
         for atom in amber_hl_atoms_list:
-            if 'H' in atom.layer:
+            if 'H' in atom.oniom.layer:
                 new_charges_list.append(hl_charges_list.pop(0))
             else:
-                new_charges_list.append(atom.charge)
+                new_charges_list.append(atom.mm.charge)
 
         new_charge_amber_hl_atoms_list = amber.give_resp_charges(\
             amber_hl_atoms_list, new_charges_list)
         all_charges_list = model_charges[:]
         for index, no in enumerate(amber_hl_no_atoms_list):
-            all_charges_list[no] = new_charge_amber_hl_atoms_list[index].charge
+            all_charges_list[no] = new_charge_amber_hl_atoms_list[index].mm.charge
         
         # write these charges to a new prmtop
         new_prmtop_name = "{0}/prmtop.prmtop".format(folder_name)
@@ -448,7 +447,7 @@ def sp_to_energies():
         forward_energies = []
         backward_energies = []
         for frame in results[md_no]:
-            if True: #int(frame.split(".")[0]):
+            if int(frame.split(".")[0]) <1000:
                 previous_energy, this_energy, next_energy = results[md_no][frame]
                 #print(previous_energy, this_energy, next_energy)
                 if this_energy and next_energy:
@@ -460,7 +459,9 @@ def sp_to_energies():
                     diff = (this_energy-previous_energy)*HJOULE
                     backward_energies.append(diff)
                     #print(md_no, frame, diff)
-
+#        for energy in forward_energies:
+#            print(energy)
+#        break
 
         if forward_energies:
             log_sum = 0
