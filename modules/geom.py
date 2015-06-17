@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import math
 import numpy as np
@@ -22,13 +22,27 @@ def angle(A,B,C):
 def dihedral(A,B,C,D):
     """Calculate dihedral considering A in the beggining"""
     A, B, C, D = [np.array(x) for x in (A,B,C,D)]
-    b1 = coord2 - coord1
-    b2 = coord3 - coord2
-    b3 = coord4 - coord3
+    b1 = B - A
+    b2 = C - B
+    b3 = D - C
     temp = np.linalg.norm(b2) * b1
     y = np.dot(temp, np.cross(b2, b3))
     x = np.dot(np.cross(b1, b2), np.cross(b2, b3))
     return np.degrees(math.atan2(y, x))
+
+def anymetric(TUPLIST):
+    """TUPLIST can have 2,3 or 4 tuples of x,y,z values"""
+    if len(TUPLIST) == 2:
+        A,B = TUPLIST
+        return distance(A,B)
+    elif len(TUPLIST) == 3:
+        A,B,C = TUPLIST
+        return angle(B,A,C) # NOTE CONSISTENT WITH GAUSSIAN MODREDUNDANT
+    elif len(TUPLIST) == 4:
+        A,B,C,D = TUPLIST
+        return dihedral(A,B,C,D)
+    else:
+        raise RuntimeError('len(TUPLIST) must be 2,3 or 4')
 
 def difang(a, b):
     """min RADIANs difference either clock or counter-clock-wise"""
@@ -59,4 +73,3 @@ rad = rotate by "rad" radians
     p2=(w*(ux+vy+wz)+(z*(u*u+v*v)-w*(ux+vy))*ca+(-vx+uy)*sa)
     #b = [pt, m, ax]
     return (p0, p1, p2)
-

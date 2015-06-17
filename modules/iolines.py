@@ -6,7 +6,6 @@ import atoms
 # Gaussian Z-MAT Line 
 # PDB
 
-
 def _extract_resinfo(line):
     """extract (PDBName=x,ResName=y,ResNum=0) from rest of line"""
     if '(' in line and ')' in line:
@@ -94,7 +93,7 @@ def zmat2atom(line):
     elif len(line_splits)==4:
         atom = _parse_xyz_line(line_splits)
     # unknown
-    elif len(line_list) not in [4,6]:  
+    elif len(line_splits) not in [4,6]:  
         raise RuntimeError('Expected 4 or 6 fields in zmat line')
     # add resinfo if present
     if resinfo:
@@ -113,7 +112,7 @@ def atom2zmat(atom, print_resinfo = True):
         line = '{0.element}-{0.mm.atype}-{0.mm.charge:.9f}'.format(atom)
         line = '{0:.15s}'.format(line) # fill with spaces (max 15 char)
     else:
-        line = ' {0.element:15s}'.format(atom)
+        line = ' {0.element:1s}'.format(atom) #NOTA:provavelment vai ser preciso adicionar 14s apos a resinfo 
 
     if res:
         line = ('{0}(PDBName={1.resinfo.name},'
@@ -147,13 +146,23 @@ def atom2zmat(atom, print_resinfo = True):
     else:
         line += '{0.x:>11.6f} {0.y:>11.6f} {0.z:>11.6f}'.format(atom)
     
-    line = "{}\n".format(line)
+    line = "{0}\n".format(line)
 
     return line
 
 
 def atom2pdb(atom):
-    line =(
+    if not atom.resinfo:
+        line =(
+        '{1.keyword:<6s}          {1.altloc:1s}' 
+        '         {1.icode:1s}'
+        '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
+        '{1.occupancy:6.2f}{1.bfact:6.2f}'
+        '          {0.element:2s}{1.formalcharge:2s}\n'
+        .format(atom, atom.pdbinfo))
+        return line
+    else:
+        line =(
         '{2.keyword:<6s}{2.serial:>5d} {1.name:4s}{2.altloc:1s}' 
         '{1.resname:3s} {1.chain:1s}{3:4d}{2.icode:1s}'
         '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
@@ -184,9 +193,9 @@ def pdb2atom(line):
 
     # residue info
     name        = line      [12:16].strip()     # atom name
-    resName     = line      [17:20]     # Residue name
+    resName     = line      [17:20].strip()     # Residue name
     resNum      = spaceint(line[22:26])    # Residue number
-    chain       = line      [21:22]     # chain
+    chain       = line      [21:22].strip()     # chain
     resinfo = atoms.RESinfo(name, resName, resNum, chain)
 
     # pdb info
