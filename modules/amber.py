@@ -11,7 +11,7 @@ def produce_resp_in(esp_in_name, atoms_list, instructions_list, total_charge = F
         if type(total_charge) == int:
             pass
         else:
-            total_charge = sum([atom.charge for atom in atoms_list])
+            total_charge = sum([atom.mm.charge for atom in atoms_list])
         no_atoms = len(atoms_list)
         esp_in_file.write(\
         """{0}
@@ -25,7 +25,7 @@ def produce_resp_in(esp_in_name, atoms_list, instructions_list, total_charge = F
 {1:>5.0f}{2:>5d}\n""".format(comment, total_charge, no_atoms))
         for no, atom in enumerate(atoms_list):
             line = '{0:>5d}{1:>5s}\n'.format(\
-                                    atom.atomic_number, instructions_list[no])
+                                    atom.atomic_nr, instructions_list[no])
             esp_in_file.write(line)
         esp_in_file.write('\n\n')    
     return None
@@ -35,8 +35,8 @@ def produce_resp_qin(resp_qin_name, atoms_list):
         n = 0
         for atom in atoms_list:
             n += 1
-            if atom.charge:
-                charge_str = '{0:10.6f}'.format(atom.charge)
+            if atom.mm.charge:
+                charge_str = '{0:10.6f}'.format(atom.mm.charge)
             else:
                 charge_str = '{0:10.6f}'.format(0)
             if n == 8:
@@ -97,12 +97,12 @@ def give_resp_charges(old_atoms_list, new_charges):
     scaling the charges of link atoms"""
     new_atoms_list = copy.deepcopy(old_atoms_list) 
     for index, atom in enumerate(new_atoms_list):
-        atom.charge = new_charges[index]
+        atom.mm.charge = new_charges[index]
      
     old_charges_sum = new_charges_sum = 0    
     for no, charge in enumerate(new_charges):
-        old_charges_sum += old_atoms_list[no].charge
-        new_charges_sum += new_atoms_list[no].charge
+        old_charges_sum += old_atoms_list[no].mm.charge
+        new_charges_sum += new_atoms_list[no].mm.charge
 
     diff = new_charges_sum - old_charges_sum
 
@@ -113,7 +113,7 @@ def give_resp_charges(old_atoms_list, new_charges):
     
     for atom in new_atoms_list:
         if atom.link_mm_type:
-            atom.charge = atom.charge - diff/no_link_atoms
+            atom.mm.charge = atom.mm.charge - diff/no_link_atoms
 
     return new_atoms_list
 
