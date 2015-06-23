@@ -3,13 +3,13 @@
 import math
 import numpy as np
 
-def square_diff(A,B):
-    "a and b are n-dimensional vectors"
-    return sum([(a-b)**2 for a,b in zip(A,B)])
+#def square_diff(A,B):
+#    "a and b are n-dimensional vectors"
+#    return sum([(a-b)**2 for a,b in zip(A,B)])
 
 def distance(A,B):
     "a and b are n-dimensional vectors"
-    return math.sqrt(square_diff(A,B))
+    return np.linalg.norm(A-B)
 
 def angle(A,B,C):
     "3D space, A in CENTER"
@@ -17,7 +17,7 @@ def angle(A,B,C):
     d13 = distance(A,C)
     d23 = distance(B,C)
     #round. To avoid things like 1.000000001
-    return math.acos(round((d12**2 + d13**2 - d23**2)/(2*d12*d13), 7))
+    return np.arccos(np.clip( (d12**2 + d13**2 - d23**2)/(2*d12*d13), -1, 1))
 
 def dihedral(A,B,C,D):
     """Calculate dihedral considering A in the beggining"""

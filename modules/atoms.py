@@ -10,10 +10,34 @@ from  elements_database import ATOMIC_NUMBER_DICT, \
                                BONDS_DISTANCES_PAIRS
 
 class Atom(object):
+    """A container for all the information relative to an atom
+
+    Attributes:
+        element (str)
+        x (float)
+        y (float)
+        z (float)
+        
+    
+    Other info is kept in its own object inside atom:
+        - mm      (molecular mechanics)
+        - oniom   (oniom info)
+        - resinfo (information about the residue the atom belongs to)
+        - pdbinfo (information for pdb files)
+    """
+    
     def __init__(self, element, xyz):
-        """x = Atom('H', (1.0, 2.0, 3.0))"""
-        self.set_element(element)
-        self.set_coordinates(xyz)
+        """
+        
+        Args:
+            element (one letter str): Element of this atom
+            xyz (list): a list with the x, y, z coordinates
+       
+        Example:
+            Atom('H', (1.0, 2.0, 3.0))
+        """
+        self.element = self._set_element(element)
+        self.x, self.y, self.z = self.set_coordinates(xyz) 
         self.mm = None
         self.oniom = None
         self.resinfo = None
@@ -22,24 +46,14 @@ class Atom(object):
     def __repr__(self):
         return self.element
 
-    def set_element(self, element):
-        if type(element) == str:
-            if element.isdigit():
-                element = int(element)
-            else:
-                self.element = element
-                self.atomic_nr = ATOMIC_NUMBER_DICT[element]
-        if type(element) == int:
-            self.element = ATOMIC_NUMBER_DICT_REVERSE[element]
-            self.atomic_nr = element
-        elif type(element) != str:
-            raise RuntimeError('Bad element type: must be str/int/None')
+    def _set_element(self, element):
+        if element in ATOMIC_NUMBER_DICT:
+            return element
+        else:
+            raise RuntimeError("I don know this atom: {}".format(element))
 
-    def set_coordinates(self, xyz):
-        """xyz = (x, y, z)"""
-        self.x, self.y, self.z = [float(coord) for coord in xyz]
-
-    # existance of attributes to be checked with hasattr(x, 'oniom')
+    def set_coordinates(self, coordinates):
+        return [float(i) for i in coordinates]
 
     def set_mm(self, mm_obj):
         self.mm = mm_obj
@@ -58,14 +72,8 @@ class Atom(object):
         return np.array((self.x, self.y, self.z))
 
     def distance(self, atom_b):
-        return np.sqrt(
-            (self.x - atom_b.x)**2 + 
-            (self.y - atom_b.y)**2 + 
-            (self.z - atom_b.z)**2) 
-            
-        # return geom.distance(
-        #     self.get_coordinates(),
-        #     atom_b.get_coordinates())
+        return geom.distance( self.get_coordinates(),
+                              atom_b.get_coordinates())
 
     def angle(self, atom_b, atom_c):
         """self in center: b-self-c"""
@@ -87,7 +95,8 @@ class Atom(object):
         dist = self.distance(atom_b)
         if dist > 3 or dist < 0.1:  
             return False
-        atomic_nr_tuple = (self.atomic_nr, atom_b.atomic_nr)
+        atomic_nr_tuple = (ATOMIC_NUMBER_DICT[self.element], 
+                           ATOMIC_NUMBER_DICT[atom_b.atomic_nr])
         bond_key = "{}-{}".format(min(atomic_nr_tuple), max(atomic_nr_tuple))
         try:
             expected_dist = BONDS_DISTANCES_PAIRS[bond_key]
@@ -135,21 +144,4 @@ class PDBinfo(object):
         self.altloc         = altloc
         self.icode          = icode
         self.formalcharge   = formalcharge
-
-    ### def set_altloc(altloc):
-    ###     self.altloc = altloc
-
-    ### def set_icode(icode):
-    ###     self.icode = icode
-
-    ### def set_occupancy(occupancy):
-    ###     self.ocuupancy = occupancy
-
-    ### def set_bfact
-    ### def set_frmlcharge
- 
-
-class PDBQT(object):
-    """ atom with pdb and mm !!!"""
-
 

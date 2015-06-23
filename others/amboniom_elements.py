@@ -728,6 +728,7 @@ class prmtop():
         periodic_table[19] =  'K'
         periodic_table[20] = 'Ca'
         periodic_table[25] = 'Mn'
+        periodic_table[-1] = 'Zn'
         periodic_table[26] = 'Fe'
         periodic_table[27] = 'Co'
         periodic_table[28] = 'Ni'
