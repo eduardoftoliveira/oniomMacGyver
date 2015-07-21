@@ -848,8 +848,10 @@ class RouteSection():
         textout = self.text
         for key in self.keywords:
             _,a,b = self.get_keyword(textout, key)
-            textout = '%s %s %s' % (a, self.keywords[key].printme(), b)
-        return textout
+            if self.keywords[key] == None:
+                return textout
+            else:
+                return '%s %s %s' % (a, self.keywords[key].printme(), b)
 
 
     def digest_spaces(self, rsline, sign):
@@ -1128,15 +1130,16 @@ class Termination():
 def read_mulliken_charges(filename):
     """Returns a list of the Mulliken charges that first appear in the file"""
     with open(filename,'r') as gaussian_file:
-        for line in gaussian_file:
-            if "Mulliken atomic charges:" in line:
-                gaussian_file.readline()
-                break
         charges = []
+        ready = False
         for line in gaussian_file:
-            words = line.split()
-            if len(words) > 3:
-                break
-            charges.append(float(words[2]))
+            if ready:
+                words = line.split()
+                if len(words) == 3:
+                    charges.append(float(words[2]))
+                elif len(words) > 3:
+                    return charges
+            elif "Mulliken atomic charges:" in line:
+                ready = True
+
         
-    return charges
