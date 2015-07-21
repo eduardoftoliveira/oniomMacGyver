@@ -735,9 +735,16 @@ class GaussianLog():
             for line in f:
                 MAXLINES -= 1
                 if line.startswith(" Entering Link 1 ="):
-                    return line
+                    if 'g09/a_pgi105' in line:
+                        return 'g09a'
+                    elif 'g09/d_pgi133' in line:
+                        return 'g09d'
+                    elif 'g09/c_pgi133' in line:
+                        return 'g09c'
                 if MAXLINES < 0:
-                    return " Entering Link 1 = NOT FOUND IN FIRST %d LINES" % MAXLINES
+                    return None
+                    #return " Entering Link 1 = NOT FOUND IN FIRST %d LINES" % MAXLINES
+        return None
 
     def get_termination(self):
         """read 10 tail lines and return Termination() class"""
@@ -750,7 +757,7 @@ class GaussianLog():
         
 
     def _sanity_check(self):
-        """"
+        """
         #ve se os passos opt e scanpoint estao consecutivos ou se ficheiro foi danificado entre isso #nos scan ve se optimizaram
         #checks if it is a singlepoint_job or opt_job or scan_job; checks if it is oniom_job
         """
@@ -1107,9 +1114,10 @@ class Termination():
 
     def _gen_errorcode(self):
         return { 
-            0: "Atoms too close",
-            1: "Maximum number of microiterations cycles exceeded",
-            2: "FormBX had a problem"
+            'tooClose': "Atoms too close",
+            'micro': "Maximum number of microiterations cycles exceeded",
+            'intCoord': "Error in internal coordinate system.",
+            'FormBX': "FormBX had a problem"
         }
     def process(self, logtail_lines):
         for line in logtail_lines:
