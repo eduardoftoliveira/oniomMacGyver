@@ -152,6 +152,8 @@ def atom2zmat(atom, print_resinfo = True):
 
 
 def atom2pdb(atom):
+    if atom.pdbinfo == None:
+        atom.set_pdbinfo( atoms.PDBinfo('ATOM', 0) )
     if not atom.resinfo:
         line =(
         '{1.keyword:<6s}          {1.altloc:1s}' 
