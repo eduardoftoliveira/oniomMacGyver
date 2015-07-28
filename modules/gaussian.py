@@ -35,9 +35,9 @@ class ModRed():
         self.scan_step_sz = None 
         self.line = line
         if line:
-            self.add_line(line)
+            self._digest(line)
 
-    def add_line(self, line):
+    def _digest(self, line):
         coord_numat = {'B':2, 'A':3, 'D':4} # num atomids for bond, angle...
         #action_numpar = {'S':2, 'F':0, 'B':0, 'A':0, 'K':0, 'D':0, 'H':1}
         fields = line.split()
@@ -53,6 +53,19 @@ class ModRed():
             k += 1
             self.scan_step_sz = float(fields[k]) #size_step 
 
+    def write(self):
+        line  = '%s ' % self.coordtype
+        for x in self.atomids:
+            line += '%d ' % x
+        line += self.action
+        if self.action == 'S':
+            line += ' %d ' % self.scan_num_pts
+            line += '%f\n' % self.scan_step_sz
+        return line
+            
+    def edit(self):
+        pass
+
 class EmptyGaussianCom():
     def __init__(self, name):
         self.name = name
@@ -67,7 +80,7 @@ class EmptyGaussianCom():
         with open(name, 'w') as gaussian_com_file:
             for line in self.link_0_commands:
                 gaussian_com_file.write(line)
-            gaussian_com_file.write(self.route_section.write())
+            gaussian_com_file.write(self.route_section.write().replace('\n ','\n')) # FIXME
             gaussian_com_file.write("\n")   
             gaussian_com_file.write(self.title_line)
             gaussian_com_file.write("\n")
@@ -101,7 +114,9 @@ class GaussianCom(EmptyGaussianCom):
             self.connectivity_list = self.additional_input_dict["connect"]
             #Nao sei para que serve o bonds list, eh diferente de connectivity
             self.bonds_list = self._read_bonds_list()
-            self.modred_lines = self.additional_input_dict["modred"]
+            ###self.modred_lines = self.additional_input_dict["modred"] NO NEED
+            self.modreds = [ModRed(line)
+                for line in self.additional_input_dict["modred"]]
             self.gen_list = self.additional_input_dict[" gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
             #self.dftb=read = self.additional_input_dict["dftb=read"]      #adicionar isto
@@ -925,7 +940,7 @@ class RouteSection():
             this is harmless to readability by gaussian"""
         rsline = self.digest_spaces(rsline, "=")
         rsline = self.digest_brackets(rsline)
-        rsline = rsline.replace('\n', '\n ')
+        rsline = rsline.replace('\n', '\n ') # FIXME # UGLY SPACE IN BLANKLINE
         return rsline
     
     def get_keyword(self, rsline, keyword):

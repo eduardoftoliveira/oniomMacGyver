@@ -78,6 +78,15 @@ def report(logname, sge_status, sge_jobid, modtime, gls, action):
             f.write(header)
         f.write(txt)
 
+def guess_queue(com):
+    nproc = 12 # defaults to SPECIAL
+    D = {12:'sp', 16:'rp', 8:'gb'}
+    for line in open(com):
+        if line.startswith('%nproc'):
+            nproc = int(line.split('=')[1])
+            break
+    return D[nproc]
+
 def do_restart(gl, gver = 'd'):
     comname = splitext(gl.name)[0] + '.com'
     gc = GC(comname)
@@ -85,7 +94,8 @@ def do_restart(gl, gver = 'd'):
         atom.set_coordinates(xyz.get_coordinates())
     newcomname = increment_gaucom_name(comname)
     gc.write_to_file(newcomname)
-    gsub(newcomname, 'sp', gver)
+    queue = guess_queue(newcomname) 
+    gsub(newcomname, queue, gver)
 
 class glog_status():
     """This only makes sense after running.
