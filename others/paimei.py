@@ -15,6 +15,20 @@ from gaussian       import GaussianCom as GC
 import os
 import geom
 
+asciiart = """
+         __7__          %%%,%%%%%%%
+         \_._/           ,'%% \\-*%%%%%%%
+         ( ^ )     ;%%%%%*%   _%%%%"
+          `='|\.    ,%%%       \(_.*%%%%.
+            /  |    % *%%, ,%%%%*(    '
+          (/   |  %^     ,*%%% )\|,%%*%,_
+          |__, |       *%    \/ #).-"*%%*
+           |   |           _.) ,/ *%,
+           |   |   _________/)#(_____________
+           /___|  |__________________________|
+           ===
+"""
+
 
 #comname = sys.argv[1]
 opt_queue = ['sp', 'rp', 'b1', 'b2', 'gb', 'ib']
@@ -193,6 +207,7 @@ def read_files():
         else:
             badname = True
         if badname:
+            sys.stderr.write(asciiart)
             sys.stderr.write('All gaussian files must be basename_idx.com/log\n')
             sys.exit(2)
         if stem not in gaudict:
@@ -200,11 +215,13 @@ def read_files():
         gaudict[stem] = max(id, gaudict[stem])
 
     if len(gaudict) > 1:
+        sys.stderr.write(asciiart)
         sys.stderr.write('Found multiple basenames with ext: .log/.com:\n')
         sys.stderr.write('    %s\n' % (', '.join([k for k in gaudict])))
         sys.exit(2)
 
     elif len(gaudict) == 0:
+        sys.stderr.write(asciiart)
         sys.stderr.write('No .log/.com files.\n')
         sys.exit(2)
 
