@@ -56,7 +56,7 @@ def hours_since_mod(filename):
 
 def reportcom(comname, sge_status, sge_jobid, modtime):
     header = "#                   DATE,           NAME,"
-    header += " QSTAT, JOBID, modtime,   Term,    ErrID,vers,=1opt,    Action\n"
+    header += " QSTAT, JOBID, modtime,   Term,    ErrID,vers,n_opt,    Action\n"
     date = time.ctime(time.time())
     txt = '%s,%15s,%6s,%6s,%8.1f\n' % \
         (date, comname, sge_status, sge_jobid, modtime)
@@ -68,11 +68,11 @@ def reportcom(comname, sge_status, sge_jobid, modtime):
 
 def report(logname, sge_status, sge_jobid, modtime, gls, action):
     header = "#                   DATE,           NAME,"
-    header += " QSTAT, JOBID, modtime,   Term,    ErrID,vers,=1opt,    Action\n"
+    header += " QSTAT, JOBID, modtime,   Term,    ErrID,vers,n_opt,    Action\n"
     date = time.ctime(time.time())
-    txt = '%s,%15s,%6s,%6s,%8.1f,%7s,%9s,%4s,%5s,%10s\n' % \
+    txt = '%s,%15s,%6s,%6s,%8.1f,%7s,%9s,%4s,%5d,%10s\n' % \
         (date, logname, sge_status, sge_jobid, modtime, gls.term, gls.errid,
-         gls.version, gls.osteps==1, action)
+         gls.version, gls.osteps, action)
     with open('paimei.reports', 'a') as f:
         if f.tell() == 0: # file is new
             f.write(header)
@@ -93,6 +93,12 @@ def do_restart(gl, gver = 'd'):
     for atom,xyz in zip(gc.atoms_list, gl.final_geometry):
         atom.set_coordinates(xyz.get_coordinates())
     newcomname = increment_gaucom_name(comname)
+    # reduce scan steps accordingly
+    steps_done = len(globj.bytedict['orientation:'])-1
+    if steps_done:  
+        for modred in gc.modreds:
+            if modred.action == 'S':# this FAILs for multi- scans
+                modred.scan_num_pts -= steps_done
     gc.write_to_file(newcomname)
     queue = guess_queue(newcomname) 
     gsub(newcomname, queue, gver)
@@ -248,9 +254,6 @@ def main():
     elif action == 'rst-1-g09a':
         do_restart(glog, 'a')
 
-    
-
-                
 
 # Run
 if __name__ == "__main__":

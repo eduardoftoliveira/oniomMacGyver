@@ -1,9 +1,22 @@
 #!/usr/bin/env python
 
 import sys, argparse, geom
+from os.path import exists
 from gaussian import GaussianCom as GC
 from gaussian import GaussianLog as GL
 from gaussian import ModRed
+
+
+def increment_gaucom_name(gaucom_name):
+    """nha_nhe_23.com --> nha_nhe_24.com
+       nha.com        --> nha_1.com     """
+
+    name = splitext(gaucom_name)[0]
+    if '_' in name:                           #             |
+        if name.split('_')[-1].isdigit():     # all but the | digit
+            digit = int(name.split('_')[-1])  #             V
+            return '%s_%d.com' % ('_'.join(name.split('_')[:-1]), digit + 1)
+    return name + '_1.com'
 
 parser = argparse.ArgumentParser()
 parser.add_argument('COM', help='.com file to perform scans')
@@ -126,7 +139,8 @@ if args.Bfreeze:
     for i,j in args.Bfreeze:
         new_modred.append(ModRed('B %d %d F\n' % (i,j)))
 
-gc.additional_input_dict['modred'] = [m.line for m in new_modred]
+gc.modreds = new_modred
+#gc.additional_input_dict['modred'] = [m.line for m in new_modred]
 
 # update coordinates
 if args.log:
@@ -138,10 +152,13 @@ if args.log:
 # add modred to opt in route_section if necessary    
 gc.route_section.keywords['opt'].set('modred')
 
-output = args.COM + '-gscan'
-gc.write_to_file(output)
-
-print 'Wrote %s. Check it ;)' % output
+# write new file
+output = increment_gaucom_name(args.COM)
+if not exists(output):
+    gc.write_to_file(output)
+    print 'Wrote %s' % output
+else:
+    sys.stderr.write('%s already exists... not doing anything' % output)
 
 #print args
 
