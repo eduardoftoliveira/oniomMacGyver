@@ -94,8 +94,10 @@ def do_restart(gl, gver = 'd'):
         atom.set_coordinates(xyz.get_coordinates())
     newcomname = increment_gaucom_name(comname)
     # reduce scan steps accordingly
-    steps_done = len(globj.bytedict['orientation:'])-1
+    steps_done = len(gl.bytedict['orientation:'])-1
+    print steps_done
     if steps_done:  
+        print steps_done
         for modred in gc.modreds:
             if modred.action == 'S':# this FAILs for multi- scans
                 modred.scan_num_pts -= steps_done

@@ -77,7 +77,7 @@ class EmptyGaussianCom():
         self.additional_input_dict = {"connect":None, "readopt":None, "modred":[], "gen":None,
                 "pseudo=read":None, "dftb=read":None } #TODO put all empty lists?
     def write_to_file(self,name):
-        self.additional_input_dict['modred'] = [m.line for m in self.modreds]
+        self.additional_input_dict['modred'] = [m.write() for m in self.modreds]
         with open(name, 'w') as gaussian_com_file:
             for line in self.link_0_commands:
                 gaussian_com_file.write(line)

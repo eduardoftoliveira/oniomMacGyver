@@ -2,6 +2,7 @@
 
 import sys, argparse, geom
 from os.path import exists
+from os.path import splitext
 from gaussian import GaussianCom as GC
 from gaussian import GaussianLog as GL
 from gaussian import ModRed
@@ -156,9 +157,9 @@ gc.route_section.keywords['opt'].set('modred')
 output = increment_gaucom_name(args.COM)
 if not exists(output):
     gc.write_to_file(output)
-    print 'Wrote %s' % output
+    print '%s' % output
 else:
-    sys.stderr.write('%s already exists... not doing anything' % output)
+    sys.stderr.write('%s already exists... not doing anything\n' % output)
 
 #print args
 
