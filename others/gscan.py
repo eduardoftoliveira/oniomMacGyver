@@ -112,12 +112,19 @@ for m in new_modred:
             sys.stderr.write('Consider using --delete / --deleteALL\n')
             sys.exit()
 
+# update coordinates
+if args.log:
+    gl = GL(args.log)
+    xyz = [atom.get_coordinates() for atom in gl.final_geometry]
+    for atom, coords in zip(gc.atoms_list, xyz):
+        atom.set_coordinates(coords) 
+
 # calculate scan properties and add to new_modred
 if args.Bscan:
     i, j = args.Bscan
     curr_dist = getdist(i, j, gc)
 
-    #print 'distance = %.2f' % (curr_dist)
+    sys.stderr.write('gscan.py: initial coordinate distance = %.3f\n' % (curr_dist))
 
     if args.target and args.nsteps:
         stepsize = (args.target - curr_dist) / args.nsteps
@@ -142,13 +149,6 @@ if args.Bfreeze:
 
 gc.modreds = new_modred
 #gc.additional_input_dict['modred'] = [m.line for m in new_modred]
-
-# update coordinates
-if args.log:
-    gl = GL(args.log)
-    xyz = [atom.get_coordinates() for atom in gl.final_geometry]
-    for atom, coords in zip(gc.atoms_list, xyz):
-        atom.set_coordinates(coords) 
 
 # add modred to opt in route_section if necessary    
 gc.route_section.keywords['opt'].set('modred')
