@@ -245,7 +245,7 @@ def main():
     p = asciiplot.AFigure()
     _ = p.plot(x_axis, y, marker='_s')
     p.xlim(min(x_axis), max(x_axis) )
-    print(p.draw())
+    print(p.draw().encode('utf-8'))
     if oneopt:
         print('Energy along optimization point.')
     else:
