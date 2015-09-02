@@ -419,7 +419,6 @@ def md_to_sp():
                 script_file.write("g09 {}\n".format(job))
 
 
-
 def sp_to_energies():
     """ Extract energies from the gaussian sp files"""
     with open(RESULTS_FILE, 'r') as result_file:
@@ -456,7 +455,7 @@ def sp_to_energies():
                     forward_energies.append(diff)
             
                 if this_energy and previous_energy: 
-                    diff = (this_energy-previous_energy)*HJOULE
+                    diff = (previous_energy - this_energy)*HJOULE
                     backward_energies.append(diff)
                     #print(md_no, frame, diff)
 #        for energy in forward_energies:

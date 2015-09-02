@@ -37,7 +37,8 @@ class Atom(object):
             Atom('H', (1.0, 2.0, 3.0))
         """
         self.element = self._set_element(element)
-        self.x, self.y, self.z = self.set_coordinates(xyz) 
+        #self.x, self.y, self.z = self.set_coordinates(xyz) (only works at init)
+        self.set_coordinates(xyz)
         self.mm = None
         self.oniom = None
         self.resinfo = None
@@ -53,7 +54,8 @@ class Atom(object):
             raise RuntimeError("I don know this atom: {}".format(element))
 
     def set_coordinates(self, coordinates):
-        return [float(i) for i in coordinates]
+        self.x, self.y, self.z = [float(i) for i in coordinates]
+        #return [float(i) for i in coordinates]
 
     def set_mm(self, mm_obj):
         self.mm = mm_obj
@@ -108,7 +110,7 @@ class Atom(object):
 class MM(object):
     def __init__(self, atype, charge):
         self.atype = atype
-        self.charge = charge
+        self.charge = float(charge)
 
 class Oniom(object):
     def __init__(self, mask, layer):

@@ -285,12 +285,25 @@ def create_restraint_mask(atoms_numbers_list):
 
 ##### mdcrd
 
-def extract_from_mdcrd(mdcrd_name, no_atoms, snapshot):
+def extract_from_mdcrd(mdcrd_name, no_atoms, snapshot, 
+                       has_box_info = True, output_box_info = False):
     """ Extract the coordinates from a snapshot of a mdcrd file"""
     mdcrd_file = open(mdcrd_name,'r')
-    bytes_per_structure =  ((3*no_atoms)//10)*81 + ((3*no_atoms)%10)*8 
-    bytes_to_jump = 81+bytes_per_structure*snapshot+ (snapshot*26)
+    
+    bytes_per_structure =  ((3*no_atoms)//10)*81
+
+    if ((3*no_atoms)%10)*8:
+        bytes_per_structure += ((3*no_atoms)%10)*8 + 1 
+    
+    if has_box_info:
+        bytes_per_structure += 25 # line with box info
+    
+    bytes_to_jump = 81+bytes_per_structure*snapshot
     mdcrd_file.seek(bytes_to_jump)
+
+    if not output_box_info:
+        bytes_per_structure -= 25
+
     crd_text = mdcrd_file.read(bytes_per_structure)
     crd_text = crd_text.replace('\n','')
     
@@ -298,7 +311,7 @@ def extract_from_mdcrd(mdcrd_name, no_atoms, snapshot):
     for byte in range(0,len(crd_text),8):
         value = crd_text[byte:byte+8]
         crd_numbers.append(value)
-    
+   
     coordinates = []
     for n in range(0,len(crd_numbers),3):
         xyz = tuple([float(no) for no in crd_numbers[n:n+3]])
@@ -307,9 +320,4 @@ def extract_from_mdcrd(mdcrd_name, no_atoms, snapshot):
     mdcrd_file.close()
 
     return coordinates
-
-
-
-
-
 

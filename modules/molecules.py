@@ -17,11 +17,8 @@ class Molecule(list):
     def __repr__(self):
         return self.name
 
-    def charge(self):
-        charge = 0
-        for atom in self.atoms_list:
-           charge += atom.charge
-        return charge
+    def get_charge(self):
+        return sum([atom.mm.charge for atom in self.atoms_list])
     
     def localize_charge(self):
         #not properly tested
@@ -158,7 +155,7 @@ def QMMM_to_QM(atoms_list, make_new='True'):
                 atom = Atom(atom.oniom.link_atom.element, (0, 0, 0))
             atom.x, atom.y, atom.z = new_x, new_y, new_z
         else:
-             continue
+            continue
         
         qm_atoms_list.append(atom)
     

@@ -214,3 +214,33 @@ def pdb2atom(line):
     atom.set_pdbinfo(pdbinfo)
     return atom
 
+def mol22atom(line):
+    "Reads a mol2 atom line and returns the atoms indexes and bond order"
+    words = line.strip().split()
+
+    # basic atom info
+    element = words[5].split('.')[0]
+    x, y, z = words[2:5]
+    
+    # mm info
+    atom_type = words[1]
+    if len(words) == 9:
+        charge = words[8]
+    else:
+        charge = None
+
+    atom = atoms.Atom(element,(x, y, z))
+    mm_obj = atoms.MM(atom_type, charge)
+    atom.set_mm(mm_obj) 
+
+    return atom
+
+
+def mol22bond(line):
+    "Reads a mol2 bond line and returns the corresponding bond object"
+    bond_order_dict = {'1':1, '2':2, '3':3, 
+                       'ar':1.5, 'Ar':1.5, 'Am':1.5, 'am':1.5}
+    words = line.strip().split()
+    return int(words[1]), int(words[2]), bond_order_dict[words[3]]
+
+

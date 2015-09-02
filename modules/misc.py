@@ -1,4 +1,5 @@
-from math import sqrt
+import decimal
+import numpy as np
 
 def transpose_list_of_lists(mat):
     """
@@ -33,7 +34,7 @@ def avg(vec):
 
 def std(vec):
     a = avg(vec)
-    return sqrt(sum([(x-a)**2 for x in vec])/len(vec))
+    return np.sqrt(sum([(x-a)**2 for x in vec])/len(vec))
 
 def mol2_rm_lp(filename, delhydrogens = True):
     """remove lone pairs from mol2 Gold file"""
@@ -104,7 +105,34 @@ def mol2_rm_lp(filename, delhydrogens = True):
 
     return newtext, coords
     
-        
 
-                
+T = decimal.Decimal(310.15)
+KB = decimal.Decimal(1.3806488E-23)
+R = decimal.Decimal(8.31446211)
+HKCAL = decimal.Decimal(627.5095)
+HJOULE = decimal.Decimal(4.3597482E-18)
+JKCAL = decimal.Decimal(0.000239005736)
+NA = decimal.Decimal(6.0221413e+23)
+decimal.getcontext().Emax = 999999999999999999
+decimal.getcontext().Emin = -999999999999999999
+
+
+
+def exponential_average(arr):
+    """Returns the exponential average of an array. Uses SI units but kcal 
+    instead of Joules"""
+    
+    log_sum = 0
+    for log_v in arr:
+        log_v = decimal.Decimal(log_v)
+        log_v = (log_v/JKCAL)/NA
+        log_v = np.exp(-log_v/(T*KB))
+        log_sum += log_v
+
+    exp_average = log_sum/len(arr)
+    delta_g = exp_average.ln() * -KB*T*NA*JKCAL
+    
+    return delta_g
+
+
 

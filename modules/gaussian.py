@@ -11,7 +11,7 @@ from hashlib import md5
 from os.path import exists as hazfile
 from os.path import getsize
 from sys import stderr
-
+import copy
 
 # our python modules
 import atoms
@@ -19,39 +19,16 @@ import molecules
 import iolines
 import misc
 
-def gen_md5sum(input_text_string):
-    md5sum = md5() 
-    md5sum.update(input_text_string.encode()) # encode is coz of python3 stuff
-    return md5sum.hexdigest()
-
-class ModRed():
-
-    def __init__(self, line = None):
-        self.coordtype = None # B, A or D
-        self.atomids = [] # list of ints
-        self.action = None # (F)reeze, (S)can, (K)ill, (B)uild, (A)ctivate
-        # for (S)can only
-        self.scan_num_pts = None 
-        self.scan_step_sz = None 
-        if line:
-            self.add_line(line)
-
-    def add_line(self, line):
-        coord_numat = {'B':2, 'A':3, 'D':4} # num atomids for bond, angle...
-        #action_numpar = {'S':2, 'F':0, 'B':0, 'A':0, 'K':0, 'D':0, 'H':1}
-        fields = line.split()
-        self.coordtype = fields[0]
-        k = 1
-        for i in range(coord_numat[self.coordtype]):
-            self.atomids.append(int(fields[k]))
-            k += 1
-        self.action = fields[k]
-        k += 1
-        if self.action == 'S': # implement H somtime
-            self.scan_num_pts = int(fields[k]) #num_steps
-            k += 1
-            self.scan_step_sz = float(fields[k]) #size_step 
-
+ADDITIONAL_INPUT_DICT = collections.OrderedDict([
+                                                 ("connect",None),
+                                                 ("readopt",None),
+                                                 ("modred", None),
+                                                 (" gen",None),
+                                                 ("pseudo=read",None),
+                                                 ("first",None),
+                                                 ("dftb=read",None) 
+                                                ]) 
+ 
 class EmptyGaussianCom():
     def __init__(self, name):
         self.name = name
@@ -60,8 +37,8 @@ class EmptyGaussianCom():
         self.title_line = "title line required\n"
         self.multiplicity_line = ""
         self.atoms_list = []
-        self.additional_input_dict = {"connect":None, "readopt":None, "modred":[], "gen":None,
-                "pseudo=read":None, "dftb=read":None } #TODO put all empty lists?
+        self.additional_input_dict = ADDITIONAL_INPUT_DICT.copy()
+
     def write_to_file(self,name):
         with open(name, 'w') as gaussian_com_file:
             for line in self.link_0_commands:
@@ -77,9 +54,8 @@ class EmptyGaussianCom():
             for section in self.additional_input_dict:
                 if self.additional_input_dict[section]:
                     gaussian_com_file.write("\n")
-                    if section == 'first' and 'soft' in self.route_section:
-                        gaussian_com_file.write("\n")
-                    elif section == 'dftb=read' and 'dftb=read' in self.route_section.lower():
+                    if (section == 'first' and 'soft' in self.route_section) or\
+                       (section == 'dftb=read'):
                         gaussian_com_file.write("\n")
                     for line in self.additional_input_dict[section]:
                         gaussian_com_file.write(line)
@@ -95,13 +71,13 @@ class GaussianCom(EmptyGaussianCom):
             self.title_line = self._read_title_line()
             self.multiplicity_line = self._read_multiplicity_line()
             self.atoms_list = self._read_structure()
-            self.additional_input_dict = self._read_additional_input2()            
+            self.additional_input_dict = self._read_additional_input()            
             self.connectivity_list = self.additional_input_dict["connect"]
-            self.bonds_list = self._read_bonds_list()                          #Nao sei para que serve o bonds list, eh diferente de connectivity
+            self.bonds_list = self._read_bonds_list()  
             self.modredundant_list = self.additional_input_dict["modred"]
             self.gen_list = self.additional_input_dict[" gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
-            #self.dftb=read = self.additional_input_dict["dftb=read"]      #adicionar isto
+            self.dftb=read = self.additional_input_dict["dftb=read"]     
             self.MM_external_params = self.additional_input_dict["first"]
             self.read_optimize = self.additional_input_dict["readopt"]
 
@@ -113,12 +89,12 @@ class GaussianCom(EmptyGaussianCom):
         return lines
             
     def _count_blank_lines(self):
-        """Return a list with the blank lines number"""
+        """Return a list with the blank lines index"""
         blank_lines = []
         for no, line in enumerate(self.lines):
             if line.strip() == '':
                 blank_lines.append(no)
-        return blank_lines #lista de index das blank lines
+        return blank_lines
 
     def _read_link_0_commands(self):
         """Return a list with Link 0 commands"""
@@ -129,17 +105,10 @@ class GaussianCom(EmptyGaussianCom):
         
     def _read_route_section(self):
         """Return a string with the route section"""
-        read_route_section = False
         route_section = ''
         for line in self.lines[:self.blank_lines[0]]:
-            if read_route_section:
-                #route_section += "\n{}".format(line)
-                route_section += line
-                pass
-            if '#' in line:
-                read_route_section = True
-                route_section += line
-        route_section = route_section
+            if '%' not in line:
+                route_section += line + ' '
         return route_section
 
     def _read_title_line(self):
@@ -159,40 +128,28 @@ class GaussianCom(EmptyGaussianCom):
             atoms_list.append(iolines.zmat2atom(line))
         return atoms_list
 
-    def _read_additional_input2(self):
-        """Reads additional input and stores it in a ordered dict"""
-        additional_input_dict = collections.OrderedDict(\
-        [("connect",None),("readopt",None),("modred", []),(" gen",None),("pseudo=read",None),("first",None), ("dftb=read",None) ]) #TODO put all empty lists? usefull for extend
+    def _read_additional_input(self):
+        """Reads additional input lines and stores it in a ordered dict"""
+        additional_input_dict = ADDITIONAL_INPUT_DICT.copy()
+
         shift=0
         b_lines = self.blank_lines
 
         for key in additional_input_dict:
             if key in self.route_section.lower().replace("only","first"):
-                if key == "modred" and "modred" in self.route_section.lower():
-                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
-                    additional_input_dict[key]= self.lines[i_start: i_finish]
-                    #NOTA: ao ler isto, adicionar tb ah lista modredundant_list
-                if key == "first" and "soft" in self.route_section.lower():
+                if (key == "first" and "soft" in self.route_section.lower()) or\
+                   (key == "dftb=read"):
                     shift += 1
-                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
-                    additional_input_dict[key]= self.lines[i_start: i_finish]
-                #print(key, i_start, i_finish)
-                #dftb=read
-                elif key == "dftb=read" and "dftb=read" in self.route_section.lower():
-                #fiz elif para ver se os estragos que causo sao mais contidos... mas devia ser if pk pode haver as 2 keys em simultaneo
-                    shift += 1
-                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
-                    additional_input_dict[key]= self.lines[i_start: i_finish]
                 
+                i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                additional_input_dict[key]= self.lines[i_start: i_finish]
                 shift += 1
         return additional_input_dict
 
 
     def _read_bonds_list(self):
-        """ Create bonds list from the connectivity info on the file"""
+        """ Create a list of bonds objects from the connectivity info"""
         bonds_list = []
-        if self.connectivity_list == [] or self.connectivity_list == None:
-            return None
 
         for line in self.connectivity_list:
             numbers = line.split()
@@ -215,12 +172,13 @@ class GaussianCom(EmptyGaussianCom):
         bonds_list = self.bonds_list[:]
         connectivity_list = []
         for index, atom in enumerate(self.atoms_list):
+            line = " {0}".format(index+1)
+            
             this_atom_bonds = []
             bonds_to_remove = []
             for no_b, bond in enumerate(bonds_list):
                 if atom is bond.atom_a or atom is bond.atom_b:
                     this_atom_bonds.append(bond)
-            line = " {0}".format(index+1)
             for bond in this_atom_bonds:
                 bonds_list.remove(bond)
                 if bond.atom_a is atom:
@@ -779,6 +737,34 @@ class GaussianLog():
                 #print('#WARNING : Not checking singlepoint sanity yet!') #for singlepoint_job
 
 
+class ModRed():
+
+    def __init__(self, line = None):
+        self.coordtype = None # B, A or D
+        self.atomids = [] # list of ints
+        self.action = None # (F)reeze, (S)can, (K)ill, (B)uild, (A)ctivate
+        # for (S)can only
+        self.scan_num_pts = None 
+        self.scan_step_sz = None 
+        if line:
+            self.add_line(line)
+
+    def add_line(self, line):
+        coord_numat = {'B':2, 'A':3, 'D':4} # num atomids for bond, angle...
+        #action_numpar = {'S':2, 'F':0, 'B':0, 'A':0, 'K':0, 'D':0, 'H':1}
+        fields = line.split()
+        self.coordtype = fields[0]
+        k = 1
+        for i in range(coord_numat[self.coordtype]):
+            self.atomids.append(int(fields[k]))
+            k += 1
+        self.action = fields[k]
+        k += 1
+        if self.action == 'S': # implement H somtime
+            self.scan_num_pts = int(fields[k]) #num_steps
+            k += 1
+            self.scan_step_sz = float(fields[k]) #size_step 
+
 
 
 ###orphans
@@ -798,3 +784,11 @@ def read_mulliken_charges(filename):
             charges.append(float(words[2]))
         
     return charges
+
+
+def gen_md5sum(input_text_string):
+    md5sum = md5() 
+    md5sum.update(input_text_string.encode()) # encode is coz of python3 stuff
+    return md5sum.hexdigest()
+
+
