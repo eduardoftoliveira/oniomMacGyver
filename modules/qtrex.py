@@ -90,7 +90,7 @@ echo `date '+%d %b %H:%M'` $HOME_JOB_DIR/$JOBNAME >> ~/log.que
         'b2': "source /opt/programs/gaussian/g09/%s/G09.sh",
         'ib': "source /opt/programs/gaussian/g09/%s/G09.sh",
         'sp': "source /opt/programs/gaussian/g09/%s/G09.sh",
-        'rp': "source /opt/gaussian/g09/%s/G09.sh"
+        'rp': "source /opt/programs/gaussian/g09/%s/G09.sh"
     }
 
     GAU_VERSION = {
