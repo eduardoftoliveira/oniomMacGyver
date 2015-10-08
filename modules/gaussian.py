@@ -60,7 +60,8 @@ class ModRed():
         line += self.action
         if self.action == 'S':
             line += ' %d ' % self.scan_num_pts
-            line += '%f\n' % self.scan_step_sz
+            line += '%f' % self.scan_step_sz
+        line += '\n'
         return line
             
     def edit(self):
