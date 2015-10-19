@@ -24,12 +24,10 @@ print("Everything seems ok\n\n")
 print("Trying to read oniom_pdb.log, a ONIOM gassian.log file with pdb info")
 gaussian_file_name = "oniom_pdb.log"
 gaussian_log = GaussianLog(gaussian_file_name)
-print(gaussian_log._generate_summary())
 print("Everything seems ok\n\n")
 
 print("Trying to read big_scan_oniom.log, a 1.2 GB ONIOM gassian.log file")
 gaussian_file_name = "big_scan_oniom.log"
 gaussian_log = GaussianLog(gaussian_file_name)
-print(gaussian_log._generate_summary())
 print("Everything seems ok\n\n")
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """ This scripts allows the user to make FEP calculations along a 
 reaction coordinate with the AMBER and GAUSSIAN software packages"""
 

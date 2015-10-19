@@ -4,3 +4,5 @@ tests/*com
 tests/*log
 tests/*top
 *chk
+*swp
+*.bytelist

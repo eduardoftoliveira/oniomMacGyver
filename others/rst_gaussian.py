@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 """It reads a gaussian output file, writes a com file 
 with the last geometry"""
 

@@ -6,6 +6,7 @@ import collections
 import subprocess
 import linecache
 import pickle
+import pybel
 from copy import deepcopy
 from hashlib import md5
 from os.path import exists as hazfile
@@ -20,7 +21,7 @@ import iolines
 import misc
 
 ADDITIONAL_INPUT_DICT = collections.OrderedDict([
-                                                 ("connect",None),
+                                                 ("connect", []),
                                                  ("readopt",None),
                                                  ("modred", None),
                                                  (" gen",None),
@@ -543,42 +544,6 @@ class GaussianLog():
     def close_file(self):
         self.file.close()
     
-    ### def read_symbolic_zmatrix(self):
-    ###     self.file.seek(0)
-    ###     reading = False
-    ###     atoms_lines = []
-    ###     for no, line in enumerate(self.file):
-    ###         if reading:
-    ###             if "Charge" in line:
-    ###                 pass
-    ###             elif line.strip() == '':
-    ###                 break
-    ###             else:
-    ###                 atoms_lines.append(line)
-    ###         if "atrix:" in line:
-    ###             reading = True
-    ###     return self.read_gaussian_input_structure(atoms_lines)
-    
-    def _generate_summary(self):
-        no_opts = 0
-        for scan_step in self.steps_list:
-            no_opts += len(scan_step)
-        no_scans = len(self.steps_list) - 1
-        energy = self.energies_list[-1][-1]       
-        summary = """Reading from {0.name}        
-        Route Section:
-        {0.route_section}
-        
-        List of Atoms
-        {2} atoms: {1}...
-        
-        Opt Steps: {3}
-        Scan Steps: {4}
-        
-        Last Energy: {5}
-        """.format(self, self.initial_geometry[:100], len(self.initial_geometry), no_opts, no_scans, energy)
-        return summary
-    
     def read_coordinates(self, atom_nr, byte):
         """To request or not to request N_ATOMS, it would allow checking -----"""
 
@@ -668,12 +633,11 @@ class GaussianLog():
                 f.readline()
             for model_atom in self.atoms_list:
                 line = f.readline()
-                atom = deepcopy(model_atom)
-                atomic_number = line.split()[1]
+                atomic_number = int(line.split()[1])
                 x, y, z = line.split()[3:6]
-                element = [key for key in iter(atoms.ATOMIC_NUMBER_DICT) \
-                                if atoms.ATOMIC_NUMBER_DICT[key] == int(atomic_number)][0] #hack
-                atom.x, atom.y, atom.z = float(x),float(y),float(z)
+                element = atoms.PERIODIC_TABLE.GetSymbol(atomic_number)
+                xyz = (float(x),float(y),float(z))
+                atom = atoms.Atom(element, xyz) 
                 atoms_list.append(atom)    
         return atoms_list
 
@@ -750,7 +714,7 @@ class ModRed():
             self.add_line(line)
 
     def add_line(self, line):
-        coord_numat = {'B':2, 'A':3, 'D':4} # num atomids for bond, angle...
+        coord_numat = {'B':2, 'A':3, 'D':4, 'X':1} # num atomids for bond, angle...
         #action_numpar = {'S':2, 'F':0, 'B':0, 'A':0, 'K':0, 'D':0, 'H':1}
         fields = line.split()
         self.coordtype = fields[0]

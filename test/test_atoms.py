@@ -22,37 +22,31 @@ class test_atoms(unittest.TestCase):
                      )
 
     def test_set_element_good(self):
-        """Correct atom elements are well read into Atom"""
+        """Correct atom types are well read into Atom"""
         for test_input in self.good_inputs:
             atom = atoms.Atom(test_input[0], test_input[1])
-            self.assertEqual(atom.element,test_input[0])
-
-    def test_element_not_recognized(self):
-        """Bad elements are not recognized"""
-        for test_input in self.bad_elements_inputs:
-            with self.assertRaises(RuntimeError):
-                atom = atoms.Atom(test_input[0], test_input[1])
+            self.assertEqual(atom.GetType() ,test_input[0])
 
     def test_set_coordinates_good(self):
         """Correct atom coordinates are well read into Atom"""
         for test_input in self.good_inputs:
             atom = atoms.Atom(test_input[0], test_input[1])
-            self.assertEqual((atom.x, atom.y, atom.z),test_input[1])
+            self.assertEqual((atom.x(), atom.y(), atom.z()),test_input[1])
 
     def test_good_coordinates(self):
         """Correct coordinates are well read. Must be floats"""
         for test_input in self.good_inputs:
             atom = atoms.Atom(test_input[0], test_input[1])
-            self.assertEqual(atom.x, float(test_input[1][0]))
-            self.assertEqual(atom.y, float(test_input[1][1]))
-            self.assertEqual(atom.z, float(test_input[1][2]))
+            self.assertEqual(atom.x(), float(test_input[1][0]))
+            self.assertEqual(atom.y(), float(test_input[1][1]))
+            self.assertEqual(atom.z(), float(test_input[1][2]))
 
     def test_distance(self):
         """Distances between atoms are well calculated"""
         for pair in self.distance_pairs:
             atom_A = atoms.Atom(pair[0][0], pair[0][1])
             atom_B = atoms.Atom(pair[1][0], pair[1][1])
-            self.assertAlmostEqual(atom_A.distance(atom_B), pair[2])
+            self.assertAlmostEqual(atom_A.GetDistance(atom_B), pair[2])
 
     def test_angle(self):
         """Angles between atoms are well calculated"""

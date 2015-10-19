@@ -1,19 +1,19 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # python modules
-import numpy as np
 import geom
+import numpy as np
+import pybel
 
-# qt modules
-from  elements_database import ATOMIC_NUMBER_DICT, \
-                               ATOMIC_NUMBER_DICT_REVERSE, \
-                               BONDS_DISTANCES_PAIRS
 
-class Atom(object):
+#create a periodic table object
+PERIODIC_TABLE = pybel.ob.OBElementTable()
+
+class Atom(pybel.ob.OBAtom):
     """A container for all the information relative to an atom
 
     Attributes:
-        element (str)
+        type (str)
         x (float)
         y (float)
         z (float)
@@ -26,36 +26,26 @@ class Atom(object):
         - pdbinfo (information for pdb files)
     """
     
-    def __init__(self, element, xyz):
+    def __init__(self, atype, xyz):
         """
         
         Args:
-            element (one letter str): Element of this atom
+            atype (one letter str or entire name): Element of this atom
             xyz (list): a list with the x, y, z coordinates
        
         Example:
             Atom('H', (1.0, 2.0, 3.0))
         """
-        self.element = self._set_element(element)
-        #self.x, self.y, self.z = self.set_coordinates(xyz) (only works at init)
-        self.set_coordinates(xyz)
+        pybel.ob.OBAtom.__init__(self)
+        self.SetType(atype) 
+        self.SetVector(xyz[0], xyz[1], xyz[2])
         self.mm = None
         self.oniom = None
         self.resinfo = None
         self.pdbinfo = None
         
     def __repr__(self):
-        return self.element
-
-    def _set_element(self, element):
-        if element in ATOMIC_NUMBER_DICT:
-            return element
-        else:
-            raise RuntimeError("I don know this atom: {}".format(element))
-
-    def set_coordinates(self, coordinates):
-        self.x, self.y, self.z = [float(i) for i in coordinates]
-        #return [float(i) for i in coordinates]
+        return self.GetType()
 
     def set_mm(self, mm_obj):
         self.mm = mm_obj
@@ -68,44 +58,6 @@ class Atom(object):
 
     def set_pdbinfo(self, pdbinfo_obj):
         self.pdbinfo = pdbinfo_obj
-
-    def get_coordinates(self):
-        """Returs Atom coordinates as a numpy array"""
-        return np.array((self.x, self.y, self.z))
-
-    def distance(self, atom_b):
-        return geom.distance( self.get_coordinates(),
-                              atom_b.get_coordinates())
-
-    def angle(self, atom_b, atom_c):
-        """self in center: b-self-c"""
-        return geom.angle(
-            self.get_coordinates(),
-            atom_b.get_coordinates(),
-            atom_c.get_coordinates())
-
-    def dihedral(self, atom_b, atom_c, atom_d):
-        return geom.dihedral(
-            self.get_coordinates(),
-            atom_b.get_coordinates(),
-            atom_c.get_coordinates(),
-            atom_d.get_coordinates())
-        
-    def is_bonded_to(self, atom_b):
-        """Check if this Atom is bonded to another Atom"""
-        tolerance = 0.30  #30% is a good tolerance?
-        dist = self.distance(atom_b)
-        if dist > 3 or dist < 0.1:  
-            return False
-        atomic_nr_tuple = (ATOMIC_NUMBER_DICT[self.element], 
-                           ATOMIC_NUMBER_DICT[atom_b.atomic_nr])
-        bond_key = "{}-{}".format(min(atomic_nr_tuple), max(atomic_nr_tuple))
-        try:
-            expected_dist = BONDS_DISTANCES_PAIRS[bond_key]
-        except KeyError as err:
-            expected_dist = 0
-            print("There is no saved distance for", err)
-        return dist < (1+tolerance)*expected_dist
 
 class MM(object):
     def __init__(self, atype, charge):
@@ -145,5 +97,5 @@ class PDBinfo(object):
         self.bfact          = bfact
         self.altloc         = altloc
         self.icode          = icode
-        self.formalcharge   = formalcharge
+        self.formalcharge   = formalcharge # exists in pybel
 

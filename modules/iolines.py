@@ -109,11 +109,12 @@ def atom2zmat(atom, print_resinfo = True):
     res = atom.resinfo and print_resinfo
 
     # el + mm + resinfo
+    print(atom.GetType())
     if atom.mm:
-        line = '{0.element}-{0.mm.atype}-{0.mm.charge:.9f}'.format(atom)
+        line = '{0}-{1.mm.atype}-{1.mm.charge:.9f}'.format(atom.GetType(),atom)
         line = '{0:.15s}'.format(line) # fill with spaces (max 15 char)
     else:
-        line = ' {0.element:1s}'.format(atom) #NOTA:provavelment vai ser preciso adicionar 14s apos a resinfo 
+        line = ' {0:1s}'.format(atom.GetType()) #NOTA:provavelment vai ser preciso adicionar 14s apos a resinfo 
 
     if res:
         line = ('{0}(PDBName={1.resinfo.name},'
@@ -134,18 +135,20 @@ def atom2zmat(atom, print_resinfo = True):
             link_atom = atom.oniom.link_atom
             if link_atom.mm:
                 line += (
-                ' {0.element}-{0.mm.atype}-{0.mm.charge}'
+                ' {0.GetType()}-{0.mm.atype}-{0.mm.charge}'
                 ' {1.oniom.link_bound_to} {1.oniom.link_scale1}'
                 .format(link_atom, atom))
             else:
                 line += (
-                ' {0.element}'
+                ' {0.GetType()}'
                 ' {1.oniom.link_bound_to} {1.oniom.link_scale1}'
                 .format(link_atom, atom))
 
     # add (x, y, z)
     else:
-        line += '{0.x:>11.6f} {0.y:>11.6f} {0.z:>11.6f}'.format(atom)
+        line += '{0:>11.6f} {0:>11.6f} {0:>11.6f}'.format(atom.x(),
+                                                          atom.y(),
+                                                          atom.z())
     
     line = "{0}\n".format(line)
 
@@ -159,7 +162,7 @@ def atom2pdb(atom):
         '         {1.icode:1s}'
         '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
         '{1.occupancy:6.2f}{1.bfact:6.2f}'
-        '          {0.element:2s}{1.formalcharge:2s}\n'
+        '          {0.GetType():2s}{1.formalcharge:2s}\n'
         .format(atom, atom.pdbinfo))
         return line
     else:
@@ -168,7 +171,7 @@ def atom2pdb(atom):
         '{1.resname:3s} {1.chain:1s}{3:4d}{2.icode:1s}'
         '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
         '{2.occupancy:6.2f}{2.bfact:6.2f}'
-        '          {0.element:2s}{2.formalcharge:2s}\n'
+        '          {0.GetType()2s}{2.formalcharge:2s}\n'
         .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000))
     return line
 
