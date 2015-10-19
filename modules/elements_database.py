@@ -1,4 +1,6 @@
-# #!/usr/bin/env python
+# #!/usr/bin/env python3
+
+import sys
 
 #data
 ATOMIC_NUMBER_DICT = {'H':1, 'C':6, 'N':7, 'O':8, 'F':9,'NA':11,'Na':11,\
@@ -13,6 +15,35 @@ ATOMIC_NUMBER_DICT_REVERSE = {1:'H', 6:'C', 7:'N', 8:'O', 9:'F', 12:'Mg', 15:'P'
 #typical bond length -simple =double *triple bond  .half
 #from gaussview
 #maybe it would be better to have these values in a database
+
+ATOM_LEN = {"H":0.6,
+            "C":1.54,
+            "N":1.40,
+            "O":1.32,
+            "F":1.16,
+            "Mg":2.72,
+            "P":2.10,
+            "S":2.02,
+            "Cl":1.98,
+            "Mn":2.34,
+            "Co":2.32,
+            "Ni":2.30,
+            "Zn":2.50,
+            "Br":2.28,
+            "I":2.66,
+                }
+
+get_distance_from_pair(element1, element2):
+    """Returns a float with the approximated length of the single bond
+    formed by these two atoms"""
+    try:
+        return (ATOM_LEN[element1]+ATOM_LEN[element2])/2.
+    except KeyError as err:
+        print("I do not know the size of {}".format(err), file=sys.stderr)
+        return 0
+        
+
+
 BONDS_DISTANCES_PAIRS = {\
 "H-H":0.74, "H-C":1.09, "H-N":1.00,"H-O":0.96, "H-F":0.92, "H-Mg":1.66, "H-P":1.35, "H-S":1.31, "H-Cl":1.29, "H-Mn":1.47, "H-Co":1.46, "H-Ni":1.45, "H-Zn":1.55, "H-Br":1.44, "H-I":1.63,
 
