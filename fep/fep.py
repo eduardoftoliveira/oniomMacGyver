@@ -8,11 +8,14 @@ import amber
 
 # other modules
 import argparse
-import textwrap
-import os
-import numpy as np
 import decimal
+import matplotlib.pyplot as plt
+import numpy as np
+import os
 import sys
+import textwrap
+
+from collections import OrderedDict                                             
 
 
 ### Parser
@@ -330,7 +333,7 @@ def md_to_sp():
         gaussian_charge_com = gaussian.GaussianCom(charge_com_file)
         charge_com_atoms_list = gaussian_charge_com.atoms_list
  
-        ############  read resp new charges 
+        ############  read mulliken new charges 
         charge_log_name = charge_com_file.replace(".com", ".log") 
         
         mulliken_charges_list = gaussian.read_mulliken_charges(charge_log_name)
@@ -442,7 +445,7 @@ def sp_to_energies():
             else:
                 results[this_one][frame][2] = energy # after
 
-    for md_no in results:
+    for md_no in OrderedDict(sorted(results.items())):
         forward_energies = []
         backward_energies = []
         for frame in results[md_no]:
@@ -482,7 +485,7 @@ def sp_to_energies():
 
             exp_average = log_sum/len(backward_energies)
             delta_g = exp_average.ln() * -KB*T*NA*JKCAL
-            print("b", md_no, delta_g)
+            #print("b", md_no, delta_g)
 
 def main():
     """ Just a wrapper to call the functions"""

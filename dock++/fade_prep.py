@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import shutil
 import numpy as np
 import os
 
@@ -20,7 +21,7 @@ PARSER.add_argument('frcmod',
 PARSER.add_argument('-w',
                     help = 'size of each window',
                     type = float,
-                    default = 0.02,
+                    default = 0.1 ,
                     )
 
 
@@ -28,7 +29,7 @@ ARGS = PARSER.parse_args()
 PREP = ARGS.prep
 FRCMOD = ARGS.frcmod
 WINDOW_SIZE = ARGS.w
-WINDOWS = np.arange(0,1.01, WINDOW_SIZE)
+WINDOWS = np.arange(WINDOW_SIZE, 1.01, WINDOW_SIZE)
 
 def main():
     """Cycles over all windows and replaces the atomic charges and vdw radii
@@ -49,27 +50,29 @@ def main():
             for line in open(PREP):
                 if len(line.split())==8 and 'DUMM' not in line:
                     new_charge = float(line.split()[7])*window
-                    line = line[:61] + "{:>12.6}\n".format(new_charge)
+                    line = line[:61] + "{:>12.6f}\n".format(new_charge)
                 new_prep_file.write(line)
 
         # create new frcmod file
-        new_frcmod_filename = "{0:.2f}/{1}".format(window, FRCMOD)
-        with open(new_frcmod_filename, 'w') as new_frcmod_file:
-            is_reading = False # is true after reading a 'NONB\n' line
-            for line in open(FRCMOD):
-                if is_reading:
-                    words = line.split()
-                    if words and words[0] not in ("OW", "HW"):
-                        radius_str = words[1]
-                        radius = float(words[1])
-                        new_radius = '{:6.4f}'.format(radius*window)
-                        line = line.replace(radius_str, new_radius)
-                    else:
-                        is_reading = False
-                else:
-                    if 'NONB' in line:
-                        is_reading = True
-                new_frcmod_file.write(line)
+        shutil.copy(FRCMOD, "{0:.2f}/{1}".format(window, FRCMOD))
+
+        #new_frcmod_filename = "{0:.2f}/{1}".format(window, FRCMOD)
+        #with open(new_frcmod_filename, 'w') as new_frcmod_file:
+        #    is_reading = False # is true after reading a 'NONB\n' line
+        #    for line in open(FRCMOD):
+        #        if is_reading:
+        #            words = line.split()
+        #            if words and words[0] not in ("OW", "HW"):
+        #                depth_str = words[2]
+        #                depth = float(words[2])
+        #                new_depth = '{:6.4f}'.format(depth*window)
+        #                line = line.replace(depth_str, new_depth)
+        #            else:
+        #                is_reading = False
+        #        else:
+        #            if 'NONB' in line:
+        #                is_reading = True
+        #        new_frcmod_file.write(line)
     
 
 if __name__ == "__main__":

@@ -20,7 +20,7 @@ def create_g09():
     return [command,]
 
 def run_g09():
-    "Return command run gaussian calculation"
+    "Return command to run gaussian calculation"
     command = "g09 {0} {1}".format(GAUCOM, GAULOG)
     return [command,]
 
@@ -43,7 +43,7 @@ def set_resp_gaff():
         # generate topology and parameters files
         "prepgen -i {0} -o {1} -f car -rn {2}"\
         .format(RESP_GAFF_AC, PREP, UNIT_NAME),
-        "parmchk -i {0} -o {1} -f prepc"\
+        "parmchk -i {0} -o {1} -f prepc -a Y"\
         .format(PREP, FRCMOD),
 
     ]
@@ -106,7 +106,6 @@ PARSER.add_argument('--dry',
                     help="Only print commands, do not run them.",
                     action="store_true",
                    )
-
 
 
 ARGS = PARSER.parse_args()
