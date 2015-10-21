@@ -109,7 +109,6 @@ def atom2zmat(atom, print_resinfo = True):
     res = atom.resinfo and print_resinfo
 
     # el + mm + resinfo
-    print(atom.GetType())
     if atom.mm:
         line = '{0}-{1.mm.atype}-{1.mm.charge:.9f}'.format(atom.GetType(),atom)
         line = '{0:.15s}'.format(line) # fill with spaces (max 15 char)
