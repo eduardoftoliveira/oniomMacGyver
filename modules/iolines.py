@@ -231,7 +231,7 @@ def mol22atom(line):
     else:
         charge = None
 
-    atom = atoms.Atom(element,(x, y, z))
+    atom = atoms.Atom(element,(float(x), float(y), float(z)))
     mm_obj = atoms.MM(atom_type, charge)
     atom.set_mm(mm_obj) 
 

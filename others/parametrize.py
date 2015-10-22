@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """Script to parametrize ligands with resp charges and gaff force field
 It uses antechamber."""
 
