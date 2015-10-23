@@ -10,6 +10,7 @@ import sys
 import time
 from uncertainties import ufloat
 from uncertainties import unumpy
+from itertools import izip
 
 ## qt modules
 from misc import grep2list
@@ -25,9 +26,16 @@ PARSER.add_argument('prefix',
 PARSER.add_argument('sufix',
         help = 'sufix of amber ti output files')
 
+PARSER.add_argument('-r',
+        help = """range to analise in each file. Three numbers: init end step.""",
+        nargs =3,
+        type = int,
+        default = [0, -3 , 1])
+
 ARGS = PARSER.parse_args()                                                      
 PREFIX = ARGS.prefix
 SUFIX = ARGS.sufix
+POINTS_RANGE = ARGS.r
 
 def main():
 
@@ -40,14 +48,14 @@ def main():
     no_points_values = []
     for amber_output_file in amber_out_files:
         lambda_v = float(amber_output_file[len(PREFIX):-len(SUFIX)])
-        lambda_values.append(lambda_v)
         dvdls = grep2list('DV/DL  =', amber_output_file, 2, np_array=True) 
-        dvdls = dvdls[:-3]
+        dvdls = dvdls[POINTS_RANGE[0]:POINTS_RANGE[1]:POINTS_RANGE[2]]
         no_points = len(dvdls)
         print ".",
         sys.stdout.flush()
         
-        ## calculate this dvdl and append do dvdl_values
+        ## clambda_values,alculate this dvdl and append do dvdl_values
+        lambda_values.append(lambda_v)
         dvdl_values.append(np.average(dvdls))
         no_points_values.append(no_points)
         #plt.plot(dvdls)
@@ -69,7 +77,16 @@ def main():
         error_values.append(max(block_stdev_corrs))
         #plt.plot(np.log10(block_sizes),block_stdev_corrs)
         #plt.show()
-        
+
+    # TODO sort these by lambda
+    lambda_values, dvdl_values, no_points_values = izip(*sorted(izip(
+        lambda_values, dvdl_values, no_points_values)))
+   
+    lambda_values = list(lambda_values)
+    dvdl_values = list(dvdl_values)
+    no_points_values = list(no_points_values)
+
+
     #extrapolate Gdata for lambda 0 (linearly from neighboring two points)
     if lambda_values[0] != 0:
         dvdl_mi = (dvdl_values[1] - dvdl_values[0])/(lambda_values[1]-lambda_values[0])
