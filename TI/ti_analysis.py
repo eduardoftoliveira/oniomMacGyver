@@ -11,6 +11,9 @@ import time
 from uncertainties import ufloat
 from uncertainties import unumpy
 
+## qt modules
+from misc import grep2list
+
 PARSER = argparse.ArgumentParser(
         description = """Reads the output files of Amber TI calculations """
         """and calcules the TI energy""",
@@ -25,20 +28,6 @@ PARSER.add_argument('sufix',
 ARGS = PARSER.parse_args()                                                      
 PREFIX = ARGS.prefix
 SUFIX = ARGS.sufix
-
-
-def grep2list(pattern, filename, position, vtype=float, np_array=False):
-    """Returns a list or array with the value extracted for a position in the 
-       grepped lines of a file"""
-
-    command = "grep '{0}'  {1}".format(pattern, filename)
-    call = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
-    output = call.stdout.read()
-    values = [vtype(v.split()[position]) for v in output.strip().split("\n")]
-    if np_array:
-        values = np.array(values)
-    return values
-
 
 def main():
 
@@ -105,7 +94,7 @@ def main():
     dvdl_integration = np.trapz(dvdl_values,x=lambda_values)
     error_integration = np.trapz(error_values, x=lambda_values)
     
-    # calculationg error
+    # calculation error
     udvdl_values = np.array([ufloat(dvdl_values[i], error_values[i]) for i in range(len(lambda_values))])
     udvdl_integration = np.trapz(udvdl_values,x=lambda_values)
 

@@ -1,5 +1,6 @@
 import decimal
 import numpy as np
+import subprocess
 
 def transpose_list_of_lists(mat):
     """
@@ -66,5 +67,15 @@ def exponential_average(arr):
     
     return delta_g
 
+def grep2list(pattern, filename, position, vtype=float, np_array=False):
+    """Returns a list or array with the value extracted for a position in the 
+       grepped lines of a file"""
 
+    command = "grep '{0}'  {1}".format(pattern, filename)
+    call = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+    output = call.stdout.read()
+    values = [vtype(v.split()[position]) for v in output.strip().split("\n")]
+    if np_array:
+        values = np.array(values)
+    return values
 
