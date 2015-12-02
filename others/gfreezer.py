@@ -112,6 +112,7 @@ def main():
     gaucom = GAUCOM(filein)
     resID_dict = build_resID_dict(gaucom.atoms_list)
 
+
     # get xyz tuples
     highlayer_xyz = []
     all_xyz = []
@@ -137,6 +138,7 @@ def main():
                 atom.oniom.layer=='L' and atom.resinfo.resname=='WAT')
             freeze_idx[i] = tofreeze
 
+
         # byres
         freeze_idx = byres(resID_dict, freeze_idx)
 
@@ -144,6 +146,7 @@ def main():
         for (i, at) in enumerate(gaucom.atoms_list):
             if freeze_idx[i]:
                 at.oniom.mask = MASK
+
 
     # delete waters?
     del_idx = [False for _ in all_xyz]
