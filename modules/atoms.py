@@ -3,13 +3,13 @@
 # python modules
 import geom
 import numpy as np
-import pybel
+import openbabel as ob
 
 
 #create a periodic table object
-PERIODIC_TABLE = pybel.ob.OBElementTable()
+PERIODIC_TABLE = ob.OBElementTable()
 
-class Atom(pybel.ob.OBAtom):
+class Atom(ob.OBAtom):
     """A container for all the information relative to an atom
 
     Attributes:
@@ -36,9 +36,9 @@ class Atom(pybel.ob.OBAtom):
         Example:
             Atom('H', (1.0, 2.0, 3.0))
         """
-        pybel.ob.OBAtom.__init__(self)
+        ob.OBAtom.__init__(self)
         self.SetType(atype) 
-        self.SetVector(xyz[0], xyz[1], xyz[2])
+        self.SetVector(float(xyz[0]), float(xyz[1]), float(xyz[2]))
         self.mm = None
         self.oniom = None
         self.resinfo = None

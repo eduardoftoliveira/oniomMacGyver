@@ -77,19 +77,15 @@ print STDERR "Found $step output blocks\n";
 
 #output all the values found as differences to the current energy, in kJ/mol
 
-#print "@ s0 legend Energy (kJ/mol)\n";
-print '@ s1 legend dH/d\xl\f{} tot-lambda = 0';
-for ($i=0 ; $i<$lambda_max ; $i++) {
-    printf "\n@ s3 legend \\xD\\f\{\}H \\xl\\f\{\} to (%.3f)", $lambda_value[$i]; 
-}
+print "# Energy values:";
 
 $time=0;
 for ($i=0 ; $i< $step ; $i++) {
     $time += $dt*$intervall/1000;
-    printf "\n%12.4f", $time;
-    printf "%16.7e", $energy[$i][$position] ;
+    printf "\n%12.4f%14.6f", $time, 0.0;
     for ($j=0 ; $j < $lambda_max ; $j++) {
 	printf "%16.7e", ($energy[$i][$j]-$energy[$i][$position])*$calorie ;
+	#printf "%16.7e", $energy[$i][$j] ;
     }
-    #print "   1.0000000e+00"; # no volume data, leave no final newline
+    print "   1.0000000e+00"; # no volume data, leave no final newline
 }

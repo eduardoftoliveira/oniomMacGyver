@@ -8,6 +8,7 @@ from collections import OrderedDict
 
 #constants
 HARTREE_TO_KJOULE_MOL = 2625.501969282066 
+NO_STEPS = 1000
 
 def main():
     results_filename = sys.argv[1]
@@ -19,6 +20,8 @@ def main():
             window = '{:03d}'.format(int(window))
             calc_window = line.split('/')[1].split('_')[0]
             calc_window = '{:03d}'.format(int(calc_window))
+            step = line.split('_')[3].split('.')[0]
+            step = int(step)
            
             energy = line.split()[5]
             energy = float(energy)*HARTREE_TO_KJOULE_MOL
@@ -26,9 +29,10 @@ def main():
             if not window in all_info:
                 all_info[window] = OrderedDict()
             try:
-                all_info[window][calc_window].append(energy)
+                all_info[window][calc_window][step]=energy
             except KeyError:
-                all_info[window][calc_window] = [energy, ]
+                all_info[window][calc_window] = [None]*1000
+                all_info[window][calc_window][step] = energy
 
     no_points = len(all_info[window][calc_window])
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # qt modules
 import atoms
@@ -125,18 +125,22 @@ def atom2zmat(atom, print_resinfo = True):
     # add:  mask + (x, y, z) + layer
     if atom.oniom:
         line += (
-        '{0.oniom.mask:>4d} {0.x:>11.6f} {0.y:>11.6f} '
-        '{0.z:>11.6f} {0.oniom.layer:s}'
-        .format(atom))
+        '{0.oniom.mask:>4d} {1:>11.6f} {2:>11.6f} '
+        '{3:>11.6f} {0.oniom.layer:s}'
+        .format(atom,
+                atom.GetX(),
+                atom.GetY(),
+                atom.GetZ(),
+               ))
 
         # add link
         if atom.oniom.has_link:
             link_atom = atom.oniom.link_atom
             if link_atom.mm:
                 line += (
-                ' {0.GetType()}-{0.mm.atype}-{0.mm.charge}'
-                ' {1.oniom.link_bound_to} {1.oniom.link_scale1}'
-                .format(link_atom, atom))
+                ' {0}-{1.mm.atype}-{1.mm.charge}'
+                ' {2.oniom.link_bound_to} {2.oniom.link_scale1}'
+                .format(link_atom.GetType(), link_atom, atom))
             else:
                 line += (
                 ' {0.GetType()}'

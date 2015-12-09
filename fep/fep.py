@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-""" This scripts allows the user to make FEP calculations along a 
+"""This scripts allows the user to make FEP calculations along a 
 reaction coordinate with the AMBER and GAUSSIAN software packages"""
 
 # qt modules
+import atoms
 import gaussian
 import amber
 
@@ -12,6 +13,7 @@ import decimal
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import openbabel as ob
 import sys
 import textwrap
 
@@ -122,9 +124,12 @@ GAUSSIAN_AMBER_EXAMPLE = "{0}/{1}".format(INPUT_FOLDER, ARGS.com_amber_example)
 AMBER_FOLDER  = ARGS.md_folder
 SP_ONIOM_FOLDER = ARGS.sp_oniom_folder
 
+## read no of atoms from MODEL_INPCRD
+with open(MODEL_INPCRD, 'r') as INP_FILE:
+    INP_FILE.readline()
+    MD_NO_ATOMS = int(INP_FILE.readline().split()[0])
 
 # names
-MD_NO_ATOMS = 28336  ##!!!!! HACK TODO
 SP_ONIOM_RUN_SCRIPT = "run.sh" 
 RESULTS_FILE = "results.log"
 
@@ -142,9 +147,7 @@ NA = decimal.Decimal(6.0221413e+23)
 
 def parse_and_read_log(log_points):
     """ Returns a list of geometries from a gaussian irc log file
-    
     It uses  a string like 'filename start end step'
-    
     """
     geometries_list = []
     for file_and_points in log_points:
@@ -160,7 +163,6 @@ def parse_and_read_log(log_points):
 
 def log_to_sp():
     """ Creates single points for charges calculations """ 
-    
     # create folder to put sp inputs
     try:
         os.makedirs(GAUSSIAN_CHARGE_FOLDER)
@@ -183,7 +185,8 @@ def log_to_sp():
         gaussian_sp_input_name = "charge_sp_{:03d}.com".format(no)
         sp_jobs_list.append(gaussian_sp_input_name)
         gaussian_sp_file = gaussian.GaussianCom(GAUSSIAN_CHARGE_EXAMPLE)
-        gaussian_sp_file.atoms_list = atoms_list  
+        for no, atom in enumerate(atoms_list):
+            gaussian_sp_file.atoms_list[no].SetVector(atom.GetVector())
         gaussian_sp_file.write_to_file("{}/{}"
                 .format(GAUSSIAN_CHARGE_FOLDER, gaussian_sp_input_name))
     
@@ -194,7 +197,7 @@ def log_to_sp():
     return None
 
 def sp_to_md():
-    """ Reads gaussian charge single points and writes the md inputs with"""
+    """ Reads gaussian charge single points and writes the md inputs with it"""
     #read model files
     model_coordinates = amber.read_crd_file(MODEL_INPCRD)
     model_charges = amber.read_prmtop_charges(MODEL_PRMTOP)
@@ -248,7 +251,7 @@ def sp_to_md():
    
     ### write coordinates
     for step, atoms_list in enumerate(geometries_list):
-        folder_name = "{}/{:02d}".format(AMBER_FOLDER, step)
+        folder_name = "{}/{:03d}".format(AMBER_FOLDER, step)
         try:
             os.makedirs(folder_name)
         except OSError:
@@ -262,7 +265,7 @@ def sp_to_md():
                 sys.exit(0)
         
         # write coordinate file
-        coordinates_list = [(atom.x, atom.y, atom.z) for atom in atoms_list]
+        coordinates_list = [(atom.GetX(), atom.GetY(), atom.GetZ()) for atom in atoms_list]
         all_coordinates_list = model_coordinates[:]
         for index, no in enumerate(gaussian_hl_no_atoms_list):
             gaussian_no = no
@@ -304,19 +307,18 @@ def sp_to_md():
         
         # read and write amber in files
         for amber_in_name in AMBER_INPUT_FILES:
-            with open(amber_in_name, 'r', encoding='UTF-8') as model_in_file:
+            with open(amber_in_name, 'r') as model_in_file:
                 model_file_str = model_in_file.read()
             new_file_str = model_file_str.replace("XXXX", restraint_mask)
             new_file_name = "{}/{}".format(folder_name, 
                                            amber_in_name.split("/")[-1]) 
-            with open(new_file_name, 'w', encoding='UTF-8') as new_in_file:
+            with open(new_file_name, 'w') as new_in_file:
                 new_in_file.write(new_file_str)
 
 def md_to_sp():
     """ Creates gaussian sp inputs from the molecular dynamics"""
     oniom_gaussian_example = gaussian.GaussianCom(GAUSSIAN_AMBER_EXAMPLE)
     example_atoms_list = oniom_gaussian_example.atoms_list
-    os.makedirs(SP_ONIOM_FOLDER)
 
     ## read single point charge inputs to know the geometries to create 
     charge_com_files = []
@@ -355,32 +357,38 @@ def md_to_sp():
     
     amber_hl_no_atoms_list = []
     gaussian_hl_no_atoms_list = []
+    
     for no, atom in enumerate(amber_atoms_list):
-        #if atom.link_mm_type or 'H' in atom.layer:
         if 'H' in atom.oniom.layer:
             amber_hl_no_atoms_list.append(no)
     for no, atom in enumerate(gaussian_atoms_list):
-        #if atom.link_mm_type or 'H' in atom.layer:
         if 'H' in atom.oniom.layer:
             gaussian_hl_no_atoms_list.append(no)
     
-    
     for md_no in sorted(os.listdir(AMBER_FOLDER)):
+      if int(md_no) in range(LOG_POINTS[0][1], 
+                             LOG_POINTS[0][2] + 1,
+                             LOG_POINTS[0][3]):
         folder_name = "{}/{}".format(SP_ONIOM_FOLDER, md_no)
         amber_folder_name = "{}/{}".format(AMBER_FOLDER, md_no) 
         os.makedirs(folder_name)
         mdcrd_name = "{}/{}".format(amber_folder_name, "mdp.mdcrd") 
        
         sp_jobs_list = []
+
+        snapshots = amber.extract_many_from_mdcrd(mdcrd_name, 
+                                                   MD_NO_ATOMS, 0,1000,1) #TODO
+
         for sp_no in range(0, 1000, 1):  ####### TODO!!!!!!
             
-            mdcrd_coordinates = amber.extract_from_mdcrd(mdcrd_name, 
-                                                   MD_NO_ATOMS, sp_no)
+            mdcrd_coordinates = snapshots[sp_no]
             gaussian_atoms_list = []
             # an example file is used to read the pdb info
 
             for no, atom in enumerate(example_atoms_list):
-                atom.x, atom.y, atom.z = mdcrd_coordinates[no]
+                atom.SetVector(float(mdcrd_coordinates[no][0]),
+                               float(mdcrd_coordinates[no][1]),
+                               float(mdcrd_coordinates[no][2]))
                 gaussian_atoms_list.append(atom)
             
             #### high layer geometry and charges come from the 
@@ -388,7 +396,9 @@ def md_to_sp():
             
             for position in [-1, 0, 1]:
                 hl_geometry_no = int(md_no)+position
-                gaussian_path_file_name = "{}/{}_on_{}_{}"\
+                if hl_geometry_no < 0:
+                    continue
+                gaussian_path_file_name = "{}/{:03d}_on_{:03d}_{:03d}"\
                         .format(folder_name, hl_geometry_no, int(md_no), sp_no)
                 gaussian_name = "{}.com".format(gaussian_path_file_name)
                 try:
@@ -398,15 +408,11 @@ def md_to_sp():
                         amber_no    = amber_hl_no_atoms_list[index]
                                                
                         #gaussian_atoms_list[amber_no].charge =\
-                        gaussian_atoms_list[amber_no].x,\
-                        gaussian_atoms_list[amber_no].y,\
-                        gaussian_atoms_list[amber_no].z =\
-                            geometries_list[hl_geometry_no][gaussian_no].x,\
-                            geometries_list[hl_geometry_no][gaussian_no].y,\
-                            geometries_list[hl_geometry_no][gaussian_no].z
+                        gaussian_atoms_list[amber_no].SetVector(
+                            geometries_list[hl_geometry_no][gaussian_no].GetVector())
                             #geometries_list[hl_geometry_no][gaussian_no].charge
 
-                    sp_jobs_list.append("{}_on_{}_{}.com"\
+                    sp_jobs_list.append("{:03d}_on_{:03d}_{:03d}.com"\
                             .format(hl_geometry_no, int(md_no), sp_no))
                     oniom_gaussian_example.atoms_list = gaussian_atoms_list
                     oniom_gaussian_example.write_to_file(gaussian_name)
@@ -474,7 +480,7 @@ def sp_to_energies():
 
             exp_average = log_sum/len(forward_energies)
             delta_g = exp_average.ln() * -KB*T*NA*JKCAL
-            print("f", md_no, delta_g)
+            #print("f", md_no, delta_g)
 
         if backward_energies:
             log_sum = 0
@@ -485,7 +491,7 @@ def sp_to_energies():
 
             exp_average = log_sum/len(backward_energies)
             delta_g = exp_average.ln() * -KB*T*NA*JKCAL
-            #print("b", md_no, delta_g)
+            print("b", md_no, delta_g)
 
 def main():
     """ Just a wrapper to call the functions"""

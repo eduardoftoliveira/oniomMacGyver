@@ -6,7 +6,7 @@ import collections
 import subprocess
 import linecache
 import pickle
-import pybel
+import openbabel as ob
 from copy import deepcopy
 from hashlib import md5
 from os.path import exists as hazfile
@@ -37,7 +37,7 @@ class EmptyGaussianCom():
         self.route_section = "#\n"
         self.title_line = "title line required\n"
         self.multiplicity_line = ""
-        self.atoms_list = []
+        self.atoms_list = []# ob.OBMol()
         self.additional_input_dict = ADDITIONAL_INPUT_DICT.copy()
 
     def write_to_file(self,name):
@@ -71,7 +71,7 @@ class GaussianCom(EmptyGaussianCom):
             self.route_section = self._read_route_section()
             self.title_line = self._read_title_line()
             self.multiplicity_line = self._read_multiplicity_line()
-            self.atoms_list = self._read_structure()
+            self._read_structure()
             self.additional_input_dict = self._read_additional_input()            
             self.connectivity_list = self.additional_input_dict["connect"]
             self.bonds_list = self._read_bonds_list()  
@@ -124,10 +124,11 @@ class GaussianCom(EmptyGaussianCom):
 
     def _read_structure(self):
         """ Return a list of atoms"""
-        atoms_list = []
+        #for line in self.lines[self.blank_lines[1]+2:self.blank_lines[2]]:
+        #    atoms_list.append(iolines.zmat2atom(line))
+        self.atoms_list = [] #ob.OBMol()
         for line in self.lines[self.blank_lines[1]+2:self.blank_lines[2]]:
-            atoms_list.append(iolines.zmat2atom(line))
-        return atoms_list
+            self.atoms_list.append(iolines.zmat2atom(line))
 
     def _read_additional_input(self):
         """Reads additional input lines and stores it in a ordered dict"""
@@ -738,8 +739,9 @@ def read_mulliken_charges(filename):
     with open(filename,'r') as gaussian_file:
         for line in gaussian_file:
             if "Mulliken atomic charges:" in line or "Mulliken charges:" in line:
-                gaussian_file.readline()
                 break
+        for line in gaussian_file:
+            break
         charges = []
         for line in gaussian_file:
             words = line.split()
