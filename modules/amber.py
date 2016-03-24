@@ -289,11 +289,11 @@ def extract_from_mdcrd(mdcrd_name, no_atoms, snapshot):
     """ Extract the coordinates from a snapshot of a mdcrd file"""
     mdcrd_file = open(mdcrd_name,'r')
     bytes_per_structure =  ((3*no_atoms)//10)*81 + ((3*no_atoms)%10)*8 
-    bytes_to_jump = 81+bytes_per_structure*snapshot+ (snapshot*26)
+    bytes_to_jump = 81+bytes_per_structure*snapshot+ (snapshot*25)
     mdcrd_file.seek(bytes_to_jump)
     crd_text = mdcrd_file.read(bytes_per_structure)
     crd_text = crd_text.replace('\n','')
-    
+
     crd_numbers = []
     for byte in range(0,len(crd_text),8):
         value = crd_text[byte:byte+8]

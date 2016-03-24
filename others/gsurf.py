@@ -55,10 +55,14 @@ def atom_1_indexes_to_str(gl, atom_idxs):
     template = '%5d(%s)%s'
     for i in atom_idxs:
         strings1.append(str(i))
-        strings2.append(template % (
-            gl.atoms_list[i-1].resinfo.resnum,
-            gl.atoms_list[i-1].resinfo.resname,
-            gl.atoms_list[i-1].resinfo.name))
+        try:
+            strings2.append(template % (
+                gl.atoms_list[i-1].resinfo.resnum,
+                gl.atoms_list[i-1].resinfo.resname,
+                gl.atoms_list[i-1].resinfo.name))
+        except:
+            strings2 = ''
+            
     return ','.join(strings1) + ' = ' + ','.join(strings2)
 
     

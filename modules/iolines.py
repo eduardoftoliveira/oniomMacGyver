@@ -170,7 +170,7 @@ def atom2pdb(atom):
         '{1.resname:3s} {1.chain:1s}{3:4d}{2.icode:1s}'
         '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
         '{2.occupancy:6.2f}{2.bfact:6.2f}'
-        '          {0.element:2s}{2.formalcharge:2s}\n'
+        '          {0.element:>2s}{2.formalcharge:2s}\n'
         .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000))
     return line
 
@@ -209,9 +209,48 @@ def pdb2atom(line):
         bfact       = spacefloat(line[60:66]),
         altloc      = line[16:17],
         icode       = line[26:27],
-        formalcharge = line[78:80])
+        formalcharge = line[78:80].strip())
 
     # return
+    atom.set_resinfo(resinfo)
+    atom.set_pdbinfo(pdbinfo)
+    return atom
+
+def pdbqt2atom(line):
+    # start atom
+    atype = line[77:79].strip()
+    x  = float(line[30:38])
+    y  = float(line[38:46])
+    z  = float(line[46:54])
+    ad2el = {'H':'H', 'HD':'H', 'HS':'H', 'C':'C', 'A':'C', 'N':'N', 'NA':'N',
+        'NS':'N', 'OA':'O', 'OS':'O', 'F':'F', 'Mg':'Mg', 'MG':'Mg', 'P':'P',
+        'SA':'S', 'S':'S', 'Cl':'Cl', 'CL':'Cl', 'Ca':'Ca', 'CA':'Ca',
+        'Mn':'Mn', 'MN':'Mn', 'Fe':'Fe', 'FE':'Fe', 'Zn':'Zn', 'ZN':'Zn',
+        'Br':'Br', 'BR':'Br', 'I':'I', 'W':'O'} 
+    atom = atoms.Atom(ad2el[atype], (x,y,z))
+
+    # residue info
+    name        = line      [12:16].strip()     # atom name
+    resName     = line      [17:20].strip()     # Residue name
+    resNum      = spaceint(line[22:26])    # Residue number
+    chain       = line      [21:22].strip()     # chain
+    resinfo = atoms.RESinfo(name, resName, resNum, chain)
+
+    # pdb info
+    keyword   = line[ 0: 6]     
+    serial    = spaceint(line[ 6:11]) 
+    pdbinfo = atoms.PDBinfo(keyword, serial, 
+        occupancy   = spacefloat(line[54:60]),
+        bfact       = spacefloat(line[60:66]),
+        altloc      = line[16:17],
+        icode       = line[26:27],
+        formalcharge = '  ')
+
+    # atype, charge
+    mm = atoms.MM(atype, float(line[70:76]))
+
+    # return
+    atom.set_mm(mm)
     atom.set_resinfo(resinfo)
     atom.set_pdbinfo(pdbinfo)
     return atom

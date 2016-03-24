@@ -7,8 +7,11 @@ ATOMIC_NUMBER_DICT = {'H':1, 'C':6, 'N':7, 'O':8, 'F':9,'NA':11,'Na':11,\
 'Br':35, 'BR':35, 'Cd':48, 'CD':48,\
  'I':53, 'Hg':80, 'HG':80, '?':0}
 
-ATOMIC_NUMBER_DICT_REVERSE = {1:'H', 6:'C', 7:'N', 8:'O', 9:'F', 12:'Mg', 15:'P', 16:'S', 17:'Cl', 19:'K', 20:'CA', 25:'Mn', \
-        26:'Fe', 27:'Co', 28:'Ni', 30:'Zn', 35:'Br', 53:'I'}
+
+ATOMIC_NUMBER_DICT_REVERSE = {1:'H', 6:'C', 7:'N', 8:'O', 9:'F', 11:'Na', \
+12:'Mg', 15:'P', 16:'S', 17:'Cl', 19:'K', 20:'CA', 25:'Mn', \
+26:'Fe', 27:'Co', 28:'Ni', 30:'Zn', 35:'Br', 53:'I'}
+
 
 #def read_atom(rawdata):
 #    if 

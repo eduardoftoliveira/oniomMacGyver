@@ -20,7 +20,7 @@ class Molecule(list):
     def charge(self):
         charge = 0
         for atom in self.atoms_list:
-           charge += atom.charge
+           charge += atom.mm.charge
         return charge
     
     def localize_charge(self):
@@ -69,9 +69,9 @@ class Molecule(list):
     def make_residues_list(self):
         residues_list = []
         this_residue = []
-        this_residue_name = "{0.residue_name}{0.residue_number}".format(self.atoms_list[0])
+        this_residue_name = "{0.resinfo.resname}{0.resinfo.resnum}".format(self.atoms_list[0])
         for atom in self.atoms_list:
-            residue_name = "{0.residue_name}{0.residue_number}".format(atom)
+            residue_name = "{0.resinfo.resname}{0.resinfo.resnum}".format(atom)
             if residue_name == this_residue_name:
                 this_residue.append(atom)
             elif residue_name != this_residue_name and this_residue_name != None:

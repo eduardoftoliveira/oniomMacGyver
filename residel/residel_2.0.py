@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # python modules
 import sys
@@ -27,7 +27,7 @@ residues_list = Molecule("protein", atoms_list).make_residues_list()
 
 input_list = []
 for no, residue in enumerate(residues_list):
-    residue_number_name = "{0.residue_number}_{0.residue_name}".format(residue[0])
+    residue_number_name = "{0.resinfo.resnum}_{0.resinfo.resname}".format(residue[0])
     print(residue_number_name)
     incomplete_residues_list = Molecule("protein", atoms_list).make_residues_list()
     incomplete_residues_list.remove(residue)
@@ -40,10 +40,10 @@ for no, residue in enumerate(residues_list):
     # correct link atom number and count total number of electrons
     for i, atom in enumerate(new_atoms_list):
         no_electrons += ATOMIC_NUMBER_DICT[atom.element]
-        if atom.link_bound_to:
+        if atom.oniom.link_bound_to:
             if atoms_list.index(atom) > atoms_list.index(residue[0]):
                 new_atom = copy.deepcopy(atom)
-                new_atom.link_bound_to = str(int(new_atom.link_bound_to) - len(residue))
+                new_atom.oniom.link_bound_to = str(int(new_atom.oniom.link_bound_to) - len(residue))
                 new_atoms_list[i] = new_atom
     #correct charge and multiplicity
     new_protein = Molecule("new_protein", new_atoms_list)
