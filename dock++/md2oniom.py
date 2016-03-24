@@ -40,9 +40,12 @@ def main():
     for step in range(INIT,END,STEP):
         new_coordinates = amber.extract_from_mdcrd(MDCRD, no_atoms, step-1,
                                                   output_box_info = True) 
-        box_dimensions = new_coordinates.pop(-1)
+        box_dimensions = new_coordinates[-1]
+        new_coordinates = new_coordinates[:-1]
         for i, atom in enumerate(gaussian_file.atoms_list):
-            atom.set_coordinates(new_coordinates[i])
+            atom.SetVector(new_coordinates[i][0],
+                           new_coordinates[i][1],
+                           new_coordinates[i][2])
 
         # make a new gaussian file with every conformation
         new_gaussian_filename = '{0:04d}_{1}'.format(step, GAUCOM) 

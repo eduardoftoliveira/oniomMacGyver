@@ -715,6 +715,7 @@ class prmtop():
         atomic_numbers = self.read_flag('ATOMIC_NUMBER')
 
         periodic_table = {}
+        periodic_table[0]  =  'X'
         periodic_table[1]  =  'H'
         periodic_table[6]  =  'C'
         periodic_table[7]  =  'N'

@@ -15,7 +15,7 @@ import subprocess
 def create_g09():
     "Return a list of commands to create the gaussian input file"
     command = ("antechamber -fi mol2 -fo gcrt -i {0} -o {1} -gm '%mem=1gb' "
-               "-gn '%nproc=8' -ch {1}.chk -nc {2}".format(MOL2, GAUCOM, CHARGE)
+               "-gn '%nproc=8' -ch {1}.chk -nc {2} -gv 1".format(MOL2, GAUCOM, CHARGE)
               )
     return [command,]
 

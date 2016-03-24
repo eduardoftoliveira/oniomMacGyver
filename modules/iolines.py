@@ -143,13 +143,13 @@ def atom2zmat(atom, print_resinfo = True):
                 .format(link_atom.GetType(), link_atom, atom))
             else:
                 line += (
-                ' {0.GetType()}'
+                ' {0}'
                 ' {1.oniom.link_bound_to} {1.oniom.link_scale1}'
-                .format(link_atom, atom))
+                .format(link_atom.GetType(), atom))
 
     # add (x, y, z)
     else:
-        line += '{0:>11.6f} {0:>11.6f} {0:>11.6f}'.format(atom.x(),
+        line += '{0:>11.6f} {1:>11.6f} {2:>11.6f}'.format(atom.x(),
                                                           atom.y(),
                                                           atom.z())
     

@@ -173,7 +173,11 @@ class GaussianCom(EmptyGaussianCom):
         """ Create new connectivity list from the bonds and atoms list"""
         bonds_list = self.bonds_list[:]
         connectivity_list = []
-        for index, atom in enumerate(self.atoms_list):
+        bonds_list = [bond for bond in bonds_list if\
+                bond.atom_b.GetType() != 'X']
+        atoms_list = [atom for atom in self.atoms_list if\
+                atom.GetType() != 'X']
+        for index, atom in enumerate(atoms_list):
             line = " {0}".format(index+1)
             
             this_atom_bonds = []
@@ -187,8 +191,10 @@ class GaussianCom(EmptyGaussianCom):
                     atom_to_put = bond.atom_b
                 else:
                     atom_to_put = bond.atom_a
-                if atom_to_put in self.atoms_list:
-                    line += " {0} {1}".format(self.atoms_list.index(atom_to_put)+1,bond.order)
+                for atom_p_no, atom_print in enumerate(atoms_list):
+                    if atom_print is atom_to_put:
+                        line += " {0} {1}".format(atom_p_no+1,bond.order)
+                        break
             line += "\n"
             connectivity_list.append(line)
         

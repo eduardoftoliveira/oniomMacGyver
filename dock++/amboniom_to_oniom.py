@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """Script to read a com file created by amboniom and make changes
 required to oniom calculation."""
 
@@ -36,6 +36,8 @@ def main():
     for no, atom in enumerate(in_file.atoms_list):
         if atom.resinfo.resname != 'WAT':
             in_file.atoms_list[no].oniom.layer = 'H'
+
+    in_file.redo_connectivity_list()
     in_file.write_to_file(OUT_GAUCOM)      
 
 if __name__ == "__main__":

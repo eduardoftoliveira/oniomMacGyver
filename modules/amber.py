@@ -335,7 +335,7 @@ def extract_many_from_mdcrd(mdcrd_name, no_atoms, init=0, end=1, step=1,
         crd_text = mdcrd_file.read(bytes_per_structure)
         crd_text = crd_text.replace('\n','')
     
-        coordinates = np.array([crd_text[i:i+8] for i in range(0, len(crd_text),8)])
+        coordinates = np.array([float(crd_text[i:i+8]) for i in range(0, len(crd_text),8)])
         coordinates = coordinates.reshape(len(coordinates)/3, 3)
         snapshots.append(coordinates)
     mdcrd_file.close()
