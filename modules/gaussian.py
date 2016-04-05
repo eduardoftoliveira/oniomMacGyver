@@ -38,7 +38,7 @@ class ModRed():
             self._digest(line)
 
     def _digest(self, line):
-        coord_numat = {'B':2, 'A':3, 'D':4} # num atomids for bond, angle...
+        coord_numat = {'X':1, 'B':2, 'A':3, 'D':4} # num atomids for bond, angle...
         #action_numpar = {'S':2, 'F':0, 'B':0, 'A':0, 'K':0, 'D':0, 'H':1}
         fields = line.split()
         self.coordtype = fields[0]
@@ -1154,13 +1154,10 @@ class Termination():
 def read_mulliken_charges(filename):
     """Returns a list of the Mulliken charges that first appear in the file"""
     with open(filename,'r') as gaussian_file:
-<<<<<<< HEAD
         for line in gaussian_file:
             if "Mulliken atomic charges:" in line or "Mulliken charges:" in line:
                 gaussian_file.readline()
                 break
-=======
->>>>>>> 7a42f9dda13c7ada77dadf415431c57355a831a2
         charges = []
         ready = False
         for line in gaussian_file:
