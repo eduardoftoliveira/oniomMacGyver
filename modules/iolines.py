@@ -161,7 +161,7 @@ def atom2pdb(atom):
         '         {1.icode:1s}'
         '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
         '{1.occupancy:6.2f}{1.bfact:6.2f}'
-        '          {0.element:2s}{1.formalcharge:2s}\n'
+        '          {0.element:>2s}{1.formalcharge:2s}\n'
         .format(atom, atom.pdbinfo))
         return line
     else:
@@ -171,6 +171,26 @@ def atom2pdb(atom):
         '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
         '{2.occupancy:6.2f}{2.bfact:6.2f}'
         '          {0.element:>2s}{2.formalcharge:2s}\n'
+        .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000))
+    return line
+
+def atom2pdbqt(atom):
+    if not atom.resinfo:
+        line =(
+        '{1.keyword:<6s}          {1.altloc:1s}' 
+        '         {1.icode:1s}'
+        '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
+        '{1.occupancy:6.2f}{1.bfact:6.2f}'
+        '  {0.mm.charge:8.3f} {0.mm.atype:2s}\n'
+        .format(atom, atom.pdbinfo))
+        return line
+    else:
+        line =(
+        '{2.keyword:<6s}{2.serial:>5d} {1.name:4s}{2.altloc:1s}' 
+        '{1.resname:3s} {1.chain:1s}{3:4d}{2.icode:1s}'
+        '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
+        '{2.occupancy:6.2f}{2.bfact:6.2f}'
+        '  {0.mm.charge:8.3f} {0.mm.atype:2s}\n'
         .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000))
     return line
 
