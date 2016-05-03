@@ -17,7 +17,7 @@ def usage():
     print('     -o opt_points   ("all" or int)  [default = -1]')
     print('     -p outputname.pdb           [default = inputname + .pdb]')
     print('     -h                          write high layer only')
-    print('     -N                          no pymol alignment')
+    print('     -P                          pymol alignment')
 
 def pts_to_int(pts):
     try:
@@ -100,7 +100,7 @@ def main():
     opt_pts = '-1'
     outputname = basename + '.pdb'
     highlayeronly = False
-    nopymol = False
+    pymol = False
     
     # provided input
     for o, a in opts:
@@ -108,7 +108,7 @@ def main():
         elif o == '-o': opt_pts = a
         elif o == '-p': outputname = a 
         elif o == '-h': highlayeronly = True
-        elif o == '-N': nopymol = True
+        elif o == '-P': pymol = True
 
     # .com file ?
     if input_extension == ".com":
@@ -117,7 +117,8 @@ def main():
         for (i,at) in enumerate(gaucom.atoms_list):
             if (not highlayeronly) or at.oniom.layer == 'H':
                 at.set_pdbinfo(atoms.PDBinfo('ATOM', i))
-                at.pdbinfo.altloc = at.oniom.layer
+                if at.oniom:
+                    at.pdbinfo.altloc = at.oniom.layer
                 txt += iolines.atom2pdb(at)
 
         with open(outputname, 'w') as o:
@@ -137,7 +138,7 @@ def main():
     with open(outputname, 'w') as o:
         o.write(txt)
 
-    if 'all' not in [scan_pts, opt_pts] or nopymol:
+    if 'all' not in [scan_pts, opt_pts] or not pymol:
         print('Done.')
         return 0
 

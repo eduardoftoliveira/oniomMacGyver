@@ -158,7 +158,7 @@ def atom2pdb(atom):
         '         {1.icode:1s}'
         '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
         '{1.occupancy:6.2f}{1.bfact:6.2f}'
-        '          {0.element:2s}{1.formalcharge:2s}\n'
+        '          {0.element:>2s}{1.formalcharge:2s}\n'
         .format(atom, atom.pdbinfo))
         return line
     else:
