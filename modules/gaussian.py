@@ -20,6 +20,17 @@ import molecules
 import iolines
 import misc
 
+ADDITIONAL_INPUT_DICT = collections.OrderedDict([
+                                                ("connect", []),
+                                                ("readopt",None),
+                                                ("modred", []),
+                                                (" gen",None),
+                                                ("pseudo=read",None),
+                                                ("first",None),
+                                                ("dftb=read",None) 
+                                               ]) 
+
+
 def gen_md5sum(input_text_string):
     md5sum = md5() 
     md5sum.update(input_text_string.encode()) # encode is coz of python3 stuff
@@ -115,6 +126,8 @@ class GaussianCom(EmptyGaussianCom):
             self.additional_input_dict = self._read_additional_input()            
             self.connectivity_list = self.additional_input_dict["connect"]
             self.bonds_list = self._read_bonds_list()  
+            self.modreds = [ModRed(line)
+                            for line in self.additional_input_dict["modred"]]
             self.modredundant_list = self.additional_input_dict["modred"]
             self.gen_list = self.additional_input_dict[" gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
@@ -146,6 +159,7 @@ class GaussianCom(EmptyGaussianCom):
         
     def _read_route_section(self):
         """Return a string with the route section"""
+        read_route_section = False
         route_section = ''
         for line in self.lines[:self.blank_lines[0]]:
             if read_route_section:
@@ -184,7 +198,7 @@ class GaussianCom(EmptyGaussianCom):
         b_lines = self.blank_lines
 
         for key in additional_input_dict:
-            if key in self.route_section.lower().replace("only","first"):
+            if key in self.route_section.text.lower().replace("only","first"):
                 if (key == "first" and "soft" in self.route_section.lower()) or\
                    (key == "dftb=read"):
                     shift += 1

@@ -62,7 +62,7 @@ def write_pdb(gaulog, scan_pts, opt_pts, highlayeronly, outputname):
         for (coords, atom) in zip(xyz, gaulog.atoms_list):
             counter += 1 # consistent with gaussian line number
             if (not highlayeronly) or atom.oniom.layer == 'H':
-                atom.set_coordinates(coords)
+                atom.SetVector(coords[0],coords[1],coords[2])
                 atom.set_pdbinfo(atoms.PDBinfo('ATOM', counter))
                 if atom.oniom:
                     atom.pdbinfo.altloc = atom.oniom.layer # layer-altloc hack

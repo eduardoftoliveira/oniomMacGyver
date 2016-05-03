@@ -57,7 +57,7 @@ def main():
     byte = gaulog.bytedict['orientation:'][args.s][args.o]
     coords = gaulog.read_coordinates('*', byte)
     for atom, coord in zip(gaucom.atoms_list, coords):
-        atom.set_coordinates(coord)
+        atom.SetVector(coord[0],coord[1],coord[2])
 
     gaucom.write_to_file(args.out)
 

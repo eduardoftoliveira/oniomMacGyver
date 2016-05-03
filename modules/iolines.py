@@ -165,19 +165,21 @@ def atom2pdb(atom):
         line =(
         '{1.keyword:<6s}          {1.altloc:1s}' 
         '         {1.icode:1s}'
-        '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
+        '   {2:8.3f}{3:8.3f}{4:8.3f}'
         '{1.occupancy:6.2f}{1.bfact:6.2f}'
-        '          {0.GetType()>2s}{1.formalcharge:2s}\n'
-        .format(atom, atom.pdbinfo))
+        '          {5:>2s}{1.formalcharge:2s}\n'
+        .format(atom, atom.pdbinfo, atom.x(), atom.y(), atom.z(),
+                atom.GetType()))
         return line
     else:
         line =(
         '{2.keyword:<6s}{2.serial:>5d} {1.name:4s}{2.altloc:1s}' 
         '{1.resname:3s} {1.chain:1s}{3:4d}{2.icode:1s}'
-        '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
+        '   {4:8.3f}{5:8.3f}{6:8.3f}'
         '{2.occupancy:6.2f}{2.bfact:6.2f}'
-        '          {0.GetType():>2s}{2.formalcharge:2s}\n'
-        .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000))
+        '          {7:>2s}{2.formalcharge:2s}\n'
+        .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000,
+            atom.GetX(), atom.GetY(), atom.GetZ(), atom.GetType()))
     return line
 
 def atom2pdbqt(atom):
@@ -185,19 +187,20 @@ def atom2pdbqt(atom):
         line =(
         '{1.keyword:<6s}          {1.altloc:1s}' 
         '         {1.icode:1s}'
-        '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
+        '   {2:8.3f}{3:8.3f}{4:8.3f}'
         '{1.occupancy:6.2f}{1.bfact:6.2f}'
         '  {0.mm.charge:8.3f} {0.mm.atype:2s}\n'
-        .format(atom, atom.pdbinfo))
+        .format(atom, atom.pdbinfo, atom.x(), atom.y(), atom.z()))
         return line
     else:
         line =(
         '{2.keyword:<6s}{2.serial:>5d} {1.name:4s}{2.altloc:1s}' 
         '{1.resname:3s} {1.chain:1s}{3:4d}{2.icode:1s}'
-        '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
+        '   {4:8.3f}{5:8.3f}{6:8.3f}'
         '{2.occupancy:6.2f}{2.bfact:6.2f}'
         '  {0.mm.charge:8.3f} {0.mm.atype:2s}\n'
-        .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000))
+        .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000,
+            atom.GetX(), atom.GetY(), atom.GetZ()))
     return line
 
 def spaceint(a_string):
