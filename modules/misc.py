@@ -1,5 +1,8 @@
 from math import sqrt
 import numpy as np
+import decimal
+import numpy as np
+import subprocess
 
 def transpose_list_of_lists(mat):
     """
@@ -34,7 +37,74 @@ def avg(vec):
 
 def std(vec):
     a = avg(vec)
-    return sqrt(sum([(x-a)**2 for x in vec])/len(vec))
+    return np.sqrt(sum([(x-a)**2 for x in vec])/len(vec))
+
+    
+
+T = decimal.Decimal(310.15)
+KB = decimal.Decimal(1.3806488E-23)
+R = decimal.Decimal(8.31446211)
+HKCAL = decimal.Decimal(627.5095)
+HJOULE = decimal.Decimal(4.3597482E-18)
+JKCAL = decimal.Decimal(0.000239005736)
+NA = decimal.Decimal(6.0221413e+23)
+decimal.getcontext().Emax = 999999999999999999
+decimal.getcontext().Emin = -999999999999999999
+
+
+
+def exponential_average(arr):
+    """Returns the exponential average of an array. Uses SI units but kcal 
+    instead of Joules"""
+    
+    log_sum = 0
+    for log_v in arr:
+        log_v = decimal.Decimal(log_v)
+        log_v = (log_v/JKCAL)/NA
+        log_v = np.exp(-log_v/(T*KB))
+        log_sum += log_v
+
+    exp_average = log_sum/len(arr)
+    delta_g = exp_average.ln() * -KB*T*NA*JKCAL
+    
+    return delta_g
+
+
+def grep2list(pattern, filename, position, vtype=float, np_array=False):
+    """Returns a list or array with the value extracted for a position in the 
+       grepped lines of a file"""
+
+    command = "grep '{0}'  {1}".format(pattern, filename)
+    call = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE)
+    output = call.stdout.read()
+    values = [vtype(v.split()[position]) for v in output.strip().split("\n")]
+    if np_array:
+        values = np.array(values)
+    return values
+
+
+def PCA(A): # principal component analysis
+ """ performs principal components analysis 
+     (PCA) on the n-by-p data matrix A
+     Rows of A correspond to observations, columns to variables. 
+
+ Returns :  
+  coeff :
+    is a p-by-p matrix, each column containing coefficients 
+    for one principal component.
+  score : 
+    the principal component scores; that is, the representation 
+    of A in the principal component space. Rows of SCORE 
+    correspond to observations, columns to components.
+  latent : 
+    a vector containing the eigenvalues 
+    of the covariance matrix of A.
+ """
+ # computing eigenvalues and eigenvectors of covariance matrix
+ M = (A-np.mean(A.T,axis=1)).T # subtract the mean (along columns)
+ [latent,coeff] = np.linalg.eig(np.cov(M)) # attention:not always sorted
+ score = np.dot(coeff.T,M) # projection of the data in the new space
+ return coeff,score,latent
 
 def mol2_rm_lp(filename, delhydrogens = True):
     """remove lone pairs from mol2 Gold file"""
@@ -104,26 +174,5 @@ def mol2_rm_lp(filename, delhydrogens = True):
         newtext += ''.join(RTIs[key])
 
     return newtext, coords
-    
-def PCA(A): # principal component analysis
- """ performs principal components analysis 
-     (PCA) on the n-by-p data matrix A
-     Rows of A correspond to observations, columns to variables. 
 
- Returns :  
-  coeff :
-    is a p-by-p matrix, each column containing coefficients 
-    for one principal component.
-  score : 
-    the principal component scores; that is, the representation 
-    of A in the principal component space. Rows of SCORE 
-    correspond to observations, columns to components.
-  latent : 
-    a vector containing the eigenvalues 
-    of the covariance matrix of A.
- """
- # computing eigenvalues and eigenvectors of covariance matrix
- M = (A-np.mean(A.T,axis=1)).T # subtract the mean (along columns)
- [latent,coeff] = np.linalg.eig(np.cov(M)) # attention:not always sorted
- score = np.dot(coeff.T,M) # projection of the data in the new space
- return coeff,score,latent
+

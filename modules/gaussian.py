@@ -6,12 +6,13 @@ import collections
 import subprocess
 import linecache
 import pickle
+import openbabel as ob
 from copy import deepcopy
 from hashlib import md5
 from os.path import exists as hazfile
 from os.path import getsize
 from sys import stderr
-
+import copy
 
 # our python modules
 import atoms
@@ -74,9 +75,9 @@ class EmptyGaussianCom():
         self.route_section = "#\n"
         self.title_line = "title line required\n"
         self.multiplicity_line = ""
-        self.atoms_list = []
-        self.additional_input_dict = {"connect":None, "readopt":None, "modred":[], "gen":None,
-                "pseudo=read":None, "dftb=read":None } #TODO put all empty lists?
+        self.atoms_list = []# ob.OBMol()
+        self.additional_input_dict = ADDITIONAL_INPUT_DICT.copy()
+
     def write_to_file(self,name):
         self.additional_input_dict['modred'] = [m.write() for m in self.modreds]
         with open(name, 'w') as gaussian_com_file:
@@ -110,18 +111,14 @@ class GaussianCom(EmptyGaussianCom):
             self.route_section = self._read_route_section()
             self.title_line = self._read_title_line()
             self.multiplicity_line = self._read_multiplicity_line()
-            self.atoms_list = self._read_structure()
-            #self.modreds = []# class ModRed, filled in _read_additional_input2
-            self.additional_input_dict = self._read_additional_input2()            
+            self._read_structure()
+            self.additional_input_dict = self._read_additional_input()            
             self.connectivity_list = self.additional_input_dict["connect"]
-            #Nao sei para que serve o bonds list, eh diferente de connectivity
-            self.bonds_list = self._read_bonds_list()
-            ###self.modred_lines = self.additional_input_dict["modred"] NO NEED
-            self.modreds = [ModRed(line)
-                for line in self.additional_input_dict["modred"]]
+            self.bonds_list = self._read_bonds_list()  
+            self.modredundant_list = self.additional_input_dict["modred"]
             self.gen_list = self.additional_input_dict[" gen"]
             self.pseudo_list = self.additional_input_dict["pseudo=read"]
-            #self.dftb=read = self.additional_input_dict["dftb=read"]      #adicionar isto
+            self.dftb=read = self.additional_input_dict["dftb=read"]     
             self.MM_external_params = self.additional_input_dict["first"]
             self.read_optimize = self.additional_input_dict["readopt"]
 
@@ -133,12 +130,12 @@ class GaussianCom(EmptyGaussianCom):
         return lines
             
     def _count_blank_lines(self):
-        """Return a list with the blank lines number"""
+        """Return a list with the blank lines index"""
         blank_lines = []
         for no, line in enumerate(self.lines):
             if line.strip() == '':
                 blank_lines.append(no)
-        return blank_lines #lista de index das blank lines
+        return blank_lines
 
     def _read_link_0_commands(self):
         """Return a list with Link 0 commands"""
@@ -149,7 +146,6 @@ class GaussianCom(EmptyGaussianCom):
         
     def _read_route_section(self):
         """Return a string with the route section"""
-        read_route_section = False
         route_section = ''
         for line in self.lines[:self.blank_lines[0]]:
             if read_route_section:
@@ -174,48 +170,34 @@ class GaussianCom(EmptyGaussianCom):
 
     def _read_structure(self):
         """ Return a list of atoms"""
-        atoms_list = []
+        #for line in self.lines[self.blank_lines[1]+2:self.blank_lines[2]]:
+        #    atoms_list.append(iolines.zmat2atom(line))
+        self.atoms_list = [] #ob.OBMol()
         for line in self.lines[self.blank_lines[1]+2:self.blank_lines[2]]:
-            atoms_list.append(iolines.zmat2atom(line))
-        return atoms_list
+            self.atoms_list.append(iolines.zmat2atom(line))
 
-    def _read_additional_input2(self):
-        """Reads additional input and stores it in a ordered dict"""
-        additional_input_dict = collections.OrderedDict(\
-        [("connect",None),("readopt",None),("modred", []),(" gen",None),("pseudo=read",None),("first",None), ("dftb=read",None) ]) #TODO put all empty lists? usefull for extend
+    def _read_additional_input(self):
+        """Reads additional input lines and stores it in a ordered dict"""
+        additional_input_dict = ADDITIONAL_INPUT_DICT.copy()
+
         shift=0
         b_lines = self.blank_lines
 
         for key in additional_input_dict:
-            if key in self.route_section.text.replace("only","first"):
-                if key == "modred" and "modred" in self.route_section.text:
-                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
-                    additional_input_dict[key]= self.lines[i_start: i_finish]
-                    #for line in self.lines[i_start: i_finish]:
-                    #    self.modreds.append(ModRed(line))
-                elif key == "first" and "soft" in self.route_section.text:
+            if key in self.route_section.lower().replace("only","first"):
+                if (key == "first" and "soft" in self.route_section.lower()) or\
+                   (key == "dftb=read"):
                     shift += 1
-                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
-                    additional_input_dict[key]= self.lines[i_start: i_finish]
-                #print(key, i_start, i_finish)
-                #dftb=read
-                elif key == "dftb=read" and "dftb=read" in self.route_section.text:
-                    shift += 1
-                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
-                    additional_input_dict[key]= self.lines[i_start: i_finish]
-                else:
-                    i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
-                additional_input_dict[key]= self.lines[i_start: i_finish]
                 
+                i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
+                additional_input_dict[key]= self.lines[i_start: i_finish]
                 shift += 1
         return additional_input_dict
 
 
     def _read_bonds_list(self):
-        """ Create bonds list from the connectivity info on the file"""
+        """ Create a list of bonds objects from the connectivity info"""
         bonds_list = []
-        if self.connectivity_list == [] or self.connectivity_list == None:
-            return None
 
         for line in self.connectivity_list:
             numbers = line.split()
@@ -237,21 +219,28 @@ class GaussianCom(EmptyGaussianCom):
         """ Create new connectivity list from the bonds and atoms list"""
         bonds_list = self.bonds_list[:]
         connectivity_list = []
-        for index, atom in enumerate(self.atoms_list):
+        bonds_list = [bond for bond in bonds_list if\
+                bond.atom_b.GetType() != 'X']
+        atoms_list = [atom for atom in self.atoms_list if\
+                atom.GetType() != 'X']
+        for index, atom in enumerate(atoms_list):
+            line = " {0}".format(index+1)
+            
             this_atom_bonds = []
             bonds_to_remove = []
             for no_b, bond in enumerate(bonds_list):
                 if atom is bond.atom_a or atom is bond.atom_b:
                     this_atom_bonds.append(bond)
-            line = " {0}".format(index+1)
             for bond in this_atom_bonds:
                 bonds_list.remove(bond)
                 if bond.atom_a is atom:
                     atom_to_put = bond.atom_b
                 else:
                     atom_to_put = bond.atom_a
-                if atom_to_put in self.atoms_list:
-                    line += " {0} {1}".format(self.atoms_list.index(atom_to_put)+1,bond.order)
+                for atom_p_no, atom_print in enumerate(atoms_list):
+                    if atom_print is atom_to_put:
+                        line += " {0} {1}".format(atom_p_no+1,bond.order)
+                        break
             line += "\n"
             connectivity_list.append(line)
         
@@ -610,42 +599,6 @@ class GaussianLog():
     def close_file(self):
         self.file.close()
     
-    ### def read_symbolic_zmatrix(self):
-    ###     self.file.seek(0)
-    ###     reading = False
-    ###     atoms_lines = []
-    ###     for no, line in enumerate(self.file):
-    ###         if reading:
-    ###             if "Charge" in line:
-    ###                 pass
-    ###             elif line.strip() == '':
-    ###                 break
-    ###             else:
-    ###                 atoms_lines.append(line)
-    ###         if "atrix:" in line:
-    ###             reading = True
-    ###     return self.read_gaussian_input_structure(atoms_lines)
-    
-    def _generate_summary(self):
-        no_opts = 0
-        for scan_step in self.steps_list:
-            no_opts += len(scan_step)
-        no_scans = len(self.steps_list) - 1
-        energy = self.energies_list[-1][-1]       
-        summary = """Reading from {0.name}        
-        Route Section:
-        {0.route_section}
-        
-        List of Atoms
-        {2} atoms: {1}...
-        
-        Opt Steps: {3}
-        Scan Steps: {4}
-        
-        Last Energy: {5}
-        """.format(self, self.initial_geometry[:100], len(self.initial_geometry), no_opts, no_scans, energy)
-        return summary
-    
     def read_coordinates(self, atom_nr, byte):
         """To request or not to request N_ATOMS, it would allow checking -----"""
 
@@ -735,12 +688,11 @@ class GaussianLog():
                 f.readline()
             for model_atom in self.atoms_list:
                 line = f.readline()
-                atom = deepcopy(model_atom)
-                atomic_number = line.split()[1]
+                atomic_number = int(line.split()[1])
                 x, y, z = line.split()[3:6]
-                element = [key for key in iter(atoms.ATOMIC_NUMBER_DICT) \
-                                if atoms.ATOMIC_NUMBER_DICT[key] == int(atomic_number)][0] #hack
-                atom.x, atom.y, atom.z = float(x),float(y),float(z)
+                element = atoms.PERIODIC_TABLE.GetSymbol(atomic_number)
+                xyz = (float(x),float(y),float(z))
+                atom = atoms.Atom(element, xyz) 
                 atoms_list.append(atom)    
         return atoms_list
 
@@ -1147,6 +1099,34 @@ class Termination():
 
 
 
+class ModRed():
+
+    def __init__(self, line = None):
+        self.coordtype = None # B, A or D
+        self.atomids = [] # list of ints
+        self.action = None # (F)reeze, (S)can, (K)ill, (B)uild, (A)ctivate
+        # for (S)can only
+        self.scan_num_pts = None 
+        self.scan_step_sz = None 
+        if line:
+            self.add_line(line)
+
+    def add_line(self, line):
+        coord_numat = {'B':2, 'A':3, 'D':4, 'X':1} # num atomids for bond, angle...
+        #action_numpar = {'S':2, 'F':0, 'B':0, 'A':0, 'K':0, 'D':0, 'H':1}
+        fields = line.split()
+        self.coordtype = fields[0]
+        k = 1
+        for i in range(coord_numat[self.coordtype]):
+            self.atomids.append(int(fields[k]))
+            k += 1
+        self.action = fields[k]
+        k += 1
+        if self.action == 'S': # implement H somtime
+            self.scan_num_pts = int(fields[k]) #num_steps
+            k += 1
+            self.scan_step_sz = float(fields[k]) #size_step 
+
 
 
 ###orphans
@@ -1156,8 +1136,9 @@ def read_mulliken_charges(filename):
     with open(filename,'r') as gaussian_file:
         for line in gaussian_file:
             if "Mulliken atomic charges:" in line or "Mulliken charges:" in line:
-                gaussian_file.readline()
                 break
+        for line in gaussian_file:
+            break
         charges = []
         ready = False
         for line in gaussian_file:
@@ -1170,4 +1151,5 @@ def read_mulliken_charges(filename):
             elif "Mulliken atomic charges:" in line:
                 ready = True
 
-        
+    return charges
+

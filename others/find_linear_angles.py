@@ -1,5 +1,5 @@
-#!/usr/bin/python3
-"""It reads a gaussian output file, detects 180º angles, 
+#!/usr/bin/python
+"""It reads a gaussian output file, detects 180 angles, 
 and writes a com file where these angles are deactivated"""
 
 # python modules
@@ -16,7 +16,7 @@ MAX_DISTANCE = 3
 
 
 def main():
-    """It reads a gaussian output file and detects 180º angles 
+    """It reads a gaussian output file and detects 180 angles 
     It then writes a .com file from another model .com file
     where these angles are deactivated."""
     

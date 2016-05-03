@@ -1,12 +1,13 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
-import subprocess
 import copy
+import numpy as np
+import subprocess
 
 
 ### RESP
 def produce_resp_in(esp_in_name, atoms_list, instructions_list, total_charge = False):
-    with open(esp_in_name, 'w', encoding='UTF-8') as esp_in_file:
+    with open(esp_in_name, 'w') as esp_in_file:
         comment = esp_in_name.split("/")[-1]
         if type(total_charge) == int:
             pass
@@ -45,6 +46,7 @@ def produce_resp_qin(resp_qin_name, atoms_list):
             resp_qin_file.write(charge_str)
 
 def produce_resp_dat_from_gaussian_log(esp_dat_name, gaussian_log_name, qm_atoms_list):
+    """!!!!!!!!!!!!!!!!!!!!!! I THINK THERE IS A BUG IN THIS CODE, CHECK FOR ERRORS IN THE COORDINATES"""
     unit = 0.529177249  # 1 ansgtrom = 1 bohr /unit
     with open(gaussian_log_name, 'r', encoding='UTF-8') as gaussian_log_file:
         atomic_center_list = []
@@ -95,7 +97,7 @@ def give_resp_charges(old_atoms_list, new_charges):
     """writes new charges to the atoms in atom list
     It corrects the overall charge by
     scaling the charges of link atoms"""
-    new_atoms_list = copy.deepcopy(old_atoms_list) 
+    new_atoms_list = copy.copy(old_atoms_list) 
     for index, atom in enumerate(new_atoms_list):
         atom.mm.charge = new_charges[index]
      
@@ -112,7 +114,7 @@ def give_resp_charges(old_atoms_list, new_charges):
             no_link_atoms += 1.0
     
     for atom in new_atoms_list:
-        if atom.link_mm_type:
+        if atom.oniom.link_atom:
             atom.mm.charge = atom.mm.charge - diff/no_link_atoms
 
     return new_atoms_list
@@ -124,7 +126,7 @@ def give_resp_charges(old_atoms_list, new_charges):
 
 ###CRD file
 def write_crd_file(name, coordinate_list, box_info=True, velocities=False):
-    with open(name, mode='w', encoding='utf-8') as crd_file:
+    with open(name, mode='w') as crd_file:
         if box_info:
             box_coord = coordinate_list[-2:]
             coordinate_list = coordinate_list[:-2]
@@ -153,7 +155,7 @@ def write_crd_file(name, coordinate_list, box_info=True, velocities=False):
     return None
 
 def read_crd_file(name):
-    with open(name, mode='r', encoding='utf-8') as crd_file:
+    with open(name, mode='r') as crd_file:
         extended_coordinates_list = []
         coordinates_list = []
         amber_crd_lines = crd_file.readlines()
@@ -180,7 +182,7 @@ def read_mdcrd_file(name):  #only one structure
 
 ### PRMTOP
 def read_prmtop_charges(name):
-    with open(name, 'r', encoding='UTF-8') as prmtop_file:
+    with open(name, 'r') as prmtop_file:
         prmtop_lines = prmtop_file.readlines()
         for line in range(0,len(prmtop_lines)):
             if 'FLAG CHARGE' in prmtop_lines[line]:
@@ -199,7 +201,7 @@ def read_prmtop_charges(name):
 def write_prmtop_charges(old_prmtop_name, new_prmtop_name, charges_list):
     """ write a new prmtop file from a old one with the charges given in charges_list"""
     
-    with open(old_prmtop_name, 'r', encoding='UTF-8') as prmtop_file:
+    with open(old_prmtop_name, 'r') as prmtop_file:
         model_prmtop_lines = prmtop_file.readlines()
         for line in range(0,len(model_prmtop_lines)):
             if 'FLAG CHARGE' in model_prmtop_lines[line]:
@@ -285,31 +287,88 @@ def create_restraint_mask(atoms_numbers_list):
 
 ##### mdcrd
 
-def extract_from_mdcrd(mdcrd_name, no_atoms, snapshot):
+def extract_from_mdcrd(mdcrd_name, no_atoms, snapshot, 
+                       has_box_info = True, output_box_info = False):
     """ Extract the coordinates from a snapshot of a mdcrd file"""
-    mdcrd_file = open(mdcrd_name,'r')
-    bytes_per_structure =  ((3*no_atoms)//10)*81 + ((3*no_atoms)%10)*8 
-    bytes_to_jump = 81+bytes_per_structure*snapshot+ (snapshot*25)
-    mdcrd_file.seek(bytes_to_jump)
-    crd_text = mdcrd_file.read(bytes_per_structure)
-    crd_text = crd_text.replace('\n','')
+    return extract_many_from_mdcrd(mdcrd_name, no_atoms, init=snapshot, 
+            end=snapshot+1, has_box_info=has_box_info, 
+            output_box_info=output_box_info)[0]
 
-    crd_numbers = []
-    for byte in range(0,len(crd_text),8):
-        value = crd_text[byte:byte+8]
-        crd_numbers.append(value)
+def extract_many_from_mdcrd(mdcrd_name, no_atoms, init=0, end=1, step=1, 
+                       has_box_info = True, output_box_info = False):
+    """ Extract the coordinates from snapshots of a mdcrd file"""
+    #floats = open(mdcrd_name,'r').read()[81:].replace('\n','')
+    #floats = [floats[i:i+8] for i in range(0, len(floats),8)]
+    #if has_box_info:
+    #    no_atoms += 1
+    #    no_floats = (no_atoms)*3
+    #    no_steps = len(floats)/no_floats
+    #    if not output_box_info:
+    #        for i in reversed(range(no_steps)):
+    #            del floats[i*no_floats-3:i*no_floats]
+    #        no_atoms -= 1
+    #        no_floats = (no_atoms)*3
+
+    #floats = np.array(floats, dtype=float)
+    #snapshots = floats.reshape(no_steps, no_atoms,3)
+
+    #return snapshots
+
+    mdcrd_file = open(mdcrd_name,'r')
+    snapshots = []
+    for snapshot in np.arange(init, end, step):
+        no_floats = 3*no_atoms
+        bytes_per_structure =  ((3*no_atoms)//10)*81
+
+        if ((3*no_atoms)%10)*8:
+            bytes_per_structure += ((3*no_atoms)%10)*8 + 1 
     
-    coordinates = []
-    for n in range(0,len(crd_numbers),3):
-        xyz = tuple([float(no) for no in crd_numbers[n:n+3]])
-        coordinates.append(xyz)
+        if has_box_info:
+            bytes_per_structure += 25 # line with box info
     
+        bytes_to_jump = 81+bytes_per_structure*snapshot
+        mdcrd_file.seek(bytes_to_jump)
+
+        if not output_box_info:
+            bytes_per_structure -= 25
+
+        crd_text = mdcrd_file.read(bytes_per_structure)
+        crd_text = crd_text.replace('\n','')
+    
+        coordinates = np.array([float(crd_text[i:i+8]) for i in range(0, len(crd_text),8)])
+        coordinates = coordinates.reshape(len(coordinates)/3, 3)
+        snapshots.append(coordinates)
     mdcrd_file.close()
 
-    return coordinates
+    return snapshots
 
-
-
-
-
-
+#def extract_many_from_mdcrd(mdcrd_name, no_atoms, init=0, end=1, step=1, 
+#                       has_box_info = True, output_box_info = False):
+#    """ Extract the coordinates from snapshots of a mdcrd file"""
+#    mdcrd_file = open(mdcrd_name,'r')
+#    snapshots = []
+#    for snapshot in np.arange(init, end, step):
+#        no_floats = 3*no_atoms
+#        bytes_per_structure =  ((3*no_atoms)//10)*81
+#
+#        if ((3*no_atoms)%10)*8:
+#            bytes_per_structure += ((3*no_atoms)%10)*8 + 1 
+#    
+#        if has_box_info:
+#            bytes_per_structure += 25 # line with box info
+#    
+#        bytes_to_jump = 81+bytes_per_structure*snapshot
+#        mdcrd_file.seek(bytes_to_jump)
+#
+#        if not output_box_info:
+#            bytes_per_structure -= 25
+#
+#        crd_text = mdcrd_file.read(bytes_per_structure)
+#        crd_text = crd_text.replace('\n','')
+#    
+#        coordinates = np.fromstring(crd_text, count=no_floats).\
+#            reshape(no_atoms,3)
+#
+#        snapshots.append(coordinates)
+#        print coordinates
+#    mdcrd_file.close()

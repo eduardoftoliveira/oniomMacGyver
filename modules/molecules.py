@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # python modules
 import copy
@@ -17,11 +17,8 @@ class Molecule(list):
     def __repr__(self):
         return self.name
 
-    def charge(self):
-        charge = 0
-        for atom in self.atoms_list:
-           charge += atom.mm.charge
-        return charge
+    def get_charge(self):
+        return sum([atom.mm.charge for atom in self.atoms_list])
     
     def localize_charge(self):
         #not properly tested
@@ -30,15 +27,15 @@ class Molecule(list):
         charge = 0
         for atom in self.atoms_list:
             if atom.charge > 0.001:
-                pos_x += atom.x*atom.charge
-                pos_y += atom.y*atom.charge
-                pos_z += atom.z*atom.charge
+                pos_x += atom.GetX()*atom.charge
+                pos_y += atom.GetY()*atom.charge
+                pos_z += atom.GetZ()*atom.charge
                 pos_charge += atom.charge
                 charge += atom.charge
             elif atom.charge < 0.001:
-                neg_x -= atom.x*atom.charge
-                neg_y -= atom.y*atom.charge
-                neg_z -= atom.z*atom.charge
+                neg_x -= atom.GetX()*atom.charge
+                neg_y -= atom.GetY()*atom.charge
+                neg_z -= atom.GetZ()*atom.charge
                 neg_charge -= atom.charge
                 charge += atom.charge
         
@@ -56,12 +53,13 @@ class Molecule(list):
     
     def center(self):
         """Return the center of the molecule (non-weighted)"""
-        x_min = min([atom.x for atom in self.atoms_list])
-        x_max = max([atom.x for atom in self.atoms_list])
-        y_min = max([atom.y for atom in self.atoms_list])
-        y_max = max([atom.y for atom in self.atoms_list])
-        z_min = max([atom.z for atom in self.atoms_list])
-        z_max = max([atom.z for atom in self.atoms_list])
+        # TODO change this to openbabel function
+        x_min = min([atom.GetX() for atom in self.atoms_list])
+        x_max = max([atom.GetX() for atom in self.atoms_list])
+        y_min = max([atom.GetY() for atom in self.atoms_list])
+        y_max = max([atom.GetY() for atom in self.atoms_list])
+        z_min = max([atom.GetZ() for atom in self.atoms_list])
+        z_max = max([atom.GetZ() for atom in self.atoms_list])
         
         center = ( (x_min+x_max)/2 , (y_min+y_max)/2 , (z_min+z_max)/2 ) 
         return center
@@ -148,17 +146,18 @@ def QMMM_to_QM(atoms_list, make_new='True'):
         if atom.oniom.layer == 'H':
             if make_new:
                 ## Warning: At this point we are changing the original atoms"
-                atom = Atom(atom.element, atom.get_coordinates())
+                atom = Atom(atom.GetType(), atom.GetVector())
         elif atom.oniom.link_atom:
+# TODO THIS IS NOT COMPATIBLE WITH HOW THE LINK ATOMS ARE DEFINED NOW
             linked_atom = atoms_list[atom.oniom.link_bound_to-1]
-            new_x = (atom.x-linked_atom.x) *SCALING[linked_atom.element] + linked_atom.x
-            new_y = (atom.y-linked_atom.y) *SCALING[linked_atom.element] + linked_atom.y
-            new_z = (atom.z-linked_atom.z) *SCALING[linked_atom.element] + linked_atom.z
+            new_x = (atom.GetX()-linked_atom.GetX()) *SCALING[linked_atom.GetType()] + linked_atom.GetX()
+            new_y = (atom.GetY()-linked_atom.GetY()) *SCALING[linked_atom.GetType()] + linked_atom.GetY()
+            new_z = (atom.GetZ()-linked_atom.GetZ()) *SCALING[linked_atom.GetType()] + linked_atom.GetZ()
             if make_new:
                 atom = Atom(atom.oniom.link_atom.element, (0, 0, 0))
-            atom.x, atom.y, atom.z = new_x, new_y, new_z
+            atom.SetVector(new_x, new_y, new_z)
         else:
-             continue
+            continue
         
         qm_atoms_list.append(atom)
     
@@ -173,7 +172,7 @@ def find_linear_angles(atoms_list, max_angle=178, max_distance=3,
     ### extract QM atoms and correct link atoms position
     # Save old atoms coordinates because qmmm_to_qm() changes them
     if ignore_low_layer:
-        atoms_list_cp = copy.deepcopy(atoms_list)
+        atoms_list_cp = copy.copy(atoms_list)
         atoms_list_qm = QMMM_to_QM(atoms_list, make_new=False)
 
     ### tuples should be (angle, atom1, atom2, atom3)
@@ -181,12 +180,12 @@ def find_linear_angles(atoms_list, max_angle=178, max_distance=3,
     for atom1 in atoms_list_qm:
         for atom2 in atoms_list_qm[atoms_list_qm.index(atom1)+1:]:
             for atom3 in atoms_list_qm[atoms_list_qm.index(atom2)+1:]:
-                if atom1.distance(atom2) + atom1.distance(atom3)\
-                        + atom2.distance(atom3) < (4 * max_distance):
+                if atom1.GetDistance(atom2) + atom1.GetDistance(atom3)\
+                        + atom2.GetDistance(atom3) < (4 * max_distance):
                 
-                    angle1 = atom1.angle(atom2, atom3) * 57.2957795
-                    angle2 = atom2.angle(atom1, atom3) * 57.2957795
-                    angle3 = atom3.angle(atom1, atom2) * 57.2957795
+                    angle1 = atom1.GetAngle(atom2, atom3) # 57.2957795
+                    angle2 = atom2.GetAngle(atom1, atom3) # 57.2957795
+                    angle3 = atom3.GetAngle(atom1, atom2) # 57.2957795
                     
                     if angle1 > max_angle:
                         output_tuples.append( (angle1, atom2, atom1, atom3) )
@@ -198,9 +197,7 @@ def find_linear_angles(atoms_list, max_angle=178, max_distance=3,
     ## give old coordinates back
     if ignore_low_layer:
         for atom in atoms_list_qm:
-            atom.x = atoms_list_cp[atoms_list.index(atom)].x
-            atom.y = atoms_list_cp[atoms_list.index(atom)].y
-            atom.z = atoms_list_cp[atoms_list.index(atom)].z
+            atom.SetVector(atoms_list_cp[atoms_list.index(atom)].GetVector())
     
     return output_tuples
 

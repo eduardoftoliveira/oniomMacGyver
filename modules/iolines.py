@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 # qt modules
 import atoms
@@ -110,10 +110,10 @@ def atom2zmat(atom, print_resinfo = True):
 
     # el + mm + resinfo
     if atom.mm:
-        line = '{0.element}-{0.mm.atype}-{0.mm.charge:.9f}'.format(atom)
+        line = '{0}-{1.mm.atype}-{1.mm.charge:.9f}'.format(atom.GetType(),atom)
         line = '{0:.15s}'.format(line) # fill with spaces (max 15 char)
     else:
-        line = ' {0.element:1s}'.format(atom) #NOTA:provavelment vai ser preciso adicionar 14s apos a resinfo 
+        line = ' {0:1s}'.format(atom.GetType()) #NOTA:provavelment vai ser preciso adicionar 14s apos a resinfo 
 
     if res:
         line = ('{0}(PDBName={1.resinfo.name},'
@@ -125,27 +125,33 @@ def atom2zmat(atom, print_resinfo = True):
     # add:  mask + (x, y, z) + layer
     if atom.oniom:
         line += (
-        '{0.oniom.mask:>4d} {0.x:>11.6f} {0.y:>11.6f} '
-        '{0.z:>11.6f} {0.oniom.layer:s}'
-        .format(atom))
+        '{0.oniom.mask:>4d} {1:>11.6f} {2:>11.6f} '
+        '{3:>11.6f} {0.oniom.layer:s}'
+        .format(atom,
+                atom.GetX(),
+                atom.GetY(),
+                atom.GetZ(),
+               ))
 
         # add link
         if atom.oniom.has_link:
             link_atom = atom.oniom.link_atom
             if link_atom.mm:
                 line += (
-                ' {0.element}-{0.mm.atype}-{0.mm.charge}'
-                ' {1.oniom.link_bound_to} {1.oniom.link_scale1}'
-                .format(link_atom, atom))
+                ' {0}-{1.mm.atype}-{1.mm.charge}'
+                ' {2.oniom.link_bound_to} {2.oniom.link_scale1}'
+                .format(link_atom.GetType(), link_atom, atom))
             else:
                 line += (
-                ' {0.element}'
+                ' {0}'
                 ' {1.oniom.link_bound_to} {1.oniom.link_scale1}'
-                .format(link_atom, atom))
+                .format(link_atom.GetType(), atom))
 
     # add (x, y, z)
     else:
-        line += '{0.x:>11.6f} {0.y:>11.6f} {0.z:>11.6f}'.format(atom)
+        line += '{0:>11.6f} {1:>11.6f} {2:>11.6f}'.format(atom.x(),
+                                                          atom.y(),
+                                                          atom.z())
     
     line = "{0}\n".format(line)
 
@@ -161,7 +167,7 @@ def atom2pdb(atom):
         '         {1.icode:1s}'
         '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
         '{1.occupancy:6.2f}{1.bfact:6.2f}'
-        '          {0.element:>2s}{1.formalcharge:2s}\n'
+        '          {0.GetType()>2s}{1.formalcharge:2s}\n'
         .format(atom, atom.pdbinfo))
         return line
     else:
@@ -170,7 +176,7 @@ def atom2pdb(atom):
         '{1.resname:3s} {1.chain:1s}{3:4d}{2.icode:1s}'
         '   {0.x:8.3f}{0.y:8.3f}{0.z:8.3f}'
         '{2.occupancy:6.2f}{2.bfact:6.2f}'
-        '          {0.element:>2s}{2.formalcharge:2s}\n'
+        '          {0.GetType():>2s}{2.formalcharge:2s}\n'
         .format(atom, atom.resinfo, atom.pdbinfo, atom.resinfo.resnum%10000))
     return line
 
@@ -274,4 +280,34 @@ def pdbqt2atom(line):
     atom.set_resinfo(resinfo)
     atom.set_pdbinfo(pdbinfo)
     return atom
+
+def mol22atom(line):
+    "Reads a mol2 atom line and returns the atoms indexes and bond order"
+    words = line.strip().split()
+
+    # basic atom info
+    element = words[5].split('.')[0]
+    x, y, z = words[2:5]
+    
+    # mm info
+    atom_type = words[1]
+    if len(words) == 9:
+        charge = words[8]
+    else:
+        charge = None
+
+    atom = atoms.Atom(element,(float(x), float(y), float(z)))
+    mm_obj = atoms.MM(atom_type, charge)
+    atom.set_mm(mm_obj) 
+
+    return atom
+
+
+def mol22bond(line):
+    "Reads a mol2 bond line and returns the corresponding bond object"
+    bond_order_dict = {'1':1, '2':2, '3':3, 
+                       'ar':1.5, 'Ar':1.5, 'Am':1.5, 'am':1.5}
+    words = line.strip().split()
+    return int(words[1]), int(words[2]), bond_order_dict[words[3]]
+
 

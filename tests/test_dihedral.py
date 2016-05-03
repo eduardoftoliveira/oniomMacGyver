@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from gaussian import GaussianCom as G
+import pybel
 
 # Four atoms and reference value as in GaussView
 dihedrals = [
@@ -11,9 +12,11 @@ dihedrals = [
 ]
 
 x = G('oniom.com')
+mol = pybel.ob.OBMol()
 for dihedral in dihedrals:
     atom = x.atoms_list[dihedral[0]]
-    output = atom.dihedral(
+    output = mol.GetTorsion(
+        atom,
         x.atoms_list[dihedral[1]],
         x.atoms_list[dihedral[2]],
         x.atoms_list[dihedral[3]])
