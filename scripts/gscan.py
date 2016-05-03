@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 
-import sys, argparse, geom
+import sys, argparse
 from os.path import exists
 from os.path import splitext
-from gaussian import GaussianCom as GC
-from gaussian import GaussianLog as GL
-from gaussian import ModRed
+from omg.gaussian.gaussian import GaussianCom as GC
+from omg.gaussian.gaussian import GaussianLog as GL
+from omg.gaussian.gaussian import ModRed
+from omg import geom
 
 
 def increment_gaucom_name(gaucom_name):
