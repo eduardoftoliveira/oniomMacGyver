@@ -1,1 +1,1 @@
-**oniomMacGyver** - is a python package to manipulate files Gaussian(R) for ONIOM calculations.
+**oniomMacGyver** - is a python package to manipulate Gaussian(R) files for ONIOM calculations.
