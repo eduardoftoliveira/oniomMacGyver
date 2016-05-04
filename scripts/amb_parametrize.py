@@ -2,15 +2,14 @@
 """Script to parametrize ligands with resp charges and gaff force field
 It uses antechamber."""
 
-#our modules
-import mol2
-import molecules
-
 # python modules
 import argparse
 import textwrap
 import subprocess
 
+#omg modules
+from omg import mol2
+from omg import molecules
 
 def create_g09():
     "Return a list of commands to create the gaussian input file"
@@ -29,8 +28,8 @@ def set_resp_gaff():
     
     commands = [
         #calculate and read resp charges into a ac file with correct atom order
-        "antechamber -fi gesp -fo ac -i {0} -o {1} -c resp -pf yes -nc {2} "\
-        .format(GESP, RESP_AC, CHARGE),
+        "antechamber -fi gesp -fo ac -i {0} -o {1} -c {2} -pf yes -nc {3} "\
+        .format(GESP, RESP_AC, CHARGE_MODEL, CHARGE),
         "antechamber -fi ac -i {0} -c wc -cf {1} -pf yes"\
         .format(RESP_AC, CRG),
         "antechamber -fi mol2 -i {0} -c rc -cf {1} -fo ac -o {2} -pf yes"
@@ -71,7 +70,7 @@ PARSER.add_argument('parts',
                         """Choose the step(s) of the parametrization:
                         {0[0]} - Create gaussian input file
                         {0[1]} - Run gaussian calculation
-                        {0[2]} - Calculate RESP and set gaff parameters
+                        {0[2]} - Calculate charges and set gaff parameters
                         """.format(CHOICES))
                    )
 
@@ -96,6 +95,13 @@ PARSER.add_argument('--mol2_charge',
                     action="store_true",
                    )
 
+PARSER.add_argument("--charge_model",
+                   help="Type of charge model used to calculate point charges",
+                   choices=["bcc","resp"],
+                   default="resp",
+                   )
+
+
 PARSER.add_argument('--charge',
                     type=int,
                     help='Charge of the molecule. Must be set if not zero.',
@@ -114,14 +120,17 @@ PARTS = ARGS.parts
 MOL2 = ARGS.mol2
 UNIT_NAME = ARGS.unit_name
 DRY = ARGS.dry
+CHARGE_MODEL = ARGS.charge_model
 MOL2_CHARGE = ARGS.mol2_charge
 
 if MOL2_CHARGE:
     mol2file = mol2.Mol2(MOL2)  
     mol = molecules.Molecule(UNIT_NAME, mol2file.atoms)
     CHARGE = int(round(mol.get_charge(),0))
+    print("Reading charge from mol2 file. Charge = {}".format(CHARGE)) 
 else:
     CHARGE = ARGS.charge
+    print("Setting charge = {}".format(CHARGE))
 
 GAUCOM = '{0}.com'.format(UNIT_NAME)
 GAULOG = '{0}.log'.format(UNIT_NAME)
@@ -136,10 +145,9 @@ GESP = 'g09.gesp'
 def main():
     "Parametrizes the ligand by calling antechamber"
     commands = []
-    for possible_choice in CHOICES:
-        if possible_choice in PARTS:
-            commands.extend(INSTRUCTION_TO_FUNCTION_DICT[possible_choice]())
 
+    for part in PARTS:
+        commands.extend(INSTRUCTION_TO_FUNCTION_DICT[part]())
 
     for command in commands:
         if DRY:

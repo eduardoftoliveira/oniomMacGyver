@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 """It reads a gaussian output file, detects what is 
 causing the micro iteration error and writes a com file 
 where these atoms are frozen"""
@@ -7,7 +7,7 @@ where these atoms are frozen"""
 import sys
 
 # qt modules
-import gaussian
+from omg.gaussian import gaussian
 
 
 ## These parameters may require tweaking
@@ -15,7 +15,7 @@ HOW_MANY_ATOMS = 4
 
 
 def main():
-    """It reads a gaussian output file and detects 180º angles 
+    """It reads a gaussian output file and detects 180 angles 
     It then writes a .com file from another model .com file
     where these angles are deactivated."""
     

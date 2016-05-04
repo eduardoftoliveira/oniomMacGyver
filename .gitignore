@@ -1,5 +1,6 @@
 *.pyc
 __pychache__/
+*aux
 *com
 *log
 *top

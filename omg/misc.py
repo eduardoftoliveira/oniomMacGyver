@@ -3,6 +3,7 @@ import numpy as np
 import decimal
 import numpy as np
 import subprocess
+import os
 
 def transpose_list_of_lists(mat):
     """
@@ -174,5 +175,29 @@ def mol2_rm_lp(filename, delhydrogens = True):
         newtext += ''.join(RTIs[key])
 
     return newtext, coords
+
+
+def increment_filename(filename):
+    """It adds a _1, or increases the number in the filename situated before 
+    the extension and after an underscore '_'.
+
+    Example:
+        nha_nhe_23.com --> nha_nhe_24.com
+        nha.in         --> nha_1.in     
+    """
+
+    name, extension = os.path.splitext(filename)
+    try:
+        prefix, number = name.rsplit('_', 1)
+        number = int(number)+1
+    except ValueError:
+        prefix = name
+        number = 1
+    
+    return "{0}_{1}{2}".format(prefix, number, extension)
+
+
+
+
 
 

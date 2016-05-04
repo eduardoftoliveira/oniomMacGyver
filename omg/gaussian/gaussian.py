@@ -15,10 +15,10 @@ from sys import stderr
 import copy
 
 # our python modules
-import atoms
-import molecules
-import iolines
-import misc
+from omg import atoms
+from omg import molecules
+from omg import iolines
+from omg import misc
 
 ADDITIONAL_INPUT_DICT = collections.OrderedDict([
                                                 ("connect", []),

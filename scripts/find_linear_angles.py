@@ -6,8 +6,8 @@ and writes a com file where these angles are deactivated"""
 import sys
 
 # qt modules
-import gaussian
-import molecules
+from omg.gaussian import gaussian
+from omg import molecules
 
 
 ## These parameters may require tweaking
