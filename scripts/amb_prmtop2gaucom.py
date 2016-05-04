@@ -1,63 +1,58 @@
 #!/usr/bin/env python
+"""
+Reads amber .prmtop and .inpcrd
+Outputs gaussian .com
+"""
 
+import argparse
 import os
-import subprocess
-import math
-import getopt
 import sys
 
 # oniomMacGyver modules
-from omg import iolines
-from omg import atoms
 from omg import prmtop
 
+def get_args():
+    """
+    Parse arguments of amb_prmtop2gaucom.py
+    """
 
-def usage():
-    print('usage:')
-    print('    python3 amboniom.py')
-    print('      --top      topology                .prmtop or .top')
-    print('      --crd      coordinates             .inpcrd or .rst')
-    print('      --newgau   new gaussian input      .com (usually)')
-    print('')
-    print('optional stuff:')
-    print('      --vmdsel   "an easy selection"     use double quotes')
-    print('      --notip3p                          dont print TIP3P HrmBnd1')
+    parser = argparse.ArgumentParser(
+        description="""
+            Reads Amber topology (.prmtop) and coordinates (.inpcrd) to produce
+            a Gaussian input (.com).
+        """, formatter_class=argparse.RawTextHelpFormatter)
+
+    parser.add_argument('top', help='Amber topology (.prmtop / .top)')
+    parser.add_argument('crd', help='Amber coordinates (.inpcrd / .crd)')
+    parser.add_argument('--com', help='Name for new Gaussian input (.com)',
+                        default=None)
+    parser.add_argument('--notip3p', help='dont print TIP3P HrmBnd1',
+                        default=False, action='store_true')
+    parser.add_argument('--vmdsel',
+                        help='VMD like selection ("not resname WAT")',
+                        default='')
+
+    args = parser.parse_args()
+
+    if not args.com:
+        args.com = os.path.splitext(args.top)[0] + '.com'
+
+    # check if output exists
+    if os.path.exists(args.com):
+        sys.stderr.write('%s already exists. Aborting.\n' % (args.com))
+        sys.exit(2)
+
+    return args
 
 def main():
-    try:
-        opts, args = getopt.gnu_getopt(sys.argv[1:], '',[
-            'top=', 'crd=', 'newgau=', 'vmdsel=', 'notip3p'])
-    
-    except getopt.GetoptError as err:
-        usage()
-        sys.stderr.write('ERROR:   ' + str(err)+'\n') # will print something like "option -a not recognized"
-        sys.exit(2) 
-    
-    if len(args) != 0:
-        usage()
-        sys.exit(2)
+    """
+    Reads amber .prmtop and .inpcrd
+    Outputs gaussian .com
+    """
+    args = get_args()
+    mytop = prmtop.Prmtop(args.top)
+    mytop.gen_oniom(args.com, args.crd, args.notip3p, args.vmdsel)
 
-    vmdsel = ''    
-    tip3p = True
-    for o, a in opts:
-            if o == '--top':    top = a
-            if o == '--crd':    crd = a
-            if o == '--newgau': newgau = a
-            if o == '--vmdsel': vmdsel = a
-            if o == '--notip3p':    tip3p = False
-    
-    needed_args = ['top', 'crd', 'newgau']
-    locals_now = locals()
-    missed_args = [aa for aa in needed_args if aa not in locals_now]
-    missing_msg = ', '.join(missed_args)
-    
-    if len(missed_args) > 0: 
-        usage()
-        sys.stderr.write(
-            '\nERROR:     missing args:   %s\n' % (missing_msg))
-        sys.exit(2)
+if __name__ == "__main__":
+    main()
 
-    mytop = prmtop.Prmtop(top)
-    mytop.gen_oniom(newgau, crd, tip3p, vmdsel)
-
-main()
