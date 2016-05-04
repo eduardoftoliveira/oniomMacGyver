@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # qt modules
-import atoms
+from omg import atoms
 
 # (1)Parsing and (2)Printing
 # Gaussian Z-MAT Line 
