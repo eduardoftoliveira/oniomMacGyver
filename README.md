@@ -17,10 +17,9 @@ This will create a folder named qt_scripts and copy everything in there.
 
 Now tell your shell where the scripts are: add the following to *~/.bashrc*:
 
-...
-export PYTHONPATH="$PYTHONPATH:/home/users/$USER/qt_scripts/omg"
-export PATH="$PATH:/home/users/$USER/qt_scripts/scripts"
-...
+> export PYTHONPATH="$PYTHONPATH:/home/users/$USER/qt_scripts/omg"
+
+> export PATH="$PATH:/home/users/$USER/qt_scripts/scripts"
 
 * Step 3
 
