@@ -1,19 +1,16 @@
 #!/usr/bin/env python
 
-import qtrex
+import os
 import sys
 import time
-from subprocess     import call
-from os.path        import splitext
-from os.path        import getmtime
-from os.path        import splitext
-from glob           import glob
-from commands       import getoutput
-from os             import getcwd
-from gaussian       import GaussianLog as GL
-from gaussian       import GaussianCom as GC
-import os
-import geom
+import argparse
+import subprocess
+from glob import glob
+from omg.gaussian.gaussian import GaussianLog as GL
+from omg.gaussian.gaussian import GaussianCom as GC
+from omg import geom
+from omg import qtrex
+from omg import misc
 
 asciiart = """
          __7__          %%%,%%%%%%%
@@ -50,22 +47,11 @@ def gsub(comname, queue, gauvers):
     """submit gaussian job"""
     que = qtrex.gen_que(comname, queue, gauvers)
     qtrex.config_gaucom(comname, queue, gauvers)
-    call(["qsub",que])
+    subprocess.call(["qsub",que])
     #return que
 
-def increment_gaucom_name(gaucom_name):
-    """nha_nhe_23.com --> nha_nhe_24.com
-       nha.com        --> nha_1.com     """
-
-    name = splitext(gaucom_name)[0]
-    if '_' in name:                           #             |
-        if name.split('_')[-1].isdigit():     # all but the | digit
-            digit = int(name.split('_')[-1])  #             V
-            return '%s_%d.com' % ('_'.join(name.split('_')[:-1]), digit + 1)
-    return name + '_1.com'
-
 def hours_since_mod(filename):
-    secs = time.time() - getmtime(filename)
+    secs = time.time() - os.path.getmtime(filename)
     return secs / 3600.0
 
 def reportcom(comname, sge_status, sge_jobid, modtime):
@@ -78,7 +64,6 @@ def reportcom(comname, sge_status, sge_jobid, modtime):
         if f.tell() == 0: # file is new
             f.write(header)
         f.write(txt)
-
 
 def report(logname, sge_status, sge_jobid, modtime, gls, action):
     header = "#                   DATE,           NAME,"
@@ -101,12 +86,12 @@ def guess_queue(com):
             break
     return D[nproc]
 
-def do_restart(gl, gver = 'd'):
-    comname = splitext(gl.name)[0] + '.com'
+def do_restart(gl, gver='d'):
+    comname = os.path.splitext(gl.name)[0] + '.com'
     gc = GC(comname)
     for atom,xyz in zip(gc.atoms_list, gl.final_geometry):
         atom.set_coordinates(xyz.get_coordinates())
-    newcomname = increment_gaucom_name(comname)
+    newcomname = misc.increment_filename(comname)
     # reduce scan steps accordingly
     steps_done = len(gl.bytedict['orientation:'])-1
     print steps_done
@@ -142,6 +127,9 @@ class glog_status():
 
 
 class xiaojun():
+    """
+    implements the decision protocol, returns the action
+    """
 
     def __init__(self, timecap = 24, metric_cuts=[]):
         self.timecap = timecap 
@@ -198,7 +186,7 @@ def read_files():
     gaus += glob('*com')
     badname = False
     for gau in gaus:
-        gaubase, ext = splitext(gau) # gaubase = "stem_99"
+        gaubase, ext = os.path.splitext(gau) # gaubase = "stem_99"
         if '_' not in gau:
             badname = True
         if gaubase.split('_')[-1].isdigit() and '_' in gaubase:

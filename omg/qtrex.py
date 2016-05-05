@@ -1,7 +1,5 @@
 import os
 from commands import getoutput
-from os.path import splitext
-from os     import getcwd
 from glob import glob
 
 def gen_que(comfile, queue = 'gb', gauversion = 'd', QUE_PATH = False):
@@ -210,7 +208,7 @@ def sge_status(gauname_or_jobid):
     if not jobid:
         # find quename.q
         QUE_EXT = '.q'
-        quename = splitext(gauname)[0] + QUE_EXT
+        quename = os.path.splitext(gauname)[0] + QUE_EXT
         if quename[0].isdigit():
             quename = '_' + quename
 
@@ -231,7 +229,7 @@ def sge_status(gauname_or_jobid):
                 if job_name == quename:
                     cwd = getoutput('qstat -j %d | grep stdout' % j)
                     cwd = cwd.split('NONE:NONE:')[1]
-                    if cwd == getcwd(): # not working with paths yet
+                    if cwd == os.path.getcwd(): # not working with paths yet
                         jobid = j
 
     # Now that jobid is defined

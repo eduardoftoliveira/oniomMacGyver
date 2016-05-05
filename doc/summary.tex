@@ -13,19 +13,19 @@
 %TITLE
 \begin{centering}
 \begin{Large}
-Docs for qt\_scripts 
+Summary for oniomMacGyver 
 \end{Large}
 \end{centering}
 
-\section{Table-like}
-For full description of usage run the scripts with \texttt{--help} or \texttt{-h}
+\section{Gaussian scripts}
+Read full usage description by running a script with \texttt{--help} or \texttt{-h}
 
 \subsection{prepare ONIOM inputs} 
 \begin{tabular}{|R{2.5cm}|C{4.5cm}|C{1cm}|C{7cm}|}
     \hline
      & In & Out & Motivation \\
     \hline
-    \texttt{amboniom.py} & \texttt{.prmtop} (or \texttt{.top}) \newline plus \newline
+    \texttt{gau\_prmtop2gaucom.py} & \texttt{.prmtop} (or \texttt{.top}) \newline plus \newline
 \texttt{.inpcrd} (or \texttt{.crd} / \texttt{.rst}) & \texttt{.com} &
 Exact copy of forcefield parameters from Amber topology to gaussian.com file.
 Specially useful with parameterized ligands and newer forcefields
@@ -121,17 +121,17 @@ Works well with scans and ground state optimizations. Read the manual for
 %%%%\texttt{(--keep option)}. More fancy options dedicated to waters available.
 
 
-\section{Standardization of options}
-
-This is yet to be implemented, if we all agree.
-
-\begin{itemize}
-    \item \texttt{-o} --- optimization steps
-    \item \texttt{-s} --- scan steps
-    \item \texttt{--out} --- filename for output of script
-    \item \texttt{-e} --- energy type (oniom/scf/low)
-    
-\end{itemize}
+%\section{Standardization of options}
+%
+%This is yet to be implemented, if we all agree.
+%
+%\begin{itemize}
+%    \item \texttt{-o} --- optimization steps
+%    \item \texttt{-s} --- scan steps
+%    \item \texttt{--out} --- filename for output of script
+%    \item \texttt{-e} --- energy type (oniom/scf/low)
+%    
+%\end{itemize}
 
 %
 %\section{Installation}
