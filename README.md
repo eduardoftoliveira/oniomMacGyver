@@ -1,4 +1,5 @@
-**oniomMacGyver** - is a python package to manipulate Gaussian(R) files for ONIOM calculations
+###oniomMacGyver
+A python package to manipulate Gaussian(R) files for ONIOM calculations.
 
 **installation**
 
@@ -11,5 +12,8 @@ This will create a folder named qt_scripts and copy everything in there.
 **to update everything**
 
 > cd ~/qt_scripts
+
 > git pull origin
+
+**
 
