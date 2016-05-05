@@ -114,7 +114,7 @@ def energytype_convert(gl, energytype):
         sys.exit(2)
 
 def main():
-    from os.path import splitext
+    import os
     import getopt, sys
     from gaussian import GaussianLog as GL
     import misc, asciiplot, geom
@@ -156,7 +156,7 @@ def main():
         print('  %s' % (','.join(args)))
 
     filein = args[0]
-    basename, input_extension = splitext(filein)
+    basename, input_extension = os.path.splitext(filein)
     if input_extension not in ['.log']:
         print('WARNING:')
         print('  inputname suffix is: %s' % input_extension)
