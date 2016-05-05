@@ -37,11 +37,9 @@ if [ ! `pwd` == "$INSTALLDIR" ]; then
 fi
 
 mkdir qt_scripts 
-git clone https://github.com/jose-mr/qt_scripts.git
-echo "export PATH=\$PATH:$INSTALLDIR/qt_scripts/others/" >> .bashrc
-echo "export PYTHONPATH=\$PYTHONPATH:$INSTALLDIR/qt_scripts/modules"  >> .bashrc
-cd qt_scripts
-git checkout bytemarks
+git clone https://github.com/eduardoftoliveira/qt_scripts.git
+echo "export PATH=\$PATH:$INSTALLDIR/qt_scripts/scripts/" >> .bashrc
+echo "export PYTHONPATH=\$PYTHONPATH:$INSTALLDIR/qt_scripts"  >> .bashrc
 
 echo
 echo "Installation complete."

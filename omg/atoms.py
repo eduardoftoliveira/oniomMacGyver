@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 # python modules
-import geom
+from omg import geom
 import numpy as np
 import openbabel as ob
 

@@ -198,8 +198,8 @@ class GaussianCom(EmptyGaussianCom):
         b_lines = self.blank_lines
 
         for key in additional_input_dict:
-            if key in self.route_section.text.lower().replace("only","first"):
-                if (key == "first" and "soft" in self.route_section.lower()) or\
+            if key in self.route_section.text.replace("only","first"):
+                if (key == "first" and "soft" in self.route_section.text) or\
                    (key == "dftb=read"):
                     shift += 1
                 
