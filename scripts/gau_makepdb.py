@@ -26,9 +26,14 @@ def get_args():
     "Parse arguments of gau_makepdb"
     parser = argparse.ArgumentParser(
         description="""
-            Extract structures from gaussian .log or .com files
-            and make .pdb files for visualization in VMD or Pymol.""",
-        formatter_class=argparse.RawTextHelpFormatter)
+    Extract structures from gaussian .log or .com files
+    and make .pdb files for visualization in VMD or Pymol.
+
+    Typical usage:
+        gau_makepdb.py oniom.log
+
+
+""", formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('gau', help='Gaussian .log or .com file')
     parser.add_argument('-s', '--scan_step',
                         help='Scan step ("all" or integer) default="all"',
