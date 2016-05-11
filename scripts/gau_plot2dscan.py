@@ -7,8 +7,8 @@ import matplotlib.pyplot as plt
 import sys
 import getopt
 
-from gaussian import GaussianLog as GL
-import geom
+from omg.gaussian.gaussian import GaussianLog as GL
+from omg import geom
 
 def usage():
     print('usage:')

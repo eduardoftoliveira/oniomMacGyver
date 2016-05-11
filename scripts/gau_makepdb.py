@@ -82,7 +82,7 @@ def get_args():
     return args
 
  
-def write_pdb(gaulog, scan_pts, opt_pts):
+def write_pdb(gaulog, scan_pts, opt_pts, args):
 
     # get the bytes
     chosen_bytes = []
@@ -151,7 +151,7 @@ def main():
 
     # Gaussian .log
     gaulog = GAULOG(args.gau)
-    txt, txth = write_pdb(gaulog, args.scan_step, args.opt_step)
+    txt, txth = write_pdb(gaulog, args.scan_step, args.opt_step, args)
     with open(args.pdb, 'w') as o:
         o.write(txt)
     if args.highlayer:

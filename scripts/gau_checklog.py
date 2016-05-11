@@ -34,6 +34,9 @@ def symbol_legend():
     symbol_keys += '    *           >  1000 * threshold\n\n'
     return symbol_keys
 
+def get_coords(atom):
+    return (atom.GetX(), atom.GetY(), atom.GetZ())
+
 def print_convergence_symbols(thresholds, data, legend=None,
          maxwidth=80, multiline = False):
     """
@@ -116,8 +119,8 @@ def energytype_convert(gl, energytype):
 def main():
     import os
     import getopt, sys
-    from gaussian import GaussianLog as GL
-    import misc, asciiplot, geom
+    from omg.gaussian.gaussian import GaussianLog as GL
+    from omg import misc, asciiplot, geom
 
     try:
         opts, args = getopt.gnu_getopt(sys.argv[1:], 'e:w:h')
@@ -191,20 +194,21 @@ def main():
                 #                'D': geom.dihedral
                 #                }
                 #measure_func = measure_func[modred.coordtype] 
-                a = gl.atoms_list[modred.atomids[0]-1].get_coordinates()
-                b = gl.atoms_list[modred.atomids[1]-1].get_coordinates()
+                a = gl.atoms_list[modred.atomids[0]-1]
+                b = gl.atoms_list[modred.atomids[1]-1]
                 if   modred.coordtype == 'B':
                     scan_info[0] = 'distance'
-                    start_measure = geom.distance(a, b)
+                    start_measure = a.GetDistance(b)
                 elif modred.coordtype == 'A':
                     scan_info[0] = 'angle'
-                    c = gl.atoms_list[modred.atomids[2]-1].get_coordinates()
-                    start_measure = geom.angle(b, a, c) # b in the middle!
+                    c = gl.atoms_list[modred.atomids[2]-1]
+                    start_measure = a.GetAngle(b, c) # b in the middle!
                 elif modred.coordtype == 'D':
                     scan_info[0] = 'dihedral'
-                    c = gl.atoms_list[modred.atomids[2]-1].get_coordinates()
-                    d = gl.atoms_list[modred.atomids[3]-1].get_coordinates()
-                    start_measure = geom.dihedral(a,b,c,d)
+                    c = gl.atoms_list[modred.atomids[2]-1]
+                    d = gl.atoms_list[modred.atomids[3]-1]
+                    
+                    start_measure = a.GetDihedral(b,c,d)
                 # x axis for asciiplot
                 x_axis = [start_measure + modred.scan_step_sz*i 
                             for i in range(now_scan_point)]
