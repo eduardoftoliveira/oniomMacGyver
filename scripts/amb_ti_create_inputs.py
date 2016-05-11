@@ -1,202 +1,93 @@
 #!/usr/bin/env python
-# -*- coding: iso-8859-15 -*-
+"""
+Script to prepare input files for Amber thermodynamic integration calculations
+"""
 
-import sys
+import argparse
 import numpy as np
+import os
+import shutil
+
+# omg imports
+import omg.amber
 
 ###user input###
-lambdas = np.arange(0.05, 1, 0.05)
+def get_args():
+    "Argument parser for amb_ti_create_inputs.py"
+    parser = argparse.ArgumentParser(
+        description="Creates inputs files for Amber TI calculations")
+    parser.add_argument(
+        "--maskA", help="Initial atoms mask", required=True)
+    parser.add_argument(
+        "--maskB", help="Final atoms mask", required=True)
+    parser.add_argument(
+        "--prmtopA", help="Initial prmtop file", required=True)
+    parser.add_argument(
+        "--prmtopB", help="Final prmtop file", required=True)
+    parser.add_argument(
+        "--crdA", help="Initial coordinates file", required=True)
+    parser.add_argument(
+        "--crdB", help="Final coordinates file", required=True)
+    parser.add_argument(
+        "-l", "--lambdas", default=[0.1, 0.9, 0.1],
+        help='lambda windows [initial, final, step] default = 0.1 0.9 0.1')
+    parser.add_argument(
+        "--in_files", default=["ti_min", "ti_equi", "ti_prod"],
+        help="template amber input files in the correct order"
+             " default = ti_min ti_equi ti_prod)")
 
-a = 'TLK'
-b = 'TKL'
+    args = parser.parse_args()
 
-aMask= ':423@C52,C53,H53,C55,H55,C59,H59,C57,H57,C54,H54'
-bMask =':423@2H17' 
-
-aPrmtopFile = 'GSTP1-1_TLK.prm'
-aInpcrdFile = 'GSTP1-1_TLK.r'
-
-bPrmtopFile = 'GSTP1-1_TKL.prm'
-bInpcrdFile = 'GSTP1-1_TKL.r'
+    args.l_i = args.lambdas[0]
+    args.l_step = args.lambdas[2]
+    args.l_f = args.lambdas[1] + args.l_step
+    return args
 
 
-#### Input de Minimização ####
-def writeMin(name,NTMIN,IFSC,CRGMASK,SCMASK,CLAMBDA):
-  minFile = \
-  """Minimizacao
-  &cntrl
-    imin = 1,
-    ntx = 1,
-    maxcyc = 500,
-    ntpr = 100,
-    ntmin = %s,	
-    ntf = 1,
-    ntc = 1,
-    ntb = 1,
-    cut = 8.0,
-    icfe= 1
-    ifsc= %s
-    crgmask = '%s'
-    scmask= '%s'
-    clambda = %s
-   &end""" % (NTMIN,IFSC,CRGMASK,SCMASK,CLAMBDA)
-  open('min' + name, 'w').write(minFile)
-#### Input de Equilibração ###
-def writeEqui(name,NTMIN,IFSC,CRGMASK,SCMASK,CLAMBDA):
-  equiFile =\
-  """Equilibracao
-   &cntrl
-    imin = 0,
-    ntx = 1,
-    irest = 0,
-    ntpr = 2500,
-    ntwr = 10000,
-    ntwx = 0,
-    ntmin = %s,
-    ntf = 1,
-    ntc = 1,
-    ntb = 2,
-    cut = 8.0,
-    nstlim = 50000,
-    dt = 0.001,
-    temp0 = 300.0,
-    ntt = 3,
-    gamma_ln = 5,
-    ntp = 1,
-    pres0 = 1.0,
-    taup = 0.2,
-    icfe=1
-    ifsc= %s
-    crgmask = '%s'
-    scmask='%s'
-    clambda= %s
-  &end""" % (NTMIN,IFSC,CRGMASK,SCMASK,CLAMBDA)
-  open('equi' + name, 'w').write(equiFile)
+def main():
+    """
+    Creates the input files for a Amber Free Energy calculation
+    """
+    args = get_args()
+    options_dict = {
+        "scmask_i"  : ["", args.maskA, ""],
+        "crgmask_i" : ["", args.maskA, args.maskB],
+        "scmask_f"  : ["", args.maskB, ""],
+        "crgmask_f" : [args.maskA, args.maskB, ""],
+        "ifsc"      : ["0", "1", "0"],
+        }
+    # create step folders
+    for step in [1, 2, 3]:
+        foldername = "./step_{0}".format(step)
+        if not os.path.exists(foldername):
+            os.makedirs(foldername)
+        for f in [args.prmtopA, args.prmtopB, args.crdA, args.crdB]:
+            shutil.copyfile(f, "./{0}/{1}".format(foldername, f))
 
-#### Input de Produção  ######
-def writeProd(name,NTMIN,IFSC,CRGMASK,SCMASK,CLAMBDA):
-  prodFile = \
-  """Producao
-  &cntrl
-    imin = 0,
-    ntx = 5,
-    irest = 1,
-    ntpr = 10000,
-    ntwr = 100000,
-    ntwx = 10000,
-    ntmin = %s,
-    ntf = 1,
-    ntc = 1,
-    ntb = 2,
-    cut = 8.0,
-    nstlim = 1000000,
-    dt = 0.001,
-    temp0 = 300.0,
-    ntt = 3,
-    gamma_ln = 2,
-    ntp = 1,
-    pres0 = 1.0,
-    taup = 2.0,
-    icfe=1
-    ifsc = %s
-    crgmask='%s'
-    scmask='%s'
-    clambda= %s
-  &end""" % (NTMIN,IFSC,CRGMASK,SCMASK,CLAMBDA)
-  open('prod' + name, 'w').write(prodFile)
-#####      Group File   #####
-def writeGroup(passo,value,aPrmtopFile,aInpcrdFile,bPrmtopFile,bInpcrdFile):
-  
-  if True: # value == lambdas[0]:   ##rst file para a minimização
-    if passo == '1':
-      ViRstFile = aInpcrdFile
-      VfRstFile = aInpcrdFile
-    elif passo == '2':
-      ViRstFile = aInpcrdFile
-      VfRstFile = bInpcrdFile    
-    elif passo == '3':
-      ViRstFile = bInpcrdFile
-      VfRstFile = bInpcrdFile     
-  #else:
-  #  valueAnterior = lambdas[lambdas.index(value)-1]
-  #  ViRstFile = 'prod-%s-%s-Vi.rst' %(passo,valueAnterior)
-  #  VfRstFile = 'prod-%s-%s-Vf.rst' %(passo,valueAnterior)
-    
-  if passo == '1':  #prmtop 
-    ViPrmtopFile = aPrmtopFile
-    VfPrmtopFile = aPrmtopFile
-  elif passo == '2':
-    ViPrmtopFile = aPrmtopFile
-    VfPrmtopFile = bPrmtopFile      
-  elif passo == '3':
-    ViPrmtopFile = bPrmtopFile
-    VfPrmtopFile = bPrmtopFile    
-    
+        ifsc = "ifsc={0}".format(options_dict["ifsc"][step-1])
+        bar_l_min = "bar_l_min={0}".format(args.l_i)
+        bar_l_max = "bar_l_max={0}".format(args.l_f)
+        bar_l_incr = "bar_l_incr={0}".format(args.l_step)
 
-  groupMin = \
-  """-O -i min-%s-%s-Vi.in -o min-%s-%s-Vi.out -p %s -c %s -r min-%s-%s-Vi.rst
--O -i min-%s-%s-Vf.in -o min-%s-%s-Vf.out -p %s -c %s -r min-%s-%s-Vf.rst""" \
-  %(passo,value,passo,value,ViPrmtopFile,ViRstFile,passo,value,\
-  passo,value,passo,value,VfPrmtopFile,VfRstFile,passo,value)
-  
-  open('min-%s-%s.groupfile' %(passo,value), 'w').write(groupMin)
-  
-  groupEqui = \
-  """-O -i equi-%s-%s-Vi.in -o equi-%s-%s-Vi.out -p %s -c min-%s-%s-Vi.rst -r equi-%s-%s-Vi.rst
--O -i equi-%s-%s-Vf.in -o equi-%s-%s-Vf.out -p %s -c min-%s-%s-Vf.rst -r equi-%s-%s-Vf.rst""" \
-  %(passo,value,passo,value,ViPrmtopFile,passo,value,passo,value,\
-  passo,value,passo,value,VfPrmtopFile,passo,value,passo,value)
-  
-  open('equi-%s-%s.groupfile' %(passo,value), 'w').write(groupEqui)
-  
-  groupProd = \
-  """-O -i prod-%s-%s-Vi.in -o prod-%s-%s-Vi.out -p %s -c equi-%s-%s-Vi.rst -r prod-%s-%s-Vi.rst
--O -i prod-%s-%s-Vf.in -o prod-%s-%s-Vf.out -p %s -c equi-%s-%s-Vf.rst -r prod-%s-%s-Vf.rst"""\
-  %(passo,value,passo,value,ViPrmtopFile,passo,value,passo,value,\
-  passo,value,passo,value,VfPrmtopFile,passo,value,passo,value)
-  
-  open('prod-%s-%s.groupfile' %(passo,value), 'w').write(groupProd)
+        for l in np.arange(args.l_i, args.l_f, args.l_step):
+            for v in ["i", "f"]:
+                clambda = "clambda={0}".format(l)
+                crgmask = "crgmask='{0}'".format(
+                    options_dict["crgmask_{0}".format(v)][step-1])
+                scmask = "scmask='{0}'".format(
+                    options_dict["scmask_{0}".format(v)][step-1])
+                for calc in args.in_files:
+                    calc_filename = "./{0}/{1}_{2}_{3:.2f}_{4}.in".format(
+                        foldername, calc, step, l, v)
+                    omg.amber.write_amber_in(
+                        calc, calc_filename, ifsc, clambda, crgmask, scmask,
+                        bar_l_min, bar_l_max, bar_l_incr)
 
-for passo in ['1','2','3']:
-  if passo == '1':
-    scmask_Vi = ''
-    crgmask_Vi = ''
-    scmask_Vf = ''
-    crgmask_Vf = aMask
-    ifsc = '0'
-    ntmin = '1'
-  elif passo == '2':
-    scmask_Vi = aMask
-    crgmask_Vi = aMask
-    scmask_Vf = bMask
-    crgmask_Vf = bMask
-    ifsc = '1'
-    ntmin = '2'
-  elif passo == '3':
-    scmask_Vi = ''
-    crgmask_Vi = bMask
-    scmask_Vf = ''
-    crgmask_Vf = ''
-    ifsc = '0'
-    ntmin = '1'
+    # create groupfiles
+    omg.amber.write_ti_groupfiles(args.in_files, args.l_i, args.l_f,
+                                  args.l_step, args.prmtopA, args.crdA,
+                                  args.prmtopB, args.crdB)
 
-  for value in lambdas:
-    CLAMBDA = value
-    IFSC    = ifsc
-    CRGMASK = crgmask_Vi
-    SCMASK  = scmask_Vi
-    NTMIN = ntmin
-    name = '-%s-%s-Vi.in' % (passo,value)
-    writeMin(name,NTMIN, IFSC,CRGMASK,SCMASK,CLAMBDA)
-    writeEqui(name,NTMIN, IFSC,CRGMASK,SCMASK,CLAMBDA)
-    writeProd(name,NTMIN, IFSC,CRGMASK,SCMASK,CLAMBDA)
 
-    IFSC    = ifsc
-    CRGMASK = crgmask_Vf
-    SCMASK  = scmask_Vf
-    name = '-%s-%s-Vf.in' % (passo,value)
-    writeMin(name, NTMIN,IFSC,CRGMASK,SCMASK,CLAMBDA)
-    writeEqui(name, NTMIN,IFSC,CRGMASK,SCMASK,CLAMBDA)
-    writeProd(name, NTMIN,IFSC,CRGMASK,SCMASK,CLAMBDA)
-    
-    writeGroup(passo, value,aPrmtopFile,aInpcrdFile,bPrmtopFile,bInpcrdFile)
+if __name__ == "__main__":
+    main()

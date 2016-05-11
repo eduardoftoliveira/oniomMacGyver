@@ -1,0 +1,19 @@
+#!/bin/bash
+
+### Request number of GPUs 
+#$ -pe shared_mem 8
+
+### Home directory where the input files are located
+export HOME_JOB_DIR=`pwd`
+
+### Previleges
+#$ -P grupoA
+
+### System variables
+echo "This job is running on " $HOSTNAME
+echo "Parallel computing in $NSLOTS procs" 
+#$ -cwd
+
+source /opt/programs/VARS/loadvars.amber12
+
+
