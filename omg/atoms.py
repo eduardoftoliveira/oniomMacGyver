@@ -59,6 +59,12 @@ class Atom(ob.OBAtom):
     def set_pdbinfo(self, pdbinfo_obj):
         self.pdbinfo = pdbinfo_obj
 
+    def GetDihedral(self, b, c, d):
+        b = (b.GetX(), b.GetY(), b.GetZ())
+        c = (c.GetX(), c.GetY(), c.GetZ())
+        d = (d.GetX(), d.GetY(), d.GetZ())
+        return geom.dihedral(a, b, c, d)
+
 class MM(object):
     def __init__(self, atype, charge):
         self.atype = atype
