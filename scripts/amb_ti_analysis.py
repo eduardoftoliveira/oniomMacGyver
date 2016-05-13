@@ -11,7 +11,7 @@ from uncertainties import ufloat
 from itertools import izip
 
 ## qt modules
-from misc import grep2list
+from omg.misc import grep2list
 
 PARSER = argparse.ArgumentParser(
     description="""Reads the output files of Amber TI calculations """
@@ -24,6 +24,9 @@ PARSER.add_argument('prefix',
 PARSER.add_argument('sufix',
                     help='sufix of amber ti output files')
 
+PARSER.add_argument('--mbar', action='store_true',
+                    help="calculates mbar energy with alchemical-analysis.py")
+
 PARSER.add_argument('-r',
                     help="""range to analise in each file. """
                          """Three numbers: init end step.""",
@@ -35,6 +38,7 @@ ARGS = PARSER.parse_args()
 PREFIX = ARGS.prefix
 SUFIX = ARGS.sufix
 POINTS_RANGE = ARGS.r
+MBAR = ARGS.mbar
 
 def main():
     """Reads the output of a amber TI calculation and plots and calculates
@@ -42,10 +46,52 @@ the TI energy"""
     amber_out_files = sorted([f  for f in os.listdir('.')
                               if f.startswith(PREFIX) and f.endswith(SUFIX)])
 
+    ## this should be divided into functions
     dvdl_values = []
     error_values = []
     lambda_values = []
     no_points_values = []
+    mbar_folder = "xvg"
+    if MBAR:
+        if not os.path.exists(mbar_folder):
+            os.makedirs(mbar_folder)
+        for amber_out_file in amber_out_files:
+            xvg_name = "{0}.xvg".format(
+                    amber_out_file.replace(PREFIX,"dhdl.").replace(SUFIX,""))
+            os.system("amb_ti_mbar_prepare_data.pl {0} > {1}/{2}".format(
+                amber_out_file, mbar_folder, xvg_name))
+        print("alchemical_analysis.py -u kcal -g -w "                          
+                        "-m bar+dexp+iexp+mbar -i 0 > mbar_energies")
+        os.system("cd {0}; alchemical_analysis.py -u kcal -g -w "
+            "-m bar+dexp+iexp+mbar -i 0 > mbar_energies; cd ..".format(mbar_folder))
+
+        with open("{0}/results.txt".format(mbar_folder), 'r') as mbar_file:
+            mbar_file.readline()
+            methods = []
+            energies = []
+            for word in  mbar_file.readline().split():
+                if word not in ["States", "(kcal/mol)"]:
+                    methods.append(word)
+                    energies.append([])
+            mbar_file.readline()
+            for line in mbar_file:
+                if line.startswith("----"):
+                    break
+                else:
+                    numbers = line.split()[3:]
+                    for i in range(0, len(numbers), 3):
+                        energies[i/3].append(numbers[i])
+        
+
+        for no, mbar_values in enumerate(energies):
+            arr_mbar = np.array([0] + mbar_values +[0],dtype=float)
+            arr_mbar[0] = arr_mbar[1] - (arr_mbar[2] - arr_mbar[1])
+            arr_mbar[-1] = arr_mbar[-2] + (arr_mbar[-2] - arr_mbar[-3])
+            mbar_total = sum(arr_mbar)
+            print methods[no], mbar_total 
+
+
+
     for amber_output_file in amber_out_files:
         lambda_v = float(amber_output_file[len(PREFIX):-len(SUFIX)])
         dvdls = grep2list('DV/DL  =', amber_output_file, 2, np_array=True)
@@ -133,6 +179,7 @@ the TI energy"""
     plt.legend(["{0} kcal/mol".format(udvdl_integration)], loc=3)
     plt.savefig("ti.png", dpi=300)
     print " Total{0.n:10.3f}{0.s:10.2f}".format(udvdl_integration)
+
 
 if __name__ == '__main__':
     main()
