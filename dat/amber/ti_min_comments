@@ -1,0 +1,44 @@
+TI minimization 
+
+See Amber manual for detailed explanations of these parameter
+http://ambermd.org/doc12/
+
+&cntrl
+  imin=1,     ! minimization flag; 0 - Do not minimize; 1 - Do minimization
+  ntx=1,      ! Option to read the initial coordinates
+                ! 1 - read coordinates (no velocities) from ascii file
+                ! 2 - read coordinates (no velocities) from binary file
+                ! 4 - coordinates and velocities from binary file
+                ! 5 - coordinates and velocities from ascii file. box if ntb>0
+                !     velocities will be used if irest=1
+                ! 6 - Coordinates, velocities, and box from binary
+  maxcyc=500, ! maximum number of cycles of minimization, default = 1
+  ntpr=100,   ! write energy information every ntpr steps, default = 50
+  ntmin=1,    ! optimization algorithm 
+                ! 0 - conjugate gradient
+                ! 1 - NCYC cycles with steepest descent then conjugate gradient
+                ! 2 - steepest descent
+                ! 3 - XMIN
+                ! 4 - LMOD
+  ntf=1,      ! force evaluation. 
+              !  1 - complete interaction is calculated (default)
+              !  2 - bond interaction involving H-atoms omitted (for ntc=2)
+              !  3 - all the bond interactions are omitted (with ntc=3)
+              ! ...
+  ntc=1,      ! flag for SHAKE (should be used in most MD calculations).
+              ! 1 - SHAKE is not performed.
+              ! 2 - bonds involving hydrogen are constrained
+              ! 3 - all bonds are constrained
+  ntb=1,      ! Flag for periodic boundaries (may no be set). value is 
+              !  inferred from igb and ntb
+                 ! 0 - no periodicity
+                 ! 1 - constant volume
+                 ! 2 - constant pressure
+  cut=8.0,    ! Nonbonded cutoff (8 is a good value)
+  icfe=1      ! flag for free energy calculations; 0 - off; 1 - on
+  ifsc=       ! softcore potentials flag; 0 - sc off; 1 - sc on
+  crgmask=    ! charge mask, set the partial charge of these atoms to zero
+  scmask=     ! specifies the unique atoms for the sc potential
+  clambda=    ! the value of lambda for the ti calculation
+&end
+

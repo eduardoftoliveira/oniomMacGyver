@@ -10,7 +10,7 @@ http://ambermd.org/doc12/
     ntpr = 10000,
     ntwr = 100000,
     ntwx = 10000,
-    ntmin=
+    ntmin=1,
     ntf = 1,
     ntc = 1,
     ntb = 2,
