@@ -448,8 +448,8 @@ def write_ti_groupfiles(calc_ins,
                 group_filename = "step_{0}/{1}.groupfile".format(
                         step, calc_step_l_name)
 
-                amber_nameA = "{0}_Vi".format(calc_step_l_name)
-                amber_nameB = "{0}_Vf".format(calc_step_l_name)
+                amber_nameA = "{0}_i".format(calc_step_l_name)
+                amber_nameB = "{0}_f".format(calc_step_l_name)
                 if calc_no == 0:
                     crdA = inpcrdA
                     crdB = inpcrdB
