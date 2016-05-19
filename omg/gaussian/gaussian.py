@@ -1113,7 +1113,7 @@ class Termination():
 
 
 
-class ModRed():
+class OldModRed():
 
     def __init__(self, line = None):
         self.coordtype = None # B, A or D
