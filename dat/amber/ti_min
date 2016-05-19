@@ -1,0 +1,22 @@
+TI minimization 
+
+See Amber manual for detailed explanations of these parameter
+http://ambermd.org/doc12/
+
+&cntrl
+  imin=1,    
+  ntx=1,     
+  maxcyc=500,
+  ntpr=100,  
+  ntmin=1,   
+  ntf=1,     
+  ntc=1,     
+  ntb=1,     
+  cut=8.0,   
+  icfe=1     
+  ifsc=      
+  crgmask=   
+  scmask=    
+  clambda=   
+&end
+

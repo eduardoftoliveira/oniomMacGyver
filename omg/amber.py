@@ -2,11 +2,58 @@
 
 import copy
 import numpy as np
+import os
 import subprocess
 
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+INPUT_FOLDER = os.path.join(BASE_DIR, "dat/amber/")
+
+def write_amber_in(calc_type, in_name, *args):
+    """Writes an Amber input file for a desired type of calculation
+    pass any arguments to include in the input as "keyword=value"
+
+    Please see files in dat/amber folder for available calc_types.
+    """
+
+    # parse list of arguments
+    arg_dict = {}
+    for arg in args:
+        key, value = arg.split("=")
+        arg_dict[key] = value
+
+    template_filename =  os.path.join(INPUT_FOLDER, calc_type)
+    with open(template_filename, 'r') as template_file:
+        template_lines = template_file.readlines()
+    
+    # substiture template file parameters
+    new_lines = []
+    for line in template_lines:
+        if '=' in line.split("!")[0]:
+            comment=""
+            line = line.rstrip()
+            if "!" in line:
+                line, comment = line.split("!")
+                comment = "!" + comment
+            t_key, t_value = line.split("=")
+            if t_key.strip() in arg_dict:
+                t_value = arg_dict[t_key.strip()] + ","
+                arg_dict.pop(t_key.strip())
+            line = "{0}={1}{2}\n".format(t_key, t_value, comment)
+        if "&end" in line:
+            for key in arg_dict:
+                new_line = "    {0}={1},\n".format(key, arg_dict[key])
+                new_lines.append(new_line)
+        new_lines.append(line)
+
+    # TODO
+    # check if there are missing arguments
+
+    with open(in_name, 'w') as in_file:
+        in_file.writelines(new_lines)
 
 ### RESP
-def produce_resp_in(esp_in_name, atoms_list, instructions_list, total_charge = False):
+def produce_resp_in(
+        esp_in_name, atoms_list, instructions_list, total_charge = False):
     with open(esp_in_name, 'w') as esp_in_file:
         comment = esp_in_name.split("/")[-1]
         if type(total_charge) == int:
@@ -372,3 +419,76 @@ def extract_many_from_mdcrd(mdcrd_name, no_atoms, init=0, end=1, step=1,
 #        snapshots.append(coordinates)
 #        print coordinates
 #    mdcrd_file.close()
+
+### TI thermodynamic integration
+
+def write_ti_groupfile(group_filename, amber_nameA, amber_nameB, 
+        topA, crdA, topB, crdB):
+    "Creates a groupfile for thermodynamic integration calculations"
+
+    contents = "-O -i {0}.in -o {0}.out -r {0}.rst -c {1} -p {2}\n".format(
+            amber_nameA, crdA, topA)
+
+    contents += "-O -i {0}.in -o {0}.out -r {0}.rst -c {1} -p {2}\n".format(
+            amber_nameB, crdB, topB)
+
+    open(group_filename, 'w').write(contents)
+
+def write_ti_groupfiles(calc_ins, 
+        lambda_initial, lambda_final, lambda_step,
+        topA, inpcrdA, topB, inpcrdB):
+
+    for step in [1,2,3]:
+        for l in np.arange(lambda_initial, lambda_final, lambda_step):
+            groupfiles = []
+            for calc_no, calc_in in enumerate(calc_ins):
+                calc_step_l_name = "{0}_{1}_{2:.2f}".format(
+                        calc_in, step, l)
+
+                group_filename = "step_{0}/{1}.groupfile".format(
+                        step, calc_step_l_name)
+
+                amber_nameA = "{0}_i".format(calc_step_l_name)
+                amber_nameB = "{0}_f".format(calc_step_l_name)
+                if calc_no == 0:
+                    crdA = inpcrdA
+                    crdB = inpcrdB
+                else:
+                    crdA = "{0}_{1}_{2:.2f}_i.rst".format(
+                            calc_ins[calc_no-1], step, l)
+                    crdB = "{0}_{1}_{2:.2f}_f.rst".format(
+                            calc_ins[calc_no-1], step, l)
+
+                if step == 1:
+                    topI = topF = topA
+                    crdI = crdF = crdA
+                elif step == 2:
+                    topI = topA
+                    crdI = crdA
+                    topF = topB
+                    crdF = crdB
+                else:
+                    topI = topF = topB
+                    crdI = crdF = crdB
+
+                write_ti_groupfile(group_filename, amber_nameA, amber_nameB,
+                        topI, crdI, topF, crdF)
+                groupfiles.append(group_filename)
+            write_groupfile_que("{0}/ti.que".format(INPUT_FOLDER), 
+                    [2, 8, 8], groupfiles) 
+
+
+def write_groupfile_que(template_name, list_nslots, groupfiles):
+
+    template_lines = open(template_name, 'r').readlines()
+    for no, groupfile in enumerate(groupfiles):
+        line = "mpirun -np {0} sander.MPI -ng 2 -groupfile {1}\n".format(
+            list_nslots[no], os.path.basename(groupfile))
+        template_lines.append(line)
+
+    open("{0}.que".format(groupfile), 'w').writelines(template_lines)
+
+
+
+
+        
