@@ -45,9 +45,9 @@ def get_args():
     #                help='Dont make .pdb for highlayer only',
     #                action='store_true', default=False)
     parser.add_argument('-a', '--altloc',
-        help='layers/mask info in altLoc', action='store_true')
+        help='layer info in altLoc', action='store_true')
     parser.add_argument('-f', '--files',
-        help='layers/mask in different files', action='store_true')
+        help='layers/masks in different files', action='store_true')
     parser.add_argument('--pdb', help='Name for output .pdb file')
     #parser.add_argument('--pdbh', help='Name .pdb file with high layer only')
     parser.add_argument('--align',

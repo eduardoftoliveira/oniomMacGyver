@@ -10,138 +10,110 @@
 
 \begin{document}
 
-%TITLE
-\begin{centering}
-\begin{Large}
-Summary for oniomMacGyver 
-\end{Large}
-\end{centering}
+\textbf{Prepare}
 
-\section{Gaussian scripts}
-Read full usage description by running a script with \texttt{--help} or \texttt{-h}
+\noindent
+\hrulefill
 
-\subsection{prepare ONIOM inputs} 
-\begin{tabular}{|R{2.5cm}|C{4.5cm}|C{1cm}|C{7cm}|}
-    \hline
-     & In & Out & Motivation \\
-    \hline
-    \texttt{gau\_prmtop2gaucom.py} & \texttt{.prmtop} (or \texttt{.top}) \newline plus \newline
-\texttt{.inpcrd} (or \texttt{.crd} / \texttt{.rst}) & \texttt{.com} &
-Exact copy of forcefield parameters from Amber topology to gaussian.com file.
-Specially useful with parameterized ligands and newer forcefields
-(gaussian uses ff94 by default).\\
-\hline
-    \texttt{gfreezer.py} & \texttt{.com} & \texttt{.com}  & 
-    Freeze protein further than a distance from high layer.
-    Can be used to generate an external layer of water molecules.\\
-\hline
-\end{tabular}
+\vspace{3mm}
 
-\subsection{monitor and analysis}
-\begin{tabular}{|r|C{2.5cm}|C{1.5cm}|C{8cm}|}
-    \hline
-     & In & Out & Motivation \\
-    \hline
-    \texttt{g2pdb.py} & \texttt{.log} / \texttt{.com} & \texttt{.pdb} &
-Visualize scans and optimizations in VMD or Pymol by producing a .pdb file. \\
-    \hline
-    \texttt{hiig.py} & \texttt{.log} & & Get convergence situation of a job and a
- plot of energy along scan or optimization. \\
-    \hline
-    \texttt{gsurf.py} & any number of \texttt{.log} files & 3D plot & Plot energy 
-against 2 reaction coordinates in a 3D plot. \\
-    \hline
-\end{tabular}
+\textbf{gau\_prmtop2gaucom.py} (former amboniom.py)
 
-\subsection{restart jobs}
-\begin{tabular}{|r|C{2.5cm}|C{1.5cm}|C{8cm}|}
-    \hline
-     & In & Out & Motivation \\
-    \hline
-    \texttt{gx.py} & \texttt{.log} & \texttt{.com} &
-Restart calculation from a specific scan point (the last by default). \\
-    \hline
-    \texttt{gscan.py} & \texttt{.com} & \texttt{.com} & 
-    Automatically set up scans by specifing final distance of
-    reaction coordinate.\\
-    \hline
-    \texttt{paimei.py} &  &  & Automatically restarts error jobs.
-Works well with scans and ground state optimizations. Read the manual for
-    instructions. \\
-    \hline
-\end{tabular}
+\noindent
+Convert Amber topology to ONIOM model.
+
+\vspace{3mm}
+
+\textbf{gau\_freezecom.py} (former gfreezer.py)
+
+\noindent
+Freeze complete residues beyond specified distance.
+
+\vspace{3mm}
+
+\textbf{gau\_setscan.py} (former gscan.py)
+
+\noindent
+Specify target distance (or number of steps) of a scan.
 
 
+\vspace{9mm}
 
-%%%%\section{Cheat Sheet}
-%%%%
-%%%%\subsection{prepare ONIOM inputs} 
-%%%%
-%%%%\texttt{amboniom.py --top (.top/.prmtop) --crd (.rst/.crd/.inpcrd)
-%%%% --newgau new\_model.com}
-%%%%
-%%%%\vspace{3mm}
-%%%%
-%%%%\texttt{gfreezer.py model.com --keep 1000 -w -f 13}
-%%%%
-%%%%\subsection{monitor and analyze jobs}
-%%%%
-%%%%\texttt{g2pdb.py (.com/.log) -N -o -1 -s all -p newfile.pdb}
-%%%%
-%%%%\vspace{3mm}
-%%%%
-%%%%\texttt{hiig.py .log}
-%%%%
-%%%%\vspace{3mm}
-%%%%
-%%%%\texttt{gsurf.py scan1.log scan2.log opt3.log opt4.log -x 10 20 -y 30 31}
-%%%%
-%%%%\subsection{restart jobs}
-%%%%
-%%%%\texttt{gx.py scan.log -s 4 -o -1 --out scan2.com}
-%%%%
-%%%%\vspace{3mm}
-%%%%
-%%%%\texttt{gscan.py model.com --Bscan 10 20 --Bfreeze 30 31 --target 2.5 --delete}
-%%%%
-%%%%\vspace{3mm}
-%%%%
-%%%%\texttt{paimei.py}
-%%%%
-%%%%
-%%%%
-%%%%
-%%%%
-%%%%Generate a gaussian \textbf{.com} file from an amber topology (\textbf{.prmtop}
-%%%%or \textbf{.top}) and coordinates (\textbf{.rst} or \textbf{.crd} 
-%%%%or \textbf{.inpcrd}). The forcefield in the topology is fully preserved.
-%%%%
-%%%%Freeze residues based on distance \textbf{(-f option)} from high layer. 
-%%%%Can remove all waters except the closest to protein atoms 
-%%%%\texttt{(--keep option)}. More fancy options dedicated to waters available.
+\textbf{Analysis}
 
+\noindent
+\hrulefill
 
-%\section{Standardization of options}
-%
-%This is yet to be implemented, if we all agree.
-%
-%\begin{itemize}
-%    \item \texttt{-o} --- optimization steps
-%    \item \texttt{-s} --- scan steps
-%    \item \texttt{--out} --- filename for output of script
-%    \item \texttt{-e} --- energy type (oniom/scf/low)
-%    
-%\end{itemize}
+\vspace{3mm}
 
-%
-%\section{Installation}
-%
-%\section{Building an ONIOM Model}
-%
-%\section{Monitoring and Analysis}
-%
-%\section{Restarting calculation}
-%
+\textbf{gau\_makepdb.py} (former g2pdb.py)
+
+\noindent
+Make a .pdb file from .log or .com.
+
+\vspace{3mm}
+
+\textbf{gau\_plot2dscan.py} (former gsurf.py)
+
+\noindent
+Plot energy as a function of 2 coordinates in 3D space.
+
+\vspace{3mm}
+
+\textbf{gau\_checklog.py} (former hiig.py)
+
+\noindent
+Check energies and convergence status.
+
+\vspace{3mm}
+
+\textbf{gau\_energies.py} (former g09out\_analysis.py)
+
+\noindent
+Print energies to .csv file for analysis in spreadsheet.
+
+\vspace{3mm}
+
+\textbf{gau\_measure.py}
+
+\noindent
+Measure distance, angle or dihedral.
+
+\vspace{9mm}
+
+\textbf{Restart}
+
+\noindent
+\hrulefill
+
+\vspace{3mm}
+
+\textbf{gau\_autorestart.py} (former paimei.py)
+
+\noindent
+Automatically restart calculations on linux cluster. Specially useful for
+microiterations and internal coordinates errors.
+
+\vspace{3mm}
+
+\textbf{gau\_log2com.py} (former gx.py)
+
+\noindent
+Make a new .com file from any opt/scan point from a .log file.
+
+\vspace{9mm}
+
+\textbf{Miscellaneous}
+
+\noindent
+\hrulefill
+
+\vspace{3mm}
+
+\textbf{gau\_add\_line.py} 
+
+\noindent
+Resolve Gaussview problem in reading all .log lines as ModRed.
 
 
 \end{document}
