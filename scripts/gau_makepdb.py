@@ -41,11 +41,15 @@ def get_args():
     parser.add_argument('-o', '--opt_step',
                     help='Scan step ("all" or integer) default = last = 0"',
                         default='0')
-    parser.add_argument('-n', '--nohighlayer',
-                    help='Dont make .pdb for highlayer only',
-                    action='store_true', default=False)
+    #parser.add_argument('-n', '--nohighlayer',
+    #                help='Dont make .pdb for highlayer only',
+    #                action='store_true', default=False)
+    parser.add_argument('-a', '--altloc',
+        help='layers/mask info in altLoc', action='store_true')
+    parser.add_argument('-f', '--files',
+        help='layers/mask in different files', action='store_true')
     parser.add_argument('--pdb', help='Name for output .pdb file')
-    parser.add_argument('--pdbh', help='Name .pdb file with high layer only')
+    #parser.add_argument('--pdbh', help='Name .pdb file with high layer only')
     parser.add_argument('--align',
                     help='Request Pymol alignment', default=False,
                     action='store_true')
@@ -61,19 +65,17 @@ def get_args():
     args.ext = input_extension
     args.base = basename
 
-    # highlayer
-    args.highlayer = not args.nohighlayer
-    if args.pdbh and args.nohighlayer:
-        sys.stderr.write('CONFLICTING OPTIONS:\n')
-        sys.stderr.write('  --pdbh and --nohighlayer\n')
-        sys.stderr.write('Aborting.\n')
-        sys.exit(2)
+    ## highlayer
+    #args.highlayer = not args.nohighlayer
+    #if args.pdbh and args.nohighlayer:
+    #sys.stderr.write('CONFLICTING OPTIONS:\n')
+    #    sys.stderr.write('  --pdbh and --nohighlayer\n')
+    #    sys.stderr.write('Aborting.\n')
+    #    sys.exit(2)
 
     # output
     if not args.pdb:
         args.pdb = args.base + '.pdb'
-    if args.highlayer and not args.pdbh:
-        args.pdbh = args.base + '.highlayer.pdb'
 
     # scan and opt steps
     args.scan_step = pts_to_int(args.scan_step)
@@ -103,60 +105,84 @@ def write_pdb(gaulog, scan_pts, opt_pts, args):
 
     # produce txt output
     txt = ''
-    txth = ''
+    txtf = {}
     model_number = 0
     for byte in chosen_bytes:
         model_number += 1
         xyz = gaulog.read_coordinates('all', byte)
         counter = 0 
+        txtd = {}
         txt += 'MODEL %d\n' % model_number
-        txth += 'MODEL %d\n' % model_number
         for (coords, atom) in zip(xyz, gaulog.atoms_list):
             counter += 1 # consistent with gaussian line number
             atom.SetVector(coords[0],coords[1],coords[2])
             atom.set_pdbinfo(atoms.PDBinfo('ATOM', counter))
+            if atom.oniom and args.files:
+                layermask = (atom.oniom.layer, atom.oniom.mask)
+                if layermask not in txtd:
+                    txtd[layermask] = []
+                txtd[layermask].append(iolines.atom2pdb(atom))
+            elif atom.oniom and args.altloc:
+                atom.pdbinfo.altloc = atom.oniom.layer
             txt += iolines.atom2pdb(atom)
-            if atom.oniom and args.highlayer:
-                if atom.oniom.layer == 'H':
-                    txth += iolines.atom2pdb(atom)
         txt += 'ENDMDL\n'
-        txth += 'ENDMDL\n'
-    return txt, txth
+        if model_number == 1:
+            for layermask in txtd:
+                txtf[layermask] = ''
+        for layermask in txtd:
+            txtf[layermask] += 'MODEL %d\n' % model_number
+            for line in txtd[layermask]:
+                txtf[layermask] += line
+            txtf[layermask] += 'ENDMDL\n'
+    return txt, txtf
 
 def main():
     
     args = get_args()
 
+    print args
+
     # .com file ?
     if args.ext == '.com':
         gaucom = GAUCOM(args.gau)
         txt = ''
-        txth = ''
+        txtf = {}
         for (i,at) in enumerate(gaucom.atoms_list):
             at.set_pdbinfo(atoms.PDBinfo('ATOM', i))
             txt += iolines.atom2pdb(at)
-            if at.oniom and args.highlayer:
-                if at.oniom.layer == 'H':
-                    txth += iolines.atom2pdb(at)
+            if at.oniom and args.files:
+                layermask = (at.oniom.layer, at.oniom.mask)
+                if layermask not in txtf:
+                    txtf[layermask] = ''
+                txtf[layermask] += iolines.atom2pdb(at)
+            if at.oniom and args.altloc:
+                at.pdbinfo.altloc = at.oniom.layer
+                txt += iolines.atom2pdb(at)
 
-        with open(args.pdb, 'w') as o:
-            o.write(txt)
+        if not args.files:
+            with open(args.pdb, 'w') as o:
+                o.write(txt)
+            
 
-        if args.highlayer:
-            print 'here'
-            with open(args.pdbh, 'w') as o:
-                o.write(txth)
+        if args.files:
+            for layermask in txtf:
+                l, m = layermask
+                with open('%s.%s.%d.pdb' % (args.base, l, m), 'w') as o:
+                    o.write(txtf[layermask])
         
         return 0
 
     # Gaussian .log
     gaulog = GAULOG(args.gau)
-    txt, txth = write_pdb(gaulog, args.scan_step, args.opt_step, args)
-    with open(args.pdb, 'w') as o:
-        o.write(txt)
-    if args.highlayer:
-        with open(args.pdbh, 'w') as o:
-            o.write(txth)
+    txt, txtf = write_pdb(gaulog, args.scan_step, args.opt_step, args)
+    if not args.files:
+        with open(args.pdb, 'w') as o:
+            o.write(txt)
+    else:
+        for layermask in txtf:
+            l, m = layermask
+            with open('%s.%s.%d.pdb' % (args.base, l, m), 'w') as o:        
+                o.write(txtf[layermask])
 
     # Alignment Pymol
     if 'all' not in [args.scan_step, args.opt_step] or not args.align:
