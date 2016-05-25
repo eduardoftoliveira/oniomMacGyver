@@ -140,8 +140,6 @@ def main():
     
     args = get_args()
 
-    print args
-
     # .com file ?
     if args.ext == '.com':
         gaucom = GAUCOM(args.gau)
