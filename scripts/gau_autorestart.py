@@ -90,7 +90,7 @@ def do_restart(gl, gver='d'):
     comname = os.path.splitext(gl.name)[0] + '.com'
     gc = GC(comname)
     for atom,xyz in zip(gc.atoms_list, gl.final_geometry):
-        atom.set_coordinates(xyz.get_coordinates())
+        atom.SetVector(xyz.GetVector())
     newcomname = misc.increment_filename(comname)
     # reduce scan steps accordingly
     steps_done = len(gl.bytedict['orientation:'])-1
