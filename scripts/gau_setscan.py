@@ -80,8 +80,8 @@ elif args.Bscan == None:
 
 def getdist(a,b,gc):
     return geom.distance(
-        gc.atoms_list[a-1].get_coordinates(),
-        gc.atoms_list[b-1].get_coordinates()
+        gc.atoms_list[a-1].GetVector(),
+        gc.atoms_list[b-1].GetVector()
     )
 
 gc = GC(args.COM)
@@ -116,9 +116,9 @@ for m in new_modred:
 # update coordinates
 if args.log:
     gl = GL(args.log)
-    xyz = [atom.get_coordinates() for atom in gl.final_geometry]
+    xyz = [atom.GetVector() for atom in gl.final_geometry]
     for atom, coords in zip(gc.atoms_list, xyz):
-        atom.set_coordinates(coords) 
+        atom.SetVector(coords) 
 
 # calculate scan properties and add to new_modred
 if args.Bscan:
