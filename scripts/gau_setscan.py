@@ -79,10 +79,13 @@ elif args.Bscan == None:
         sys.exit(2)
 
 def getdist(a,b,gc):
-    return geom.distance(
-        gc.atoms_list[a-1].GetVector(),
-        gc.atoms_list[b-1].GetVector()
-    )
+    x1 = gc.atoms_list[a-1].GetX()
+    y1 = gc.atoms_list[a-1].GetY()
+    z1 = gc.atoms_list[a-1].GetZ()
+    x2 = gc.atoms_list[b-1].GetX()
+    y2 = gc.atoms_list[b-1].GetY()
+    z2 = gc.atoms_list[b-1].GetZ()
+    return geom.distance((x1, y1, z1), (x2, y2, z2))
 
 gc = GC(args.COM)
 
