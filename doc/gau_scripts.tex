@@ -1,0 +1,119 @@
+\documentclass[11pt,a4paper]{article}
+\usepackage{fullpage}
+%%\usepackage{courier}
+\usepackage{graphicx}
+\usepackage{indentfirst}
+\usepackage{array}
+\newcolumntype{L}[1]{>{\raggedright\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{C}[1]{>{\centering\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{R}[1]{>{\raggedleft\let\newline\\\arraybackslash\hspace{0pt}}m{#1}}
+
+\begin{document}
+
+\textbf{Prepare}
+
+\noindent
+\hrulefill
+
+\vspace{3mm}
+
+\textbf{gau\_prmtop2gaucom.py} (former amboniom.py)
+
+\noindent
+Convert Amber topology to ONIOM model.
+
+\vspace{3mm}
+
+\textbf{gau\_freezecom.py} (former gfreezer.py)
+
+\noindent
+Freeze complete residues beyond specified distance.
+
+\vspace{3mm}
+
+\textbf{gau\_setscan.py} (former gscan.py)
+
+\noindent
+Specify target distance (or number of steps) of a scan.
+
+
+\vspace{9mm}
+
+\textbf{Analysis}
+
+\noindent
+\hrulefill
+
+\vspace{3mm}
+
+\textbf{gau\_makepdb.py} (former g2pdb.py)
+
+\noindent
+Make a .pdb file from .log or .com.
+
+\vspace{3mm}
+
+\textbf{gau\_plot2dscan.py} (former gsurf.py)
+
+\noindent
+Plot energy as a function of 2 coordinates in 3D space.
+
+\vspace{3mm}
+
+\textbf{gau\_checklog.py} (former hiig.py)
+
+\noindent
+Check energies and convergence status.
+
+\vspace{3mm}
+
+\textbf{gau\_energies.py} (former g09out\_analysis.py)
+
+\noindent
+Print energies to .csv file for analysis in spreadsheet.
+
+\vspace{3mm}
+
+\textbf{gau\_measure.py}
+
+\noindent
+Measure distance, angle or dihedral.
+
+\vspace{9mm}
+
+\textbf{Restart}
+
+\noindent
+\hrulefill
+
+\vspace{3mm}
+
+\textbf{gau\_autorestart.py} (former paimei.py)
+
+\noindent
+Automatically restart calculations on linux cluster. Specially useful for
+microiterations and internal coordinates errors.
+
+\vspace{3mm}
+
+\textbf{gau\_log2com.py} (former gx.py)
+
+\noindent
+Make a new .com file from any opt/scan point from a .log file.
+
+\vspace{9mm}
+
+\textbf{Miscellaneous}
+
+\noindent
+\hrulefill
+
+\vspace{3mm}
+
+\textbf{gau\_add\_line.py} 
+
+\noindent
+Resolve Gaussview problem in reading all .log lines as ModRed.
+
+
+\end{document}

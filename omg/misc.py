@@ -42,13 +42,13 @@ def std(vec):
 
     
 
-T = decimal.Decimal(310.15)
-KB = decimal.Decimal(1.3806488E-23)
-R = decimal.Decimal(8.31446211)
-HKCAL = decimal.Decimal(627.5095)
-HJOULE = decimal.Decimal(4.3597482E-18)
-JKCAL = decimal.Decimal(0.000239005736)
-NA = decimal.Decimal(6.0221413e+23)
+T = decimal.Decimal('310.15')
+KB = decimal.Decimal('1.3806488E-23')
+R = decimal.Decimal('8.31446211')
+HKCAL = decimal.Decimal('627.5095')
+HJOULE = decimal.Decimal('4.3597482E-18')
+JKCAL = decimal.Decimal('0.000239005736')
+NA = decimal.Decimal('6.0221413e+23')
 decimal.getcontext().Emax = 999999999999999999
 decimal.getcontext().Emin = -999999999999999999
 
