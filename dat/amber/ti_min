@@ -8,7 +8,7 @@ http://ambermd.org/doc12/
   ntx=1,     
   maxcyc=500,
   ntpr=100,  
-  ntmin=1,   
+  ntmin=2,   
   ntf=1,     
   ntc=1,     
   ntb=1,     
