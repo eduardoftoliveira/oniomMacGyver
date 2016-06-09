@@ -136,6 +136,9 @@ if args.Bscan:
     elif args.target and args.stepsize:
         stepsize = args.stepsize
         nsteps = (args.target - curr_dist) / args.stepsize
+        if nsteps < 0:
+            nsteps = -nsteps
+            stepsize = -args.stepsize
     elif not args.target and (args.nsteps and args.stepsize): 
         stepsize = args.stepsize
         nsteps = args.nsteps
