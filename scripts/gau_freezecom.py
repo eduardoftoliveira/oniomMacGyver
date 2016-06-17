@@ -4,8 +4,8 @@ from os.path import splitext
 from os import path
 import sys
 import subprocess
-from gaussian import GaussianCom as GAUCOM
-import atoms, iolines, geom
+from omg.gaussian.gaussian import GaussianCom as GAUCOM
+from omg import atoms, iolines, geom
 import getopt, math
 import bhtree
 import numpy as np
