@@ -119,10 +119,10 @@ def main():
     non_wat_xyz = []
     for i,atom in enumerate(gaucom.atoms_list):
         if atom.oniom.layer == 'H':
-            highlayer_xyz.append(atom.get_coordinates())
+            highlayer_xyz.append((atom.GetX(), atom.GetY(), atom.GetZ()))
         if not atom.resinfo.resname == 'WAT' or atom.oniom.layer == 'H':
-            non_wat_xyz.append(atom.get_coordinates())
-        all_xyz.append(atom.get_coordinates())
+            non_wat_xyz.append((atom.GetX(), atom.GetY(), atom.GetZ()))
+        all_xyz.append((atom.GetX(), atom.GetY(), atom.GetZ()))
 
     if not len(highlayer_xyz):
         print('WELL WELL...')
@@ -167,7 +167,7 @@ def main():
             if resID[0] == 'WAT':
                 waters = [gaucom.atoms_list[i] for i in resID_dict[resID]]
                 if 'H' not in [a.oniom.layer for a in waters]:
-                    xyz = [a.get_coordinates() for a in waters]
+                    xyz = [(atom.GetX(), atom.GetY(), atom.GetZ()) for a in waters]
                     dists.append((resID, min_dist(xyz, non_wat_xyz)))
             if (i+1)%1001 == 0:
                 print(i)
