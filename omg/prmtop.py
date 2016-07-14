@@ -776,7 +776,7 @@ class Prmtop():
         return x,y,z
 
 
-    def gen_oniom(self, filename, inpcrd, tip3p, vmd_sel = ''): # default to all!
+    def gen_oniom(self, filename, inpcrd, notip3p, vmd_sel = ''): # default to all!
         """This is Awesome"""
 
         # Open outfile (Force Overwrite)
@@ -819,7 +819,7 @@ class Prmtop():
             out.write(ang.print_gaussian_way() + '\n')
 
         # tip3p
-        if tip3p:
+        if not notip3p:
             out.write('HrmBnd1 HW HW OW 0.00 0.00\n')
             out.write('HrmBnd1 HW OW HW 0.00 0.00\n')
 
