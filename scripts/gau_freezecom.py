@@ -127,15 +127,18 @@ def main():
     if not len(highlayer_xyz) and freeze_angs:
         print('WELL WELL...')
         print('     no highlayer defined, freezing nothing')
+        sys.exit()
     elif freeze_angs == False:
+        print "here"
         freeze_idx = [False for _ in all_xyz]        
         if freeze_mm_wat:
+            print "here"
             for (i,xyz) in enumerate(all_xyz):
                 atom = gaucom.atoms_list[i]
                 freeze_idx[i] = (atom.oniom.layer=='L' and
                     atom.resinfo.resname=='WAT')
     else:
-    # indexes to freeze
+        # indexes to freeze
         CUTOFF = freeze_angs + 1.0
         freeze_idx = [False for _ in all_xyz]
         for (i,xyz) in enumerate(all_xyz):
@@ -146,13 +149,13 @@ def main():
             freeze_idx[i] = tofreeze
 
 
-        # byres
-        freeze_idx = byres(resID_dict, freeze_idx)
+    # byres
+    freeze_idx = byres(resID_dict, freeze_idx)
 
-        # freeze now
-        for (i, at) in enumerate(gaucom.atoms_list):
-            if freeze_idx[i]:
-                at.oniom.mask = MASK
+    # freeze now
+    for (i, at) in enumerate(gaucom.atoms_list):
+        if freeze_idx[i]:
+            at.oniom.mask = MASK
 
 
     # delete waters?
