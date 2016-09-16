@@ -23,9 +23,9 @@ def min_dist(setA, setB, CUTOFF = 8.0):
 
 def usage():
     print('usage:')
-    print('  gfreezer.py gaussian_input.com')
+    print('  gau_freezecom.py gaussian_input.com')
     print('options:')
-    print('  -f (float)     dist to freeze      [default: 15 Angstroms ]')
+    print('  -f (float)     dist to freeze      [default: do not freeze]')
     print('  -o (string)    new gau input       [default: input + .frost.com]')
     print('  -w             freeze low WAT      [default: no freeze]')
     print('  -d (float)     dist 2 del WAT      [default: -1]')
@@ -93,7 +93,7 @@ def main():
     
     # defaults
     outputname = basename + '.frost.com'
-    freeze_angs = 15
+    freeze_angs = False
     freeze_mm_wat = False
     del_wat_angs = False
     keep_N_wat = False
@@ -124,9 +124,16 @@ def main():
             non_wat_xyz.append((atom.GetX(), atom.GetY(), atom.GetZ()))
         all_xyz.append((atom.GetX(), atom.GetY(), atom.GetZ()))
 
-    if not len(highlayer_xyz):
+    if not len(highlayer_xyz) and freeze_angs:
         print('WELL WELL...')
         print('     no highlayer defined, freezing nothing')
+    elif freeze_angs == False:
+        freeze_idx = [False for _ in all_xyz]        
+        if freeze_mm_wat:
+            for (i,xyz) in enumerate(all_xyz):
+                atom = gaucom.atoms_list[i]
+                freeze_idx[i] = (atom.oniom.layer=='L' and
+                    atom.resinfo.resname=='WAT')
     else:
     # indexes to freeze
         CUTOFF = freeze_angs + 1.0
