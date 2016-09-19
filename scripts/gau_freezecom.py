@@ -129,10 +129,8 @@ def main():
         print('     no highlayer defined, freezing nothing')
         sys.exit()
     elif freeze_angs == False:
-        print "here"
         freeze_idx = [False for _ in all_xyz]        
         if freeze_mm_wat:
-            print "here"
             for (i,xyz) in enumerate(all_xyz):
                 atom = gaucom.atoms_list[i]
                 freeze_idx[i] = (atom.oniom.layer=='L' and
