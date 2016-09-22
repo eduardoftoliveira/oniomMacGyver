@@ -437,9 +437,9 @@ class Prmtop():
 
         chargelist = self.read_flag('CHARGE')
         if 'ATOMIC_NUMBER' in self._flags: # old amboniom_elements.py (glycam)
-            elements = self._read_elements()
-        else:
             elements = self._guess_elements()
+        else:
+            elements = self._read_elements()
             
         total_charge = 0
 
