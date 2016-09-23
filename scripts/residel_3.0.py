@@ -9,9 +9,8 @@ import numpy as np
 import math
 
 # qt modules
-from gaussian import GaussianCom
-from molecules import Molecule
-from elements_database import ATOMIC_NUMBER_DICT
+from omg.gaussian.gaussian import GaussianCom
+from omg.molecules import Molecule
 
 # autodock
 import bhtree
@@ -145,7 +144,7 @@ def main():
         no_electrons = 0
         # correct link atom number and count total number of electrons
         for i, atom in enumerate(new_atoms_list):
-            no_electrons += ATOMIC_NUMBER_DICT[atom.element]
+            no_electrons += atom.GetAtomicNum()
             if atom.oniom.link_bound_to:
                 if int(atom.oniom.link_bound_to) > atoms_list.index(residue[0]):
                     new_atom = copy.deepcopy(atom)
