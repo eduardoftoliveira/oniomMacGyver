@@ -98,10 +98,10 @@ def main():
     non_wat_xyz = []
     for i,atom in enumerate(gaussian_file.atoms_list):
         if atom.oniom.layer == 'H':
-            highlayer_xyz.append(atom.get_coordinates())
+            highlayer_xyz.append((atom.GetX(), atom.GetY(), atom.GetZ()))
         if not atom.resinfo.resname == 'WAT' or atom.oniom.layer == 'H':
-            non_wat_xyz.append(atom.get_coordinates())
-        all_xyz.append(atom.get_coordinates())
+            non_wat_xyz.append((atom.GetX(), atom.GetY(), atom.GetZ()))
+        all_xyz.append((atom.GetX(), atom.GetY(), atom.GetZ()))
 
     if not len(highlayer_xyz):
         print('WELL WELL...')
