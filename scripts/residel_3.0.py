@@ -3,7 +3,6 @@
 # python modules
 import sys
 import os
-import copy
 import getopt
 import numpy as np
 import math
@@ -147,9 +146,7 @@ def main():
             no_electrons += atom.GetAtomicNum()
             if atom.oniom.link_bound_to:
                 if int(atom.oniom.link_bound_to) > atoms_list.index(residue[0]):
-                    new_atom = copy.deepcopy(atom)
-                    new_atom.oniom.link_bound_to = str(int(new_atom.oniom.link_bound_to) - len(residue))
-                    new_atoms_list[i] = new_atom
+                    atom.oniom.link_bound_to = str(int(atom.oniom.link_bound_to) - len(residue))
         #correct charge and multiplicity
         new_protein = Molecule("new_protein", new_atoms_list)
         charge = sum([res.charge() for res in incomplete_residues_list])
