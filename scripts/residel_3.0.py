@@ -149,7 +149,7 @@ def main():
                     atom.oniom.link_bound_to = str(int(atom.oniom.link_bound_to) - len(residue))
         #correct charge and multiplicity
         new_protein = Molecule("new_protein", new_atoms_list)
-        charge = sum([res.charge() for res in incomplete_residues_list])
+        charge = sum([res.get_charge() for res in incomplete_residues_list])
         no_electrons -= round(charge)
         multiplicity = int(gaussian_file.multiplicity_line.split()[1])
         if (no_electrons%2==0 and multiplicity-1%2!=0) or (no_electrons%2==1 and multiplicity-1%2!=1):
