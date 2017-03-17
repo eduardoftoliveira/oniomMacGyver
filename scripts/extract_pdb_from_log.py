@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python2
 
 ##
 ##
@@ -11,9 +11,9 @@ import sys
 import subprocess
 #my modules
     #scripts do ze (inclui na minha $PYTHONPATH no bashrc que eh chamado pelo meu bash_profile)
-from gaussian import GaussianLog
-import atoms
-import iolines
+from omg.gaussian.gaussian import GaussianLog
+from omg import atoms
+from omg import iolines
 
                             
 
@@ -43,7 +43,7 @@ opt_step = input('Type "opt_step" that you which to extract. Options: opt_step="
 
 #verificar se existe o ficheiro
 output = input('Type the name of the output file: ')
-if path.exists(output + '.pdb'):
+if path.exists(str(output) + '.pdb'):
     raise RuntimeError('%s already exists' %(str(output)+".pdb"))
 open_output = open(str(output) + ".pdb", "w")
 
