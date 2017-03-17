@@ -437,9 +437,9 @@ class Prmtop():
 
         chargelist = self.read_flag('CHARGE')
         if 'ATOMIC_NUMBER' in self._flags: # old amboniom_elements.py (glycam)
-            elements = self._read_elements()
-        else:
             elements = self._guess_elements()
+        else:
+            elements = self._read_elements()
             
         total_charge = 0
 
@@ -573,30 +573,37 @@ class Prmtop():
     def _gen_gaff_uppercase(self):
         amber_type_list = self.read_flag('AMBER_ATOM_TYPE')
         amber = []
-        gaff = []
+        others = []
+        digitstart = []
         # Make list of uppercases (AMBER) and lowercases (GAFF)
         for atomtype in amber_type_list:
             if atomtype == atomtype.upper():
-                if atomtype not in amber:
+                if atomtype[0].isdigit():
+                    if atomtype not in digitstart:
+                        digitstart.append(atomtype)
+                elif atomtype not in amber:
                     amber.append(atomtype)
-            elif atomtype == atomtype.lower():
-                if atomtype not in gaff:
-                    gaff.append(atomtype) 
             else:
-                print ('WHAT atomtype IS THIS??? ---> %s' % (atomtype))
-                raise RuntimeError ('Mixed lower/uppercase atom type')
+                if atomtype[0].isdigit():
+                    if atomtype not in digitstart:
+                        digitstart.append(atomtype)
+                elif atomtype not in others:
+                    others.append(atomtype) 
+        #    else:
+        #        print ('WHAT atomtype IS THIS??? ---> %s' % (atomtype))
+        #        raise RuntimeError ('Mixed lower/uppercase atom type')
 
-        # Retypers and substituters for second letter
+        # Retypers and substitutes for second letter
         retype = {}
         alternative_list = []
         substitutes = 'JKXYZ89IV567FGHQRSTULW' # should be enough
-        for atomtype in gaff: # atomtype is .upper() now
+        for atomtype in others: #
             if atomtype.upper() in amber: # need to retype
                 found_alternative = False
                 for s in substitutes:
                     alternative = atomtype[0].upper() + s
                     if (alternative not in amber and
-                        alternative not in gaff and
+                        alternative not in others and
                         alternative not in alternative_list):
                         found_alternative = True
                         retype[atomtype] = alternative
@@ -604,6 +611,21 @@ class Prmtop():
                         break
                 if not found_alternative:
                     raise RuntimeError ('Could not retype %s' %(atomtype))
+
+        for atomtype in digitstart: #
+            found_alternative = False
+            for s in substitutes:
+                alternative = atomtype[1].upper() + s
+                if (alternative not in amber and
+                    alternative not in others and
+                    alternative not in alternative_list):
+                    found_alternative = True
+                    retype[atomtype] = alternative
+                    alternative_list.append(alternative)
+                    break
+            if not found_alternative:
+                raise RuntimeError ('Could not retype %s' %(atomtype))
+
         if len(retype) > 0:
             print ('** lowercase amber atom types (GAFF) have been retyped:')
             print ('---------------')
@@ -615,6 +637,7 @@ class Prmtop():
             print ('\nNOTE:')
             print (' retyping link-atoms solves most missing parameters ;)\n')
         
+        # return list of updated atom types
         new_amber_type = []
         for atomtype in amber_type_list:
             if atomtype in retype:
@@ -776,7 +799,7 @@ class Prmtop():
         return x,y,z
 
 
-    def gen_oniom(self, filename, inpcrd, tip3p, vmd_sel = ''): # default to all!
+    def gen_oniom(self, filename, inpcrd, notip3p, vmd_sel = ''): # default to all!
         """This is Awesome"""
 
         # Open outfile (Force Overwrite)
@@ -819,7 +842,7 @@ class Prmtop():
             out.write(ang.print_gaussian_way() + '\n')
 
         # tip3p
-        if tip3p:
+        if not notip3p:
             out.write('HrmBnd1 HW HW OW 0.00 0.00\n')
             out.write('HrmBnd1 HW OW HW 0.00 0.00\n')
 

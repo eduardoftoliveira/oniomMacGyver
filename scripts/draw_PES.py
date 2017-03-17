@@ -111,6 +111,7 @@ def main():
     plt.subplots_adjust(bottom=.15)
     plt.subplots_adjust(left=.15)
     plt.ylabel('Energy (kcal/mol)')
+    plt.xlabel('Reaction coordinate')
     ax = fig.gca()
     ax.grid(True)
     maxlen = configure_axis_limits(ax, style, args.energies)

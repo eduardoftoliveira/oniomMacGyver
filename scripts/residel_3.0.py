@@ -3,15 +3,13 @@
 # python modules
 import sys
 import os
-import copy
 import getopt
 import numpy as np
 import math
 
 # qt modules
-from gaussian import GaussianCom
-from molecules import Molecule
-from elements_database import ATOMIC_NUMBER_DICT
+from omg.gaussian.gaussian import GaussianCom
+from omg.molecules import Molecule
 
 # autodock
 import bhtree
@@ -99,10 +97,10 @@ def main():
     non_wat_xyz = []
     for i,atom in enumerate(gaussian_file.atoms_list):
         if atom.oniom.layer == 'H':
-            highlayer_xyz.append(atom.get_coordinates())
+            highlayer_xyz.append((atom.GetX(), atom.GetY(), atom.GetZ()))
         if not atom.resinfo.resname == 'WAT' or atom.oniom.layer == 'H':
-            non_wat_xyz.append(atom.get_coordinates())
-        all_xyz.append(atom.get_coordinates())
+            non_wat_xyz.append((atom.GetX(), atom.GetY(), atom.GetZ()))
+        all_xyz.append((atom.GetX(), atom.GetY(), atom.GetZ()))
 
     if not len(highlayer_xyz):
         print('WELL WELL...')
@@ -145,15 +143,13 @@ def main():
         no_electrons = 0
         # correct link atom number and count total number of electrons
         for i, atom in enumerate(new_atoms_list):
-            no_electrons += ATOMIC_NUMBER_DICT[atom.element]
+            no_electrons += atom.GetAtomicNum()
             if atom.oniom.link_bound_to:
                 if int(atom.oniom.link_bound_to) > atoms_list.index(residue[0]):
-                    new_atom = copy.deepcopy(atom)
-                    new_atom.oniom.link_bound_to = str(int(new_atom.oniom.link_bound_to) - len(residue))
-                    new_atoms_list[i] = new_atom
+                    atom.oniom.link_bound_to = str(int(atom.oniom.link_bound_to) - len(residue))
         #correct charge and multiplicity
         new_protein = Molecule("new_protein", new_atoms_list)
-        charge = sum([res.charge() for res in incomplete_residues_list])
+        charge = sum([res.get_charge() for res in incomplete_residues_list])
         no_electrons -= round(charge)
         multiplicity = int(gaussian_file.multiplicity_line.split()[1])
         if (no_electrons%2==0 and multiplicity-1%2!=0) or (no_electrons%2==1 and multiplicity-1%2!=1):
