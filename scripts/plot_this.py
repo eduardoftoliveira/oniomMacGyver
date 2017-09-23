@@ -7,7 +7,7 @@ import numpy as np
 import pylab
 
 ## qt modules
-from misc import grep2list
+from omg.misc import grep2list
 
 PARSER = argparse.ArgumentParser(
         description = """Plots and prints statistical information of values"""
