@@ -286,6 +286,9 @@ def pdbqt2atom(line):
 
 def mol22atom(line):
     "Reads a mol2 atom line and returns the atoms indexes and bond order"
+    """ex:\
+    '      1 O1         -0.5240   -0.4910   -0.1630 os        1 MOL     -0.196235\n'
+    """
     words = line.strip().split()
 
     # basic atom info
@@ -296,12 +299,20 @@ def mol22atom(line):
     atom_type = words[1]
     if len(words) == 9:
         charge = words[8]
+        name = words[1]
+        atom_type = words[5] #changes the info of the atom_type if mol2 has
+                             # 9 fields
     else:
         charge = None
 
-    atom = atoms.Atom(element,(float(x), float(y), float(z)))
+    atom = atoms.Atom(atom_type,(float(x), float(y), float(z)))
     mm_obj = atoms.MM(atom_type, charge)
-    atom.set_mm(mm_obj) 
+    atom.set_mm(mm_obj)
+
+    #resinfo if mol2 has 9 fields
+    if len(words) == 9:
+        resinfo_obj = atoms.RESinfo(name, words[7], words[6], 'X')
+        atom.set_resinfo(resinfo_obj)
 
     return atom
 
@@ -312,5 +323,31 @@ def mol22bond(line):
                        'ar':1.5, 'Ar':1.5, 'Am':1.5, 'am':1.5}
     words = line.strip().split()
     return int(words[1]), int(words[2]), bond_order_dict[words[3]]
+
+def bonds2lines( atoms_list, bonds_list ):
+    """vou fazer um teste aqui para a partir de uma molecule.bond imprimir\
+    uma linha de bond tipo a que se encontra no mol2 (1 1 2 ar) """
+    """i dont know why but the conectivity list created in omg.mol2 has the \
+            atom connected to himself - now i think its corrected"""
+    not_duplicated_bonds = []
+    connectivity_text = []
+    for bond in bonds_list:
+        if bond.atom_a is bond.atom_b:
+            continue
+        elif bond.order == 1.5:
+            bond.order = 'ar'
+        for atom_idx, atom in enumerate(atoms_list):
+            if atom is bond.atom_a:
+                atom_a_idx = atom_idx
+            elif atom is bond.atom_b:
+                atom_b_idx = atom_idx
+
+        not_duplicated_bonds.append(bond)
+        line = " {0} {1} {2} {3} \n".format( len(not_duplicated_bonds),
+            atom_a_idx+1,
+            atom_b_idx+1, 
+            bond.order)
+        connectivity_text.append(line)
+    return connectivity_text
 
 
