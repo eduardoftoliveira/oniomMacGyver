@@ -3,7 +3,10 @@
 # our python modules
 import molecules
 import iolines
+import openbabel as ob
 
+#create a periodic table object                                                 
+PERIODIC_TABLE = ob.OBElementTable()
 
 class Mol2():
     def __init__(self, name):
@@ -35,13 +38,46 @@ class Mol2():
             if line.strip() and "@<TRIPOS>" not in line:
                 index1, index2, order = iolines.mol22bond(line)
                 bond = molecules.Bond(self.atoms[index1-1], 
-                                      self.atoms[index2-2],
+                                      self.atoms[index2-1],
                                       order)
                 bonds.append(bond)
             else:
                 break
         
         return  bonds
+
+    def write_simpler_mol2( self, output_file ):
+        """obabel does not work well with xleap mol2, this functions transforms\
+        a xleap mol2 to a simpler (element only) that can be read by obabel """
+        with open( output_file, 'w') as out_mol2:
+            header_lines = []
+            header_lines.append("@<TRIPOS>MOLECULE\nMOL\n")
+            header_lines.append( "{:>4} {:>4}\n".format( 
+                len(self.atoms), 
+                len(self.bonds) ))
+            header_lines.append("SMALL\nRESP\n\n")
+    
+            atoms_lines = []
+            atoms_lines.append( "@<TRIPOS>ATOM\n" )
+
+            for i, atomo in enumerate(self.atoms):
+                atoms_lines.append(\
+                "{:>7} {elem} {:17.4f} {:10.4f} {:10.4f} {elem} \n".format(\
+                        i+1, 
+                        atomo.GetX(),
+                        atomo.GetY(),
+                        atomo.GetZ(),
+                        elem = PERIODIC_TABLE.GetSymbol( atomo.GetAtomicNum() ) ))
+
+            bonds_lines = []
+            bonds_lines.append( "@<TRIPOS>BOND\n" )
+            bonds_lines.append( "".join( iolines.bonds2lines( self.atoms, self.bonds )) )
+            print bonds_lines
+            out_mol2.write( "".join(header_lines) )
+            out_mol2.write( "".join(atoms_lines) )
+            out_mol2.write( "".join(bonds_lines) )
+
+
 
 def mol2_rm_lp(filename, delhydrogens = True):
     """remove lone pairs from mol2 Gold file"""
