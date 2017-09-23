@@ -37,7 +37,8 @@ class Atom(ob.OBAtom):
             Atom('H', (1.0, 2.0, 3.0))
         """
         ob.OBAtom.__init__(self)
-        self.SetType(atype) 
+        self.SetType(atype)
+        self.SetAtomicNum( PERIODIC_TABLE.GetAtomicNum( atype[0] ))
         self.SetVector(float(xyz[0]), float(xyz[1]), float(xyz[2]))
         self.mm = None
         self.oniom = None
