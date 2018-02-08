@@ -72,11 +72,11 @@ class Mol2():
             bonds_lines = []
             bonds_lines.append( "@<TRIPOS>BOND\n" )
             bonds_lines.append( "".join( iolines.bonds2lines( self.atoms, self.bonds )) )
-            print bonds_lines
+            #print bonds_lines
             out_mol2.write( "".join(header_lines) )
             out_mol2.write( "".join(atoms_lines) )
             out_mol2.write( "".join(bonds_lines) )
-
+        return
 
 
 def mol2_rm_lp(filename, delhydrogens = True):

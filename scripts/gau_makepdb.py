@@ -147,14 +147,17 @@ def main():
         txtf = {}
         for (i,at) in enumerate(gaucom.atoms_list):
             at.set_pdbinfo(atoms.PDBinfo('ATOM', i))
-            txt += iolines.atom2pdb(at)
             if at.oniom and args.files:
                 layermask = (at.oniom.layer, at.oniom.mask)
                 if layermask not in txtf:
                     txtf[layermask] = ''
                 txtf[layermask] += iolines.atom2pdb(at)
+                if at.oniom.layer == 'H':
+                    print at.x()
             if at.oniom and args.altloc:
                 at.pdbinfo.altloc = at.oniom.layer
+                txt += iolines.atom2pdb(at)
+            else:
                 txt += iolines.atom2pdb(at)
 
         if not args.files:
