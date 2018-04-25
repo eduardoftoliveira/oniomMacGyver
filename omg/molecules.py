@@ -4,7 +4,7 @@
 import copy
 
 # qt modules
-from atoms import *   ## BAD
+from omg.atoms import *   ## BAD
 
 class Molecule(list):
     """ List of Atoms """
