@@ -218,6 +218,9 @@ def spacefloat(a_string):
 def pdb2atom(line):
     # start atom
     el = line      [76:78].strip()
+    if el == '':
+        el = ''.join(i for i in line[12:16].strip() if not i.isdigit())[0] #get from atom name
+                                                                    #after eliminating numbers
     x  = float(line[30:38])
     y  = float(line[38:46])
     z  = float(line[46:54])
