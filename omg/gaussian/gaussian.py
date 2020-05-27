@@ -89,29 +89,111 @@ class EmptyGaussianCom():
         self.atoms_list = []# ob.OBMol()
         self.additional_input_dict = ADDITIONAL_INPUT_DICT.copy()
 
-    def write_to_file(self,name):
-        self.additional_input_dict['modred'] = [m.write() for m in self.modreds]
+    def write_to_file(self, name):
+        """ wrapper around self.write_text()
+            to provide backwards compatibility"""
+
+        text = self.write_text()
         with open(name, 'w') as gaussian_com_file:
-            for line in self.link_0_commands:
-                gaussian_com_file.write(line)
-            gaussian_com_file.write(self.route_section.write().replace('\n ','\n')) # FIXME
-            gaussian_com_file.write("\n")   
-            gaussian_com_file.write(self.title_line)
-            gaussian_com_file.write("\n")
-            gaussian_com_file.write(self.multiplicity_line)
+            gaussian_com_file.write(text)
+
+    def write_text(self, exclude_fragments=None):
+        """ produce text that becomes .com file
+            allows user to exclude counterpoise fragments
+        """
+
+        self.additional_input_dict['modred'] = [m.write() for m in self.modreds]
+
+        if type(exclude_fragments) == int:
+            if len(self.additional_input_dict['connect']) > 0:
+                raise RuntimeError('cant exclude atoms without updating connectivity\n')
+            rs_text = self.route_section.write().replace('\n ','\n') # FIXME
+            fields = rs_text.split()
+            found = False
+            for field in fields:
+                if 'counterpoise' in field.lower():
+                    found = True
+                    n_frags = int(field.split('=')[1])
+                    rs_text = rs_text.replace('counterpoise=%d' % (n_frags),
+                                              'counterpoise=%d' % (n_frags - 1))
+            if found == False:
+                raise RuntimeError()
+        elif type(exclude_fragments) == list:
+            raise RuntimeError()
+        elif type(exclude_fragments) == type(None):
+            rs_text = self.route_section.write().replace('\n ','\n') # FIXME
+        else:
+            raise RuntimeError()
+
+        text = ''
+        for line in self.link_0_commands:
+            text += line
+        #text += self.route_section.write().replace('\n ','\n') # FIXME
+        text += rs_text
+        text += "\n"
+        text += self.title_line
+        text += "\n"
+        if type(exclude_fragments) == type(None):
+            text += self.multiplicity_line
+        elif type(exclude_fragments) == int:
+            mult_ints = [int(x) for x in self.multiplicity_line.split()]
+
+            # there is only global charge multiplicity
+            if len(mult_ints) == 2:
+                text += self.multiplicity_line
+
+            # there is charge/multiplicity for fragments
+            else:
+                charges = [x for (i, x) in enumerate(mult_ints) if (i % 2) == 0] 
+                mults = [x for (i, x) in enumerate(mult_ints) if (i % 2) == 1] 
+                if set(mults) != set([1]):
+                    raise RuntimeError()
+                global_charge = charges.pop(0)
+                global_mult = mults.pop(0)
+                charges.pop(exclude_fragments - 1)
+                mults.pop(exclude_fragments - 1)
+                global_charge = sum(charges)
+                multiplicity_line = '%d ' % global_charge
+                multiplicity_line += '%d' % global_mult
+                for c, m in zip(charges, mults):
+                    multiplicity_line += ' '
+                    multiplicity_line += '%d ' % c
+                    multiplicity_line += '%d' % m
+                multiplicity_line += '\n'
+                text += multiplicity_line 
+        else:
+            raise RuntimeError()
+
+        if type(exclude_fragments) == int:
             for atom in self.atoms_list:
-                line = iolines.atom2zmat(atom)
-                gaussian_com_file.write(line)                
-            for section in self.additional_input_dict:
-                if self.additional_input_dict[section]:
-                    gaussian_com_file.write("\n")
-                    if section == 'first' and 'soft' in self.route_section.text:
-                        gaussian_com_file.write("\n")
-                    elif section == 'dftb=read' and 'dftb=read' in self.route_section.text:
-                        gaussian_com_file.write("\n")
-                    for line in self.additional_input_dict[section]:
-                        gaussian_com_file.write(line)
-            gaussian_com_file.write("\n\n\n\n\n")
+                if atom.fragment == exclude_fragments:
+                    continue
+                elif atom.fragment > exclude_fragments:
+                    atom.fragment -= 1 
+                    text += iolines.atom2zmat(atom)
+                    atom.fragment += 1
+                else:
+                    text += iolines.atom2zmat(atom)
+        elif type(exclude_fragments) == type(None):
+            for atom in self.atoms_list:
+                text += iolines.atom2zmat(atom)
+        else:
+            raise RuntimeError()
+
+        for section in self.additional_input_dict:
+            if self.additional_input_dict[section]:
+                text += "\n"
+                if section == 'first' and 'soft' in self.route_section.text:
+                    text += "\n"
+                    #pass # TODO fix this
+                elif section == 'dftb=read' and 'dftb=read' in self.route_section.text:
+                    text += "\n"
+                for line in self.additional_input_dict[section]:
+                    text += line
+
+        text += "\n\n\n\n\n"
+
+        return text
 
 class GaussianCom(EmptyGaussianCom):
     def __init__(self, name):
@@ -201,7 +283,8 @@ class GaussianCom(EmptyGaussianCom):
             if key in self.route_section.text.replace("only","first"):
                 if (key == "first" and "soft" in self.route_section.text) or\
                    (key == "dftb=read"):
-                    shift += 1
+                    shift += 1 # This changes from a to d versions??? TODO
+                    #shift += 0 # TODO FIX
                 
                 i_start, i_finish = b_lines[2+shift]+1,b_lines[3+shift]
                 additional_input_dict[key]= self.lines[i_start: i_finish]
@@ -273,6 +356,7 @@ class GaussianLog():
 
         # make a function for this
         (donebytes, bytelist) = self._check_bytelist()
+        self.bytelist = bytelist
         bytelist = self._grep_bytelist(bytelist, donebytes)
         self.bytedict = self.bytelist2dict(bytelist)
         self.grep_bytes = self.bytedict # stupid thing to do
@@ -285,8 +369,9 @@ class GaussianLog():
         #self.convergency   = self._read_convergency()  # RMS Force, etc...
         self.atoms_list     = self._Zmat_to_atoms_list()
         #self.summary = self._generate_summary()
-        self.final_geometry = self.read_geometry(-1, -1)
-        self._save_bytelist(bytelist, self._gen_signature())
+        if 'opt' in self.route_section:
+            self.final_geometry = self.read_geometry(-1, -1)
+            self._save_bytelist(bytelist, self._gen_signature())
         self.termination    = self.get_termination()   # read error / normal
         self.gaussian_version = self.get_gaussian_version()
         self.close_file()
@@ -301,7 +386,8 @@ class GaussianLog():
             'Step number',                  
             'Optimized Parameters',        # Also reads Non-Opt... 
             'Delta-x Convergence Met',     # For IRC
-            'CORRECTOR']                  # For IRC
+            'CORRECTOR',                   # For IRC
+            'Counterpoise corrected energy']
         return grep_keywords
 
     def _read_zmat(self, locbyte):
@@ -340,7 +426,7 @@ class GaussianLog():
         # haz file?
         bytelist_filename = '%s.bytelist' % self.name
         if not hazfile(bytelist_filename): 
-            stderr.write('Bytelist: no file\n')
+            # stderr.write('Bytelist: no file\n')
             return (0, [])
 
         # load bytelist
@@ -460,11 +546,15 @@ class GaussianLog():
         for key in self.grep_keywords:
             bytedict[key] = [[]] 
         buffer_ONIOM_calculating_energy = False
+        buffer_SCF_Done = False
+        buffer_counterpoise = None
         for (byte, key) in bytelist:
             if key == 'orientation:':
                 buffer_orientation = byte
             elif key == 'SCF Done:':
                 buffer_SCF_Done = byte
+            elif key == 'Counterpoise corrected energy':
+                buffer_counterpoise = byte
             elif key == 'ONIOM: calculating energy.':
                 buffer_ONIOM_calculating_energy = byte
             elif key == 'Step number':
@@ -474,6 +564,7 @@ class GaussianLog():
                 bytedict['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
                 bytedict['orientation:'][-1].append(buffer_orientation)   # buffered
                 bytedict['Step number'][-1].append(buffer_Step_number)    # buffered
+                bytedict['Counterpoise corrected energy'][-1].append(buffer_counterpoise)
                 # now, append if oniom only
                 if buffer_ONIOM_calculating_energy: 
                     bytedict['ONIOM: calculating energy.'][-1].append(
@@ -486,6 +577,7 @@ class GaussianLog():
                 bytedict['Step number'].append([])
                 bytedict['Converged?'].append([])
                 bytedict['orientation:'].append([])
+                bytedict['Counterpoise corrected energy'].append([])
 
         # Last list may be a ghost
         if bytedict['orientation:'][-1] == []:
@@ -572,6 +664,7 @@ class GaussianLog():
         ONIOM_real_low  = []
         ONIOM_lowlayer_low = []
         SCF_energy = []
+        counterpoise_energy = []
 
         f = open(self.name)
         for complete_opt in oniom_loc_bytes:
@@ -602,11 +695,21 @@ class GaussianLog():
                 f.seek(location_byte)
                 SCF_energy[-1].append(float(f.readline().split('=')[1].split()[0]))
 
+        # counterpoise
+        for complete_opt in self.bytedict['Counterpoise corrected energy']:
+            counterpoise_energy.append([])
+            for location_byte in complete_opt:
+                if location_byte == None:
+                    break
+                f.seek(location_byte)
+                counterpoise_energy[-1].append(float(f.readline().split('=')[1]))
+
         energies = {}
         energies['ONIOM_extrapol'] = ONIOM_extrapol
         energies['ONIOM_model_high'] = ONIOM_model_high
         energies['ONIOM_lowlayer_low'] = ONIOM_lowlayer_low
         energies['SCF_energy'] = SCF_energy
+        energies['counterpoise'] = counterpoise_energy
         return energies
 
 

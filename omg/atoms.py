@@ -43,6 +43,7 @@ class Atom(ob.OBAtom):
         self.oniom = None
         self.resinfo = None
         self.pdbinfo = None
+        self.fragment = None
         
     def __repr__(self):
         return self.GetType()
@@ -60,6 +61,7 @@ class Atom(ob.OBAtom):
         self.pdbinfo = pdbinfo_obj
 
     def GetDihedral(self, b, c, d):
+        a = (self.GetX(), self.GetY(), self.GetZ())
         b = (b.GetX(), b.GetY(), b.GetZ())
         c = (c.GetX(), c.GetY(), c.GetZ())
         d = (d.GetX(), d.GetY(), d.GetZ())

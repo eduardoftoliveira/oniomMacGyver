@@ -43,7 +43,8 @@ def anymetric(TUPLIST):
         A,B,C,D = TUPLIST
         return dihedral(A,B,C,D)
     else:
-        raise RuntimeError('len(TUPLIST) must be 2,3 or 4')
+        print 'TUPLIST IS:', TUPLIST
+        raise RuntimeError('len(TUPLIST) must be 2,3 or 4.\n')
 
 def difang(a, b):
     """min RADIANs difference either clock or counter-clock-wise"""
@@ -52,14 +53,19 @@ def difang(a, b):
 
 def rot3D(pt, ax, rad):
     """
-Rotate point:
-pt = (x,y,z) coordinates to be rotated
-ax = vector around wich rotation is performed
-rad = rotate by "rad" radians
-"""
+        Rotate point:
+        pt = (x,y,z) coordinates to be rotated
+        ax = vector around wich rotation is performed
+        rad = rotate by "rad" radians
+    """
+    # If axis has len=0, rotate by 0.0 rad on any axis
     # Make sure ax has unitary length
-    len_ax = distance(ax, (0,0,0))
-    u, v, w = [i/len_ax for i in ax]
+    len_ax = distance(ax, (0, 0, 0))
+    if len_ax == 0.:
+        u, v, w = (1, 0, 0)
+        rad = 0.0
+    else:
+        u, v, w = [i/len_ax for i in ax]
     x, y, z = pt
     ux, uy, uz = u*x, u*y, u*z
     vx, vy, vz = v*x, v*y, v*z

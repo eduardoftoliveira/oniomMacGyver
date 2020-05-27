@@ -41,6 +41,7 @@ def get_args():
     parser.add_argument('-o', '--opt_step',
                     help='Scan step ("all" or integer) default = last = 0"',
                         default='0')
+    parser.add_argument('-r', '--hartree_baseline')
     args = parser.parse_args()
 
     # parse input extension
@@ -117,18 +118,53 @@ def main():
     gl = GAULOG(args.log)
 
     scf     = getel(gl, args.scan_step, args.opt_step, 'SCF_energy')
-    oniom   = getel(gl, args.scan_step, args.opt_step, 'ONIOM_extrapol')
-    high    = getel(gl, args.scan_step, args.opt_step, 'ONIOM_model_high')
-    low     = getel(gl, args.scan_step, args.opt_step, 'ONIOM_lowlayer_low')
+
+    # maybe there's not oniom
+    try:
+        oniom   = getel(gl, args.scan_step, args.opt_step, 'ONIOM_extrapol')
+        high    = getel(gl, args.scan_step, args.opt_step, 'ONIOM_model_high')
+        low     = getel(gl, args.scan_step, args.opt_step, 'ONIOM_lowlayer_low')
+        is_oniom = True
+    except:
+        is_oniom = False
+
+    if 'counterpoise' in gl.route_section:
+        is_counterpoise = True
+    else:
+        is_counterpoise = False
 
     converged, scan_i = getstatus(gl, args.scan_step, args.opt_step)
 
-    line = '%16.8f,%16.8f,%16.8f,%16.8f,%6d,%9s\n'
-    text = '%16s,%16s,%16s,%16s,%6s,%9s\n' % (
-            'SCF', 'Oniom', 'HighLayer', 'LowLayer', 'ScanPt', 'Converged')
-    for s,o,h,l,i,c in zip(scf, oniom, high, low, scan_i, converged ):
-        text += line % (s,o,h,l,i,c)
-    print text,
+    if is_oniom:
+        line = '%16.8f,%16.8f,%16.8f,%16.8f,%6d,%9s\n'
+        text = '%16s,%16s,%16s,%16s,%6s,%9s\n' % (
+                'SCF', 'Oniom', 'HighLayer', 'LowLayer', 'ScanPt', 'Converged')
+        for s,o,h,l,i,c in zip(scf, oniom, high, low, scan_i, converged ):
+            text += line % (s,o,h,l,i,c)
+        print text,
+    elif is_counterpoise:
+        cp = getel(gl, args.scan_step, args.opt_step, 'counterpoise')
+        line = '%16.8f,%6d,%9s\n'
+        text = '%16s,%6s,%9s\n' % (
+                'counterpoise ', 'ScanPt', 'Converged')
+        for e,i,c in zip(cp, scan_i, converged ):
+            text += line % (627.509*(e-min(cp)),i,c)
+        print text,
+   
+    else:
+        line = '%16.8f,%16.8f,%6d,%9s\n'
+        text = '%16s,%16s,%6s,%9s\n' % (
+                'hartree', 'SCF', 'ScanPt', 'Converged')
+
+        if args.hartree_baseline:
+            baseline = float(args.hartree_baseline)
+        else:
+            baseline = min(scf)
+        for s,i,c in zip(scf, scan_i, converged ):
+            text += line % (s, 627.509*(s-baseline),i,c)
+            #text += line % (627.509*(s),i,c)
+        print text,
+
 
 if __name__ == '__main__':
     main()

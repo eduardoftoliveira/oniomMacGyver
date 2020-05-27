@@ -3,33 +3,43 @@
 # qt modules
 from omg import atoms
 
+import sys
+
 # (1)Parsing and (2)Printing
 # Gaussian Z-MAT Line 
 # PDB
 
-def _extract_resinfo(line):
+def _extract_parenthesis(line):
     """extract (PDBName=x,ResName=y,ResNum=0) from rest of line"""
+        #if 'PDBName' in line or 'ResName' in line or 'ResNum' in line:
+    parenthesis = None
     if '(' in line and ')' in line:
-        resinfo = line.split('(')[1].split(')')[0]
+        parenthesis = line.split('(')[1].split(')')[0]
         line = line.split('(')[0] + line.split(')')[1]
     else:
         resinfo = None
-    return line, resinfo
+    return line, parenthesis
 
-def _parse_resinfo(resinfo):
+def _parse_parenthesis(parenthesis):
     """interpret (PDBName=x,ResName=y,ResNum=0)"""
     name, resname, resnum, chain = '', '', '', '' 
-    for info in resinfo.split(','):
+    fragment = None
+    for info in parenthesis.split(','):
         if 'PDBName' in info:
             name = info.split("=")[1].strip()
-        if 'ResName' in info:
+        elif 'ResName' in info:
             resname = info.split("=")[1].strip()
-        if 'ResNum' in info:
+        elif 'ResNum' in info:
             resnum = info.split("=")[1].strip()
             if '_' in resnum : # looks like "123_A"
                 resnum, chain = resnum.split("_")
             resnum = int(resnum) # TODO Will crash if ""
-    return atoms.RESinfo(name, resname, resnum, chain)
+        elif 'Fragment' in info:
+            fragment = int(info.split('=')[1].strip())
+    if fragment:
+        return fragment
+    else:        
+        return atoms.RESinfo(name, resname, resnum, chain)
 
 def _parse_xyz_line(line_splited):
     (el, x, y, z) = line_splited
@@ -85,7 +95,7 @@ def _parse_oniom_line(line_splits):
     return atom
 
 def zmat2atom(line):
-    (line, resinfo) = _extract_resinfo(line)
+    (line, parenthesis) = _extract_parenthesis(line)
     line_splits = line.strip().split(None, 5)
     # gen oniom atom
     if len(line_splits) == 6:
@@ -97,9 +107,12 @@ def zmat2atom(line):
     elif len(line_splits) not in [4,6]:  
         raise RuntimeError('Expected 4 or 6 fields in zmat line')
     # add resinfo if present
-    if resinfo:
-        resinfo_obj = _parse_resinfo(resinfo)
-        atom.set_resinfo(resinfo_obj)
+    if parenthesis:
+        obj = _parse_parenthesis(parenthesis)
+        if type(obj) == int:
+            atom.fragment = obj
+        else:
+            atom.set_resinfo(obj)
     return atom
 
         
@@ -121,6 +134,10 @@ def atom2zmat(atom, print_resinfo = True):
         'ResNum={1.resinfo.resnum}_{1.resinfo.chain})'
         .format(line, atom))
         line = '{0:60s}'.format(line) # fill with spaces
+
+    elif atom.fragment:
+        line = '%s(Fragment=%d)' % (line, atom.fragment)
+        line = '{0:20s}'.format(line)
 
     # add:  mask + (x, y, z) + layer
     if atom.oniom:
@@ -161,6 +178,7 @@ def atom2zmat(atom, print_resinfo = True):
 def atom2pdb(atom):
     if atom.pdbinfo == None:
         atom.set_pdbinfo( atoms.PDBinfo('ATOM', 0) )
+    atom.pdbinfo.bfact = min(999.99, atom.pdbinfo.bfact)
     if not atom.resinfo:
         line =(
         '{1.keyword:<6s}          {1.altloc:1s}' 
@@ -256,7 +274,14 @@ def pdbqt2atom(line):
         'SA':'S', 'S':'S', 'Cl':'Cl', 'CL':'Cl', 'Ca':'Ca', 'CA':'Ca',
         'Mn':'Mn', 'MN':'Mn', 'Fe':'Fe', 'FE':'Fe', 'Zn':'Zn', 'ZN':'Zn',
         'Br':'Br', 'BR':'Br', 'I':'I', 'W':'O'} 
-    atom = atoms.Atom(ad2el[atype], (x,y,z))
+    try:
+        atom = atoms.Atom(ad2el[atype], (x,y,z))
+    except:
+        # guess atom type from first character
+        sys.stderr.write('Guessing element of %s as %s\n' % (
+            atype, atype[0]))
+        atom = atoms.Atom(atype[0], (x,y,z))
+
 
     # residue info
     name        = line      [12:16].strip()     # atom name

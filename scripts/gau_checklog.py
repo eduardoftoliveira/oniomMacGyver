@@ -212,17 +212,20 @@ def main():
                 # x axis for asciiplot
                 x_axis = [start_measure + modred.scan_step_sz*i 
                             for i in range(now_scan_point)]
-                for atomid in modred.atomids:
-                    scan_info[1] += '%d %s, %s\n' % (
-                        gl.atoms_list[atomid-1].resinfo.resnum,
-                        gl.atoms_list[atomid-1].resinfo.resname,
-                        gl.atoms_list[atomid-1].resinfo.name)
-                scan_info[1] += '%s %s %s %d %f\n' % (
-                    modred.coordtype,
-                    ' '.join([str(at) for at in modred.atomids]),
-                    modred.action,
-                    modred.scan_num_pts,
-                    modred.scan_step_sz)
+                try:
+                    for atomid in modred.atomids:
+                        scan_info[1] += '%d %s, %s\n' % (
+                            gl.atoms_list[atomid-1].resinfo.resnum,
+                            gl.atoms_list[atomid-1].resinfo.resname,
+                            gl.atoms_list[atomid-1].resinfo.name)
+                    scan_info[1] += '%s %s %s %d %f\n' % (
+                        modred.coordtype,
+                        ' '.join([str(at) for at in modred.atomids]),
+                        modred.action,
+                        modred.scan_num_pts,
+                        modred.scan_step_sz)
+                except:
+                    pass
                 
     print ('Opt #: %3d out of %3d\n' % (
         now_scan_point, total_scan_num_pts))
@@ -257,6 +260,8 @@ def main():
         if scan_info:
             print('X axis matches %s between:' % scan_info[0])
             print(scan_info[1])
+
+    print x_axis
     
 if __name__ == '__main__':
     main()
