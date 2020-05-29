@@ -261,7 +261,7 @@ def main():
             print('X axis matches %s between:' % scan_info[0])
             print(scan_info[1])
 
-    print x_axis
+    print(x_axis)
     
 if __name__ == '__main__':
     main()

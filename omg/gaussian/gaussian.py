@@ -349,6 +349,7 @@ class GaussianLog():
     def __init__(self, name):
         self.name = name
         self.file = open(self.name, 'r')
+        self.gaussian_version = self.get_gaussian_version()
         self.route_section  = self._read_route_section()
         self.modreds = self._read_modred()
 
@@ -373,10 +374,13 @@ class GaussianLog():
             self.final_geometry = self.read_geometry(-1, -1)
             self._save_bytelist(bytelist, self._gen_signature())
         self.termination    = self.get_termination()   # read error / normal
-        self.gaussian_version = self.get_gaussian_version()
         self.close_file()
 
     def _set_grep_keywords(self):
+        if self.gaussian_version == 'g16':
+            self.counterpoise_keyword = 'Counterpoise corrected energy'
+        else:
+            self.counterpoise_keyword = 'Counterpoise: corrected energy'
         grep_keywords = [
             'atrix:',
             'orientation:',                 # works for both g03 and g09
@@ -387,7 +391,7 @@ class GaussianLog():
             'Optimized Parameters',        # Also reads Non-Opt... 
             'Delta-x Convergence Met',     # For IRC
             'CORRECTOR',                   # For IRC
-            'Counterpoise corrected energy']
+            self.counterpoise_keyword]
         return grep_keywords
 
     def _read_zmat(self, locbyte):
@@ -553,7 +557,7 @@ class GaussianLog():
                 buffer_orientation = byte
             elif key == 'SCF Done:':
                 buffer_SCF_Done = byte
-            elif key == 'Counterpoise corrected energy':
+            elif key == self.counterpoise_keyword:
                 buffer_counterpoise = byte
             elif key == 'ONIOM: calculating energy.':
                 buffer_ONIOM_calculating_energy = byte
@@ -564,7 +568,7 @@ class GaussianLog():
                 bytedict['SCF Done:'][-1].append(buffer_SCF_Done)         # buffered
                 bytedict['orientation:'][-1].append(buffer_orientation)   # buffered
                 bytedict['Step number'][-1].append(buffer_Step_number)    # buffered
-                bytedict['Counterpoise corrected energy'][-1].append(buffer_counterpoise)
+                bytedict[self.counterpoise_keyword][-1].append(buffer_counterpoise)
                 # now, append if oniom only
                 if buffer_ONIOM_calculating_energy: 
                     bytedict['ONIOM: calculating energy.'][-1].append(
@@ -577,7 +581,7 @@ class GaussianLog():
                 bytedict['Step number'].append([])
                 bytedict['Converged?'].append([])
                 bytedict['orientation:'].append([])
-                bytedict['Counterpoise corrected energy'].append([])
+                bytedict[self.counterpoise_keyword].append([])
 
         # Last list may be a ghost
         if bytedict['orientation:'][-1] == []:
@@ -696,7 +700,7 @@ class GaussianLog():
                 SCF_energy[-1].append(float(f.readline().split('=')[1].split()[0]))
 
         # counterpoise
-        for complete_opt in self.bytedict['Counterpoise corrected energy']:
+        for complete_opt in self.bytedict[self.counterpoise_keyword]:
             counterpoise_energy.append([])
             for location_byte in complete_opt:
                 if location_byte == None:
@@ -826,6 +830,10 @@ class GaussianLog():
                         return 'g09d'
                     elif 'g09/c_pgi133' in line:
                         return 'g09c'
+                    elif 'g09' in line:
+                        return 'g09'
+                    elif 'g16' in line:
+                        return 'g16'
                 if MAXLINES < 0:
                     return None
                     #return " Entering Link 1 = NOT FOUND IN FIRST %d LINES" % MAXLINES
@@ -835,7 +843,7 @@ class GaussianLog():
         """read 10 tail lines and return Termination() class"""
         logtail_lines = []
         with open(self.name, 'r') as f:
-            f.seek(max(-800, -getsize(self.name)),2) # approx. 10 tail lines
+            f.seek(max(0, getsize(self.name) - 800)) # approx. 10 tail lines
             for line in f:
                 logtail_lines.append(line)
         return Termination(logtail_lines)       # goes to self.termination

@@ -4,7 +4,7 @@
 import copy
 
 # qt modules
-from atoms import *   ## BAD
+from omg import atoms
 
 class Molecule(list):
     """ List of Atoms """
@@ -146,7 +146,7 @@ def QMMM_to_QM(atoms_list, make_new='True'):
         if atom.oniom.layer == 'H':
             if make_new:
                 ## Warning: At this point we are changing the original atoms"
-                atom = Atom(atom.GetType(), atom.GetVector())
+                atom = atoms.Atom(atom.GetType(), atom.GetVector())
         elif atom.oniom.link_atom:
 # TODO THIS IS NOT COMPATIBLE WITH HOW THE LINK ATOMS ARE DEFINED NOW
             linked_atom = atoms_list[atom.oniom.link_bound_to-1]
@@ -154,7 +154,7 @@ def QMMM_to_QM(atoms_list, make_new='True'):
             new_y = (atom.GetY()-linked_atom.GetY()) *SCALING[linked_atom.GetType()] + linked_atom.GetY()
             new_z = (atom.GetZ()-linked_atom.GetZ()) *SCALING[linked_atom.GetType()] + linked_atom.GetZ()
             if make_new:
-                atom = Atom(atom.oniom.link_atom.element, (0, 0, 0))
+                atom = atoms.Atom(atom.oniom.link_atom.element, (0, 0, 0))
             atom.SetVector(new_x, new_y, new_z)
         else:
             continue

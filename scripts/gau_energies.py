@@ -141,7 +141,7 @@ def main():
                 'SCF', 'Oniom', 'HighLayer', 'LowLayer', 'ScanPt', 'Converged')
         for s,o,h,l,i,c in zip(scf, oniom, high, low, scan_i, converged ):
             text += line % (s,o,h,l,i,c)
-        print text,
+        print(text, end='')
     elif is_counterpoise:
         cp = getel(gl, args.scan_step, args.opt_step, 'counterpoise')
         line = '%16.8f,%6d,%9s\n'
@@ -149,7 +149,7 @@ def main():
                 'counterpoise ', 'ScanPt', 'Converged')
         for e,i,c in zip(cp, scan_i, converged ):
             text += line % (627.509*(e-min(cp)),i,c)
-        print text,
+        print(text, end='')
    
     else:
         line = '%16.8f,%16.8f,%6d,%9s\n'
@@ -163,7 +163,7 @@ def main():
         for s,i,c in zip(scf, scan_i, converged ):
             text += line % (s, 627.509*(s-baseline),i,c)
             #text += line % (627.509*(s),i,c)
-        print text,
+        print(text, end='')
 
 
 if __name__ == '__main__':

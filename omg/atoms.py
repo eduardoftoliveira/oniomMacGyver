@@ -7,7 +7,7 @@ import openbabel as ob
 
 
 #create a periodic table object
-PERIODIC_TABLE = ob.OBElementTable()
+PERIODIC_TABLE = ob.OBElementTable() # TODO in openbabel-3 OBElements::GetSymbol(6);
 
 class Atom(ob.OBAtom):
     """A container for all the information relative to an atom

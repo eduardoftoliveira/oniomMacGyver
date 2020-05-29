@@ -43,7 +43,7 @@ def anymetric(TUPLIST):
         A,B,C,D = TUPLIST
         return dihedral(A,B,C,D)
     else:
-        print 'TUPLIST IS:', TUPLIST
+        print('TUPLIST IS:', TUPLIST)
         raise RuntimeError('len(TUPLIST) must be 2,3 or 4.\n')
 
 def difang(a, b):
